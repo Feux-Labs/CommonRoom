@@ -1,0 +1,200 @@
+# Spec-to-Plan Traceability Checkpoint
+metadata:
+  generated: "2026-10-13"
+  source_spec: "User-provided Schoolmate screen/content specification, updated by user navigation decisions"
+  target_plan: "plan.md"
+summary:
+  total_requirements: 15
+  covered_requirements: 15
+  missing_requirements: 0
+  coverage_percentage: 100.0
+requirements:
+  - req_id: "REQ-001"
+    req_description: "Monochrome, responsive app shell and supplied screen design fidelity"
+    priority: "P1"
+    plan_mapping:
+      phase: "Sprint-1"
+      phase_name: "App shell, Create screen, and Games Hub"
+      items:
+        - item_id: "1.1"
+          description: "Align shell and navigation with the latest decisions"
+        - item_id: "1.2"
+          description: "Rebuild Create to match the supplied mockup"
+        - item_id: "1.3"
+          description: "Rebuild Games Hub to match the supplied mockup"
+    notes: ""
+  - req_id: "REQ-002"
+    req_description: "Authentication, school selection, onboarding, and account verification"
+    priority: "P1"
+    plan_mapping:
+      phase: "Sprint-2"
+      phase_name: "Authentication and onboarding"
+      items:
+        - item_id: "2.1"
+          description: "Build authentication, verification, and account recovery screens"
+        - item_id: "2.2"
+          description: "Build school selection, profile setup, and interests"
+    notes: "Real authentication requires backend/provider configuration."
+  - req_id: "REQ-003"
+    req_description: "Full-screen feed and social interactions"
+    priority: "P1"
+    plan_mapping:
+      phase: "Sprint-3"
+      phase_name: "Home feed and social interactions"
+      items:
+        - item_id: "3.1"
+          description: "Build feed presentation and media states"
+        - item_id: "3.2"
+          description: "Implement comments, sharing, and post options"
+    notes: ""
+  - req_id: "REQ-004"
+    req_description: "Create menu, post composers, media selection, and publish states"
+    priority: "P1"
+    plan_mapping:
+      phase: "Sprint-1 and Sprint-4"
+      phase_name: "Create screen and publish workflows"
+      items:
+        - item_id: "1.2"
+          description: "Rebuild Create to match the supplied mockup"
+        - item_id: "4.1"
+          description: "Build text, question, poll, and group-post composers"
+        - item_id: "4.2"
+          description: "Build photo/video selection and publishing states"
+    notes: ""
+  - req_id: "REQ-005"
+    req_description: "Anonymous experience and opt-in Dating destination with safety controls"
+    priority: "P1"
+    plan_mapping:
+      phase: "Sprint-5"
+      phase_name: "Anonymous and Dating"
+      items:
+        - item_id: "5.1"
+          description: "Complete Anonymous social experience"
+        - item_id: "5.2"
+          description: "Build opt-in Dating screens and safety controls"
+    notes: "Dating is secondary navigation; Anonymous replaces it on main tabs."
+  - req_id: "REQ-006"
+    req_description: "Games Hub and playable games"
+    priority: "P1"
+    plan_mapping:
+      phase: "Sprint-1 and Sprint-9"
+      phase_name: "Games Hub and Playable Games"
+      items:
+        - item_id: "1.3"
+          description: "Rebuild Games Hub to match the supplied mockup"
+        - item_id: "9.1"
+          description: "Build game experiences"
+    notes: "Real-time Ludo and score integrity depend on server support."
+  - req_id: "REQ-007"
+    req_description: "Explore, search, school discovery, and topics"
+    priority: "P2"
+    plan_mapping:
+      phase: "Sprint-6"
+      phase_name: "Explore, schools, groups, and events"
+      items:
+        - item_id: "6.1"
+          description: "Build Explore and school hubs"
+    notes: ""
+  - req_id: "REQ-008"
+    req_description: "Groups, campus events, membership, and group publishing"
+    priority: "P2"
+    plan_mapping:
+      phase: "Sprint-4 and Sprint-6"
+      phase_name: "Publish workflows, groups, and events"
+      items:
+        - item_id: "4.1"
+          description: "Build text, question, poll, and group-post composers"
+        - item_id: "6.2"
+          description: "Build groups and events"
+    notes: ""
+  - req_id: "REQ-009"
+    req_description: "Messaging and notifications"
+    priority: "P1"
+    plan_mapping:
+      phase: "Sprint-7"
+      phase_name: "Messaging, notifications, profile, and settings"
+      items:
+        - item_id: "7.1"
+          description: "Build messages and notifications"
+    notes: "Realtime messaging requires confirmed backend support."
+  - req_id: "REQ-010"
+    req_description: "Profiles, account security, privacy, and user controls"
+    priority: "P1"
+    plan_mapping:
+      phase: "Sprint-2, Sprint-5, and Sprint-7"
+      phase_name: "Onboarding, dating safety, and profile/settings"
+      items:
+        - item_id: "2.2"
+          description: "Build school selection, profile setup, and interests"
+        - item_id: "5.2"
+          description: "Build opt-in Dating screens and safety controls"
+        - item_id: "7.2"
+          description: "Build profiles, account, privacy, and support"
+    notes: ""
+  - req_id: "REQ-011"
+    req_description: "Marketplace and group-buy safeguards"
+    priority: "P2"
+    plan_mapping:
+      phase: "Sprint-8"
+      phase_name: "Marketplace"
+      items:
+        - item_id: "8.1"
+          description: "Build marketplace discovery and listing details"
+        - item_id: "8.2"
+          description: "Build listing management and group buying"
+    notes: "No payments or delivery protection are claimed unless explicitly implemented."
+  - req_id: "REQ-012"
+    req_description: "Shared interaction states, accessibility, validation, and resilience"
+    priority: "P1"
+    plan_mapping:
+      phase: "All sprints"
+      phase_name: "Shared quality requirements"
+      items:
+        - item_id: "9.2"
+          description: "Apply shared states, accessibility, responsive QA, and integration hardening"
+    notes: "Shared requirements also appear in individual feature tasks."
+  - req_id: "REQ-013"
+    req_description: "Use Home, Create, Games, Anonymous tabs; put Dating in menu; exclude Jobs"
+    priority: "P1"
+    plan_mapping:
+      phase: "Sprint-1, Sprint-5, and Sprint-9"
+      phase_name: "Corrected navigation and product scope"
+      items:
+        - item_id: "1.1"
+          description: "Align shell and navigation with the latest decisions"
+        - item_id: "5.1"
+          description: "Complete Anonymous social experience"
+        - item_id: "5.2"
+          description: "Build opt-in Dating screens and safety controls"
+        - item_id: "9.2"
+          description: "Apply shared states, accessibility, responsive QA, and integration hardening"
+    notes: "Jobs and job-related surfaces are excluded from the current scope."
+  - req_id: "REQ-014"
+    req_description: "Build a tested Spring Boot backend with validated /api/v1 contracts, persistence, and secure configuration"
+    priority: "P1"
+    plan_mapping:
+      phase: "Sprint-10"
+      phase_name: "Backend foundations and API contracts"
+      items:
+        - item_id: "10.1"
+          description: "Establish backend configuration, persistence, and API conventions"
+    notes: "The supplied project is currently only a starter skeleton."
+  - req_id: "REQ-015"
+    req_description: "Prepare a production release and deploy to the user-approved target with secrets kept secure"
+    priority: "P1"
+    plan_mapping:
+      phase: "Sprint-11"
+      phase_name: "Production hardening and deployment"
+      items:
+        - item_id: "11.1"
+          description: "Harden and verify full-stack release behavior"
+        - item_id: "11.2"
+          description: "Deploy to the user-approved hosting target"
+    notes: "Execution is gated on explicit hosting/resource confirmation."
+missing_requirements: []
+orphan_plan_items: []
+validation:
+  passed: true
+  errors: []
+  warnings:
+    - "Backend code and API contracts are not present in the inspected workspace."

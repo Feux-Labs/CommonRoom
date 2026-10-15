@@ -1,0 +1,16 @@
+{
+  "name": "schoomateapp",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "web:dev": "npm run dev --prefix apps/web",
+    "web:build": "npm run build --prefix apps/web",
+    "web:lint": "npm run lint --prefix apps/web",
+    "mobile:typecheck": "npm run typecheck --prefix apps/mobile",
+    "mobile:export:web": "cd apps/mobile && npx expo export --platform web --clear",
+    "mobile:start": "npm run start --prefix apps/mobile",
+    "mobile:android": "npm run android --prefix apps/mobile",
+    "mobile:ios": "npm run ios --prefix apps/mobile",
+    "mobile:web": "npm run web --prefix apps/mobile"
+  }
+}

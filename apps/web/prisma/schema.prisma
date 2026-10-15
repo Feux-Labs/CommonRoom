@@ -1,0 +1,257 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Profile {
+  id                      String    @id @db.Uuid
+  displayName             String    @default("") @map("display_name")
+  username                String?   @unique
+  educationStatus         String    @default("prefer_not_to_say") @map("education_status")
+  school                  String?
+  showSchoolOnProfile     Boolean   @default(false) @map("show_school_on_profile")
+  course                  String    @default("")
+  year                    String    @default("")
+  ageEligibilityConfirmed Boolean   @default(false) @map("age_eligibility_confirmed")
+  interests               String[]  @default([])
+  bio                     String    @default("")
+  avatarUrl               String?   @map("avatar_url")
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  posts                   Post[]
+  comments                PostComment[]
+  likes                   PostLike[]
+  saves                   PostSave[]
+  shares                  PostShare[]
+  reports                 PostReport[]
+  roomEvents              RoomEvent[]
+  following               Follow[]  @relation("FollowerRelation")
+  followers               Follow[]  @relation("FollowingRelation")
+  marketplaceListings     MarketplaceListing[]
+  savedListings           MarketplaceSaved[]
+  datingProfile           DatingProfile?
+
+  @@map("profiles")
+}
+
+model Follow {
+  followerId  String   @map("follower_id") @db.Uuid
+  followingId String   @map("following_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  follower    Profile  @relation("FollowerRelation", fields: [followerId], references: [id], onDelete: Cascade)
+  following   Profile  @relation("FollowingRelation", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@map("follows")
+}
+
+model Post {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  authorId       String        @map("author_id") @db.Uuid
+  authorName     String        @map("author_name")
+  authorUsername String        @map("author_username")
+  schoolLabel    String?       @map("school_label")
+  caption        String        @default("")
+  pollOptions    String[]      @default([]) @map("poll_options")
+  mediaItems     Json          @default("[]") @map("media_items")
+  mediaType      String        @default("text") @map("media_type")
+  location       String?
+  audience       String        @default("Public")
+  ageRestricted  Boolean       @default(false) @map("age_restricted")
+  allowComments  Boolean       @default(true) @map("allow_comments")
+  allowReuse     Boolean       @default(true) @map("allow_reuse")
+  selectedSound  String?       @map("selected_sound")
+  shareTo        String?       @map("share_to")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  author         Profile       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes          PostLike[]
+  comments       PostComment[]
+  saves          PostSave[]
+  shares         PostShare[]
+  reports        PostReport[]
+  roomEvents     RoomEvent[]
+
+  @@index([createdAt(sort: Desc)])
+  @@index([authorId, createdAt(sort: Desc)])
+  @@map("posts")
+}
+
+model PostLike {
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@map("post_likes")
+}
+
+model PostComment {
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postId    String        @map("post_id") @db.Uuid
+  authorId  String        @map("author_id") @db.Uuid
+  body      String
+  parentId  String?       @map("parent_id") @db.Uuid
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    Profile       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent    PostComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   PostComment[] @relation("CommentReplies")
+
+  @@map("post_comments")
+}
+
+model PostSave {
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@map("post_saves")
+}
+
+model PostShare {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("post_shares")
+}
+
+model PostReport {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postId     String   @map("post_id") @db.Uuid
+  reporterId String   @map("reporter_id") @db.Uuid
+  reason     String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reporter   Profile  @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@map("post_reports")
+}
+
+model RoomEvent {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  postId    String?  @map("post_id") @db.Uuid
+  eventType String   @map("event_type")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("room_events")
+}
+
+model MarketplaceListing {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sellerId       String             @map("seller_id") @db.Uuid
+  sellerName     String             @map("seller_name")
+  sellerUsername String             @map("seller_username")
+  sellerSchool   String?            @map("seller_school")
+  title          String
+  price          Decimal            @db.Decimal(10, 2)
+  currency       String             @default("NGN")
+  category       String
+  condition      String             @default("fair")
+  description    String             @default("")
+  location       String?
+  images         Json               @default("[]")
+  status         String             @default("active")
+  views          Int                @default(0)
+  saves          Int                @default(0)
+  isNegotiable   Boolean            @default(true) @map("is_negotiable")
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  seller         Profile            @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  savedBy        MarketplaceSaved[]
+  reports        MarketplaceReport[]
+
+  @@index([status, createdAt(sort: Desc)])
+  @@map("marketplace_listings")
+}
+
+model MarketplaceSaved {
+  userId    String             @map("user_id") @db.Uuid
+  listingId String             @map("listing_id") @db.Uuid
+  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user      Profile            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing   MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@id([userId, listingId])
+  @@map("marketplace_saved")
+}
+
+model MarketplaceReport {
+  id         String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  listingId  String             @map("listing_id") @db.Uuid
+  reporterId String             @map("reporter_id") @db.Uuid
+  reason     String
+  details    String             @default("")
+  createdAt  DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  listing    MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@map("marketplace_reports")
+}
+
+model AnonymousPost {
+  id        String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scope     String
+  school    String?
+  title     String
+  body      String
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  likes     AnonymousPostLike[]
+
+  @@index([createdAt(sort: Desc)])
+  @@map("anonymous_posts")
+}
+
+model AnonymousPostLike {
+  postId    String        @map("post_id") @db.Uuid
+  userId    String        @map("user_id") @db.Uuid
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  post      AnonymousPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@map("anonymous_post_likes")
+}
+
+model DatingProfile {
+  userId       String   @id @map("user_id") @db.Uuid
+  displayName  String   @map("display_name")
+  school       String?
+  bio          String   @default("")
+  interests    String[] @default([])
+  discoverable Boolean  @default(false)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user         Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("dating_profiles")
+}

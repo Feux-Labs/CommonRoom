@@ -1,0 +1,309 @@
+# Plan-to-Tasks Traceability Checkpoint
+metadata:
+  generated: "2026-10-13"
+  source_plan: "plan.md"
+  target_tasks: "plan.md task breakdown"
+summary:
+  total_plan_items: 22
+  covered_plan_items: 22
+  missing_plan_items: 0
+  coverage_percentage: 100.0
+  total_tasks_generated: 51
+  orphan_tasks: 0
+phases:
+  - phase_id: "Sprint-1"
+    phase_name: "App shell, Create screen, and Games Hub"
+    items:
+      - item_id: "1.1"
+        description: "Align shell and navigation with the latest decisions"
+        tasks:
+          - task_id: "T001"
+            description: "Update mobile navigation presentation"
+          - task_id: "T002"
+            description: "Verify app-shell and navigation type agreement"
+          - task_id: "T003"
+            description: "Keep Dating in menu and omit Jobs"
+      - item_id: "1.2"
+        description: "Rebuild Create to match the supplied mockup"
+        tasks:
+          - task_id: "T004"
+            description: "Rework Create screen hierarchy and responsive grid"
+          - task_id: "T005"
+            description: "Align Create styling with design tokens"
+          - task_id: "T006"
+            description: "Add explicit mock draft content and actions"
+      - item_id: "1.3"
+        description: "Rebuild Games Hub to match the supplied mockup"
+        tasks:
+          - task_id: "T007"
+            description: "Rebuild Games Hub layout"
+          - task_id: "T008"
+            description: "Add labeled mock game data"
+          - task_id: "T009"
+            description: "Validate Sprint 1"
+  - phase_id: "Sprint-2"
+    phase_name: "Authentication and onboarding"
+    items:
+      - item_id: "2.1"
+        description: "Build authentication, verification, and recovery screens"
+        tasks:
+          - task_id: "T010"
+            description: "Add typed auth routes/state"
+          - task_id: "T011"
+            description: "Create auth screens with validation"
+          - task_id: "T012"
+            description: "Integrate only against confirmed auth contracts"
+      - item_id: "2.2"
+        description: "Build school selection, profile setup, and interests"
+        tasks:
+          - task_id: "T013"
+            description: "Create onboarding screens"
+          - task_id: "T014"
+            description: "Add onboarding models and validation"
+  - phase_id: "Sprint-3"
+    phase_name: "Home feed and social interactions"
+    items:
+      - item_id: "3.1"
+        description: "Build feed presentation and media states"
+        tasks:
+          - task_id: "T015"
+            description: "Build Home feed and focused feed components"
+          - task_id: "T016"
+            description: "Add typed feed models and labeled fixtures"
+      - item_id: "3.2"
+        description: "Implement comments, sharing, and post options"
+        tasks:
+          - task_id: "T017"
+            description: "Implement interaction sheets"
+          - task_id: "T018"
+            description: "Wire honest feed interaction feedback"
+  - phase_id: "Sprint-4"
+    phase_name: "Create and publish workflows"
+    items:
+      - item_id: "4.1"
+        description: "Build text, question, poll, and group-post composers"
+        tasks:
+          - task_id: "T019"
+            description: "Add composer screens"
+          - task_id: "T020"
+            description: "Add form rules and duplicate-submit prevention"
+      - item_id: "4.2"
+        description: "Build photo/video selection and publishing states"
+        tasks:
+          - task_id: "T021"
+            description: "Add media selection/editor screens"
+          - task_id: "T022"
+            description: "Integrate upload only against confirmed contracts"
+  - phase_id: "Sprint-5"
+    phase_name: "Anonymous and Dating"
+    items:
+      - item_id: "5.1"
+        description: "Complete Anonymous social experience"
+        tasks:
+          - task_id: "T023"
+            description: "Implement Anonymous feed and composer"
+          - task_id: "T024"
+            description: "Add privacy and moderation states"
+      - item_id: "5.2"
+        description: "Build opt-in Dating screens and safety controls"
+        tasks:
+          - task_id: "T025"
+            description: "Add Dating routes and screens"
+          - task_id: "T026"
+            description: "Add Dating privacy and moderation controls"
+  - phase_id: "Sprint-6"
+    phase_name: "Explore, schools, groups, and events"
+    items:
+      - item_id: "6.1"
+        description: "Build Explore and school hubs"
+        tasks:
+          - task_id: "T027"
+            description: "Add Explore and school screens"
+          - task_id: "T028"
+            description: "Add search/filter UI and typed models"
+      - item_id: "6.2"
+        description: "Build groups and events"
+        tasks:
+          - task_id: "T029"
+            description: "Add group screens"
+          - task_id: "T030"
+            description: "Add event screens"
+  - phase_id: "Sprint-7"
+    phase_name: "Messaging, notifications, profile, and settings"
+    items:
+      - item_id: "7.1"
+        description: "Build messages and notifications"
+        tasks:
+          - task_id: "T031"
+            description: "Add inbox and conversation screens"
+          - task_id: "T032"
+            description: "Add notification and preference screens"
+      - item_id: "7.2"
+        description: "Build profiles, account, privacy, and support"
+        tasks:
+          - task_id: "T033"
+            description: "Add profile screens and entry points"
+          - task_id: "T034"
+            description: "Add account, privacy, and support screens"
+  - phase_id: "Sprint-8"
+    phase_name: "Marketplace"
+    items:
+      - item_id: "8.1"
+        description: "Build marketplace discovery and listing details"
+        tasks:
+          - task_id: "T035"
+            description: "Add marketplace discovery and details"
+          - task_id: "T036"
+            description: "Add listing models and sample states"
+      - item_id: "8.2"
+        description: "Build listing management and group buying"
+        tasks:
+          - task_id: "T037"
+            description: "Add listing management screens"
+          - task_id: "T038"
+            description: "Add group-buy screens and truthful states"
+  - phase_id: "Sprint-9"
+    phase_name: "Playable Games, shared quality, and release readiness"
+    items:
+      - item_id: "9.1"
+        description: "Build game experiences"
+        tasks:
+          - task_id: "T039"
+            description: "Add trivia and puzzle screens"
+          - task_id: "T040"
+            description: "Add Ludo lobby and game states"
+      - item_id: "9.2"
+        description: "Apply shared states, accessibility, responsive QA, and integration hardening"
+        tasks:
+          - task_id: "T041"
+            description: "Audit reusable shared states"
+          - task_id: "T042"
+            description: "Run validation and focused journeys"
+          - task_id: "T043"
+            description: "Verify navigation and removed Jobs surfaces"
+  - phase_id: "Sprint-10"
+    phase_name: "Backend foundations and API contracts"
+    items:
+      - item_id: "10.1"
+        description: "Establish backend configuration, persistence, and API conventions"
+        tasks:
+          - task_id: "T044"
+            description: "Add profile-based externalized backend configuration"
+          - task_id: "T045"
+            description: "Establish API packages and shared request/error/validation conventions"
+          - task_id: "T046"
+            description: "Add Flyway schema migrations and persistence setup"
+          - task_id: "T047"
+            description: "Add health behavior and backend tests"
+  - phase_id: "Sprint-11"
+    phase_name: "Production hardening and deployment"
+    items:
+      - item_id: "11.1"
+        description: "Harden and verify full-stack release behavior"
+        tasks:
+          - task_id: "T048"
+            description: "Add deployment/environment instructions and health verification"
+          - task_id: "T049"
+            description: "Run frontend and backend validations"
+      - item_id: "11.2"
+        description: "Deploy to the user-approved hosting target"
+        tasks:
+          - task_id: "T050"
+            description: "Create hosting-specific deployment configuration after confirmation"
+          - task_id: "T051"
+            description: "Deploy, verify health and a safe journey, and document rollback"
+missing_plan_items: []
+orphan_tasks: []
+upstream_trace:
+  - plan_item: "1.1"
+    source_requirements: ["REQ-001", "REQ-012", "REQ-013"]
+    tasks: ["T001", "T002", "T003"]
+    full_trace: "REQ-001,REQ-012,REQ-013 -> Sprint-1.1 -> T001,T002,T003"
+  - plan_item: "1.2"
+    source_requirements: ["REQ-001", "REQ-004", "REQ-012"]
+    tasks: ["T004", "T005", "T006"]
+    full_trace: "REQ-001,REQ-004,REQ-012 -> Sprint-1.2 -> T004,T005,T006"
+  - plan_item: "1.3"
+    source_requirements: ["REQ-001", "REQ-006", "REQ-012"]
+    tasks: ["T007", "T008", "T009"]
+    full_trace: "REQ-001,REQ-006,REQ-012 -> Sprint-1.3 -> T007,T008,T009"
+  - plan_item: "2.1"
+    source_requirements: ["REQ-002", "REQ-012"]
+    tasks: ["T010", "T011", "T012"]
+    full_trace: "REQ-002,REQ-012 -> Sprint-2.1 -> T010,T011,T012"
+  - plan_item: "2.2"
+    source_requirements: ["REQ-002", "REQ-010", "REQ-012"]
+    tasks: ["T013", "T014"]
+    full_trace: "REQ-002,REQ-010,REQ-012 -> Sprint-2.2 -> T013,T014"
+  - plan_item: "3.1"
+    source_requirements: ["REQ-003", "REQ-012"]
+    tasks: ["T015", "T016"]
+    full_trace: "REQ-003,REQ-012 -> Sprint-3.1 -> T015,T016"
+  - plan_item: "3.2"
+    source_requirements: ["REQ-003", "REQ-012"]
+    tasks: ["T017", "T018"]
+    full_trace: "REQ-003,REQ-012 -> Sprint-3.2 -> T017,T018"
+  - plan_item: "4.1"
+    source_requirements: ["REQ-004", "REQ-008", "REQ-012"]
+    tasks: ["T019", "T020"]
+    full_trace: "REQ-004,REQ-008,REQ-012 -> Sprint-4.1 -> T019,T020"
+  - plan_item: "4.2"
+    source_requirements: ["REQ-004", "REQ-012"]
+    tasks: ["T021", "T022"]
+    full_trace: "REQ-004,REQ-012 -> Sprint-4.2 -> T021,T022"
+  - plan_item: "5.1"
+    source_requirements: ["REQ-005", "REQ-012", "REQ-013"]
+    tasks: ["T023", "T024"]
+    full_trace: "REQ-005,REQ-012,REQ-013 -> Sprint-5.1 -> T023,T024"
+  - plan_item: "5.2"
+    source_requirements: ["REQ-005", "REQ-010", "REQ-012", "REQ-013"]
+    tasks: ["T025", "T026"]
+    full_trace: "REQ-005,REQ-010,REQ-012,REQ-013 -> Sprint-5.2 -> T025,T026"
+  - plan_item: "6.1"
+    source_requirements: ["REQ-007", "REQ-012"]
+    tasks: ["T027", "T028"]
+    full_trace: "REQ-007,REQ-012 -> Sprint-6.1 -> T027,T028"
+  - plan_item: "6.2"
+    source_requirements: ["REQ-008", "REQ-012"]
+    tasks: ["T029", "T030"]
+    full_trace: "REQ-008,REQ-012 -> Sprint-6.2 -> T029,T030"
+  - plan_item: "7.1"
+    source_requirements: ["REQ-009", "REQ-012"]
+    tasks: ["T031", "T032"]
+    full_trace: "REQ-009,REQ-012 -> Sprint-7.1 -> T031,T032"
+  - plan_item: "7.2"
+    source_requirements: ["REQ-010", "REQ-012"]
+    tasks: ["T033", "T034"]
+    full_trace: "REQ-010,REQ-012 -> Sprint-7.2 -> T033,T034"
+  - plan_item: "8.1"
+    source_requirements: ["REQ-011", "REQ-012"]
+    tasks: ["T035", "T036"]
+    full_trace: "REQ-011,REQ-012 -> Sprint-8.1 -> T035,T036"
+  - plan_item: "8.2"
+    source_requirements: ["REQ-011", "REQ-012"]
+    tasks: ["T037", "T038"]
+    full_trace: "REQ-011,REQ-012 -> Sprint-8.2 -> T037,T038"
+  - plan_item: "9.1"
+    source_requirements: ["REQ-006", "REQ-012"]
+    tasks: ["T039", "T040"]
+    full_trace: "REQ-006,REQ-012 -> Sprint-9.1 -> T039,T040"
+  - plan_item: "9.2"
+    source_requirements: ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-005", "REQ-006", "REQ-007", "REQ-008", "REQ-009", "REQ-010", "REQ-011", "REQ-012", "REQ-013"]
+    tasks: ["T041", "T042", "T043"]
+    full_trace: "REQ-001..REQ-013 -> Sprint-9.2 -> T041,T042,T043"
+  - plan_item: "10.1"
+    source_requirements: ["REQ-014", "REQ-015"]
+    tasks: ["T044", "T045", "T046", "T047"]
+    full_trace: "REQ-014,REQ-015 -> Sprint-10.1 -> T044,T045,T046,T047"
+  - plan_item: "11.1"
+    source_requirements: ["REQ-014", "REQ-015"]
+    tasks: ["T048", "T049"]
+    full_trace: "REQ-014,REQ-015 -> Sprint-11.1 -> T048,T049"
+  - plan_item: "11.2"
+    source_requirements: ["REQ-015"]
+    tasks: ["T050", "T051"]
+    full_trace: "REQ-015 -> Sprint-11.2 -> T050,T051"
+validation:
+  passed: true
+  errors: []
+  warnings: []

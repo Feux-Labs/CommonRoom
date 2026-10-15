@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Common Room",
+    "slug": "common-room",
+    "scheme": "commonroom",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-image",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Common Room to use your camera to capture posts.",
+          "microphonePermission": "Allow Common Room to record audio with your videos.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Common Room to choose photos and videos for your posts.",
+          "cameraPermission": "Allow Common Room to capture photos for your posts."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Common Room to access photos you choose to save.",
+          "savePhotosPermission": "Allow Common Room to save your post media to your device."
+        }
+      ],
+      "expo-audio",
+      "expo-video"
+    ]
+  }
+}
