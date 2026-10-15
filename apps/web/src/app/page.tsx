@@ -524,7 +524,7 @@ export default function Home() {
     { id: 'anonymous', label: 'Anonymous', icon: MessageCircle },
     { id: 'marketplace', label: 'Marketplace', icon: ShoppingCart },
     { id: 'games', label: 'Games', icon: Dices },
-    { id: 'dating', label: 'Dating', icon: Heart },
+    { id: 'dating', label: 'Meet', icon: Sparkles },
   ];
 
   if (loading) {
@@ -559,7 +559,7 @@ export default function Home() {
               : <span className="native-auth-back" />}
             <button aria-label="Close" className="native-auth-close" onClick={() => goToAuthRoute('welcome')} type="button">×</button>
           </header>
-          <Image alt="Common Room" className="native-auth-logo" height={34} priority src="/common-room-full-logo-white.png" width={120} />
+          <span className="brand-wordmark auth-brand-wordmark">Commonroom</span>
           <h1 className="native-auth-title">
             {authRoute === 'welcome' ? 'Your vibe, your people.' : authRoute === 'sign-up' ? 'Create your account' : authRoute === 'forgot-password' ? 'Reset your password' : 'Log in'}
           </h1>
@@ -945,13 +945,13 @@ export default function Home() {
 
           {tab === 'dating' ? (
             <section className="standalone-column">
-              <div className="page-heading"><div><span className="eyebrow">OPT IN · YOU’RE IN CONTROL</span><h1>Dating</h1><p>No exact location, contact details, or private chat are shown.</p></div></div>
+              <div className="page-heading"><div><span className="eyebrow">CAMPUS CONNECTIONS · YOU’RE IN CONTROL</span><h1>Meet</h1><p>No exact location, contact details, or private phone numbers are shown.</p></div></div>
               <form className="panel dating-settings" onSubmit={(event) => void saveDatingProfile(event)}>
-                <div><strong>Dating profile</strong><p>Choose whether your profile can appear to other age-eligible students.</p></div>
+                <div><strong>Meet profile</strong><p>Choose whether your profile can appear to other age-eligible students.</p></div>
                 <label className="switch-row"><span>Show my profile to students</span><input checked={datingOptIn} onChange={(event) => setDatingOptIn(event.target.checked)} type="checkbox" /></label>
                 <label>Short bio<textarea value={datingBio} onChange={(event) => setDatingBio(event.target.value)} maxLength={500} rows={2} placeholder="A little about you" /></label>
                 <label>Interests<input value={datingInterests} onChange={(event) => setDatingInterests(event.target.value)} placeholder="Music, books, vibes" /></label>
-                <button className="secondary-button" type="submit">Save dating preferences</button>
+                <button className="secondary-button" type="submit">Save Meet preferences</button>
               </form>
               <div className="dating-grid">
                 {datingProfiles.length ? datingProfiles.map((match) => (
@@ -961,9 +961,9 @@ export default function Home() {
                     <span>{match.school ?? 'Student community'}</span>
                     <p>{match.bio}</p>
                     <div className="dating-tags">{match.interests.map((interest) => <span key={interest}>{interest}</span>)}</div>
-                    <button className="primary-button" onClick={() => void likeDatingProfile(match.user_id)}><Heart size={15} /> Like</button>
+                    <button className="primary-button" onClick={() => void likeDatingProfile(match.user_id)}><Heart size={15} /> Connect</button>
                   </article>
-                )) : <EmptyState icon={<Heart size={24} />} title="No profiles to show right now" copy="Opt in above to discover other students who choose to be visible." />}
+                )) : <EmptyState icon={<Sparkles size={24} />} title="No profiles to show right now" copy="Opt in above to discover other students who choose to be visible." />}
               </div>
             </section>
           ) : null}

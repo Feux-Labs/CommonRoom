@@ -230,7 +230,7 @@ export function OnboardingWizard({
         <div className="onboarding-content">
           <header className="onboarding-content-top">
             <button className="onboarding-exit-button" onClick={onSignOut} type="button">Exit</button>
-            <Image alt="Common Room" className="onboarding-logo" height={24} priority src="/common-room-full-logo-white.png" width={84} />
+            <span className="brand-wordmark" style={{ fontSize: 24 }}>Commonroom</span>
           </header>
           <p className="onboarding-progress">ACCOUNT SETUP · {stepNumber} OF 3</p>
           <h1 id="onboarding-title">Set up your profile</h1>
@@ -264,7 +264,7 @@ export function OnboardingWizard({
         <div className="onboarding-content">
           <header className="onboarding-content-top">
             <button className="onboarding-exit-button" onClick={onSignOut} type="button">Exit</button>
-            <Image alt="Common Room" className="onboarding-logo" height={24} priority src="/common-room-full-logo-white.png" width={84} />
+            <span className="brand-wordmark" style={{ fontSize: 24 }}>Commonroom</span>
           </header>
           <p className="onboarding-progress">ACCOUNT SETUP · {stepNumber} OF 3</p>
           <h1 id="onboarding-title">Choose your interests</h1>

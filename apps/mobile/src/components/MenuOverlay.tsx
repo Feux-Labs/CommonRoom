@@ -7,15 +7,24 @@ type MenuOverlayProps = {
   visible: boolean;
   onClose: () => void;
   onAccountPress: () => void;
-  onOpenRecognition: () => void;
+  onOpenStatus: () => void;
+  onOpenMessages?: () => void;
+  onOpenNotifications?: () => void;
+  onOpenSaved?: () => void;
+  onOpenSettings?: () => void;
+  onOpenHelp?: () => void;
+  onOpenAdmin?: () => void;
+  onOpenProfile?: () => void;
+  onOpenMarketplace?: () => void;
+  onLogout?: () => void;
   onToggleSchoolVisibility: () => void;
   profile?: UserProfile | null;
   recognitionTitle: string;
 };
 
 const menuSections = [
-  ['Messages', 'Notifications', 'Recognition', 'Explore', 'Marketplace', 'Groups', 'Saved'],
-  ['Settings', 'Privacy & Safety', 'Help & Support'],
+  ['Messages', 'Notifications', 'Status & Leaderboard', 'Marketplace', 'Saved'],
+  ['Settings', 'Help & Support', 'Admin Panel'],
   ['Switch Account', 'Log Out'],
 ];
 
@@ -23,16 +32,61 @@ export function MenuOverlay({
   visible,
   onClose,
   onAccountPress,
-  onOpenRecognition,
+  onOpenStatus,
+  onOpenMessages,
+  onOpenNotifications,
+  onOpenSaved,
+  onOpenSettings,
+  onOpenHelp,
+  onOpenAdmin,
+  onOpenProfile,
+  onOpenMarketplace,
+  onLogout,
   onToggleSchoolVisibility,
   profile,
   recognitionTitle,
 }: MenuOverlayProps) {
   const handleMenuItemPress = (item: string) => {
-    if (item === 'Recognition') {
-      onOpenRecognition();
-      onClose();
-      return;
+    switch (item) {
+      case 'Status & Leaderboard':
+        onOpenStatus();
+        onClose();
+        break;
+      case 'Messages':
+        onOpenMessages?.();
+        onClose();
+        break;
+      case 'Notifications':
+        onOpenNotifications?.();
+        onClose();
+        break;
+      case 'Saved':
+        onOpenSaved?.();
+        onClose();
+        break;
+      case 'Marketplace':
+        onOpenMarketplace?.();
+        onClose();
+        break;
+      case 'Settings':
+      case 'Privacy & Safety':
+        onOpenSettings?.();
+        onClose();
+        break;
+      case 'Help & Support':
+        onOpenHelp?.();
+        onClose();
+        break;
+      case 'Admin Panel':
+        onOpenAdmin?.();
+        onClose();
+        break;
+      case 'Log Out':
+        onLogout?.();
+        onClose();
+        break;
+      default:
+        onClose();
     }
   };
   const { colors, mode, toggleTheme } = useAppTheme();
@@ -46,11 +100,22 @@ export function MenuOverlay({
     <View style={styles.backdrop}>
       <Pressable accessibilityLabel="Close menu backdrop" style={styles.dim} onPress={onClose} />
       <ScrollView style={styles.sheet} contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <View style={styles.avatar} />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            onOpenProfile?.();
+            onClose();
+          }}
+          style={styles.header}
+        >
+          <View style={styles.avatar}>
+            <Text style={{ color: '#ffffff', fontWeight: '900', fontSize: 16 }}>
+              {profile?.displayName?.charAt(0) || 'G'}
+            </Text>
+          </View>
           <View style={styles.profile}>
             <Text style={styles.name}>{profile?.displayName || 'Gideon Ibitoye'}</Text>
-            <Text style={styles.username}>@gideon_ibitoye</Text>
+            <Text style={styles.username}>@{profile?.displayName ? profile.displayName.toLowerCase().replace(/\s+/g, '_') : 'gideon_ibitoye'}</Text>
             <Text style={styles.recognitionTitle}>{recognitionTitle}</Text>
             {profile?.school ? (
               <Pressable
@@ -67,7 +132,7 @@ export function MenuOverlay({
           <Pressable accessibilityRole="button" accessibilityLabel="Close menu" onPress={onClose}>
             <Text style={styles.close}>X</Text>
           </Pressable>
-        </View>
+        </Pressable>
         <View style={styles.stats}>
           <Text style={styles.stat}>24 Posts</Text>
           <Text style={styles.stat}>1.2K Followers</Text>

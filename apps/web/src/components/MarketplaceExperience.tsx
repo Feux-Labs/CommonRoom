@@ -475,7 +475,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
         {/* Header matching Mobile Marketplace design (Screenshot 1) */}
         <header className="market-header">
           <div className="market-header-left">
-            <ShoppingCart size={22} strokeWidth={2.4} />
+            <ShoppingCart size={17} strokeWidth={2.4} />
             <span className="market-header-divider" />
             <h1 className="market-header-title">Marketplace</h1>
           </div>
@@ -486,7 +486,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
               aria-label="Search items"
               type="button"
             >
-              <Search size={18} />
+              <Search size={14} />
             </button>
             <button
               className={`market-icon-btn ${showPriceFilter || minPrice || maxPrice ? 'market-icon-btn-active' : ''}`}
@@ -494,14 +494,14 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
               aria-label="Filter items"
               type="button"
             >
-              <SlidersHorizontal size={18} />
+              <SlidersHorizontal size={14} />
             </button>
             <button
               className="market-sell-pill-btn"
               onClick={openCreateComposer}
               type="button"
             >
-              <Plus size={15} strokeWidth={2.8} />
+              <Plus size={13} strokeWidth={2.8} />
               <span>Sell</span>
             </button>
           </div>
@@ -509,7 +509,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
 
         {showSearch ? (
           <div className="market-search-dropdown">
-            <Search size={16} className="market-search-icon" />
+            <Search size={14} className="market-search-icon" />
             <input
               type="text"
               autoFocus
@@ -520,7 +520,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
             />
             {searchQuery ? (
               <button onClick={() => setSearchQuery('')} className="market-search-clear" type="button">
-                <X size={14} />
+                <X size={13} />
               </button>
             ) : null}
           </div>
@@ -572,7 +572,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
           <div className="market-feedback market-error" role="alert">
             <span>{error}</span>
             <button onClick={() => setError('')} aria-label="Dismiss error">
-              <X size={15} />
+              <X size={14} />
             </button>
           </div>
         ) : null}
@@ -580,7 +580,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
           <div className="market-feedback market-notice" role="status">
             <span>{notice}</span>
             <button onClick={() => setNotice('')} aria-label="Dismiss notice">
-              <X size={15} />
+              <X size={14} />
             </button>
           </div>
         ) : null}
@@ -592,21 +592,21 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
             className={tab === 'explore' ? 'market-tab market-tab-active' : 'market-tab'}
             onClick={() => setTab('explore')}
           >
-            <Compass size={15} /> <span>Explore</span>
+            <Compass size={13} /> <span>Explore</span>
           </button>
           <button
             aria-current={tab === 'saved' ? 'page' : undefined}
             className={tab === 'saved' ? 'market-tab market-tab-active' : 'market-tab'}
             onClick={() => setTab('saved')}
           >
-            <Bookmark size={15} /> <span>Saved</span>
+            <Bookmark size={13} /> <span>Saved</span>
           </button>
           <button
             aria-current={tab === 'my_listings' ? 'page' : undefined}
             className={tab === 'my_listings' ? 'market-tab market-tab-active' : 'market-tab'}
             onClick={() => setTab('my_listings')}
           >
-            <Tag size={15} /> <span>My Listings</span>
+            <Tag size={13} /> <span>My Listings</span>
           </button>
         </nav>
 

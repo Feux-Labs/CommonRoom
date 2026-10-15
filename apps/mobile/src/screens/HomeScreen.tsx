@@ -5,12 +5,16 @@ import {
   Heart,
   MapPin,
   MessageCircle,
+  RefreshCw,
   Send,
   Share2,
   SlidersHorizontal,
+  Wifi,
+  WifiOff,
 } from 'lucide-react-native/icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   ImageStyle,
@@ -43,6 +47,7 @@ type HomeScreenProps = {
   newPosts?: FeedPost[];
   interests?: string[];
   currentUserProfile?: { displayName?: string; username?: string | null; avatarUrl?: string | null };
+  initialSlowNetwork?: boolean;
 };
 
 type RoomFeedSection = 'For You' | 'General' | 'Trending / Conversations';
@@ -60,6 +65,7 @@ export function HomeScreen({
   newPosts = [],
   interests = [],
   currentUserProfile,
+  initialSlowNetwork = false,
 }: HomeScreenProps) {
   const { colors } = useAppTheme();
   const styles = createStyles(colors);

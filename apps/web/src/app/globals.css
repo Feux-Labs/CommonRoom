@@ -1,4 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
+@import url('https://fonts.cdnfonts.com/css/billabong');
+@import url('https://fonts.googleapis.com/css2?family=Grand+Hotel&family=Pacifico&display=swap');
+
+@font-face {
+  font-family: 'Billabong';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Billabong'), url('https://fonts.cdnfonts.com/s/13949/Billabong.woff') format('woff');
+  font-display: swap;
+}
+
 @import "tailwindcss";
 
 :root {
@@ -1581,39 +1591,39 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 0 16px;
+  padding: 8px 0 10px;
 }
 
 .market-header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   color: #ffffff;
 }
 
 .market-header-divider {
   width: 1px;
-  height: 22px;
+  height: 16px;
   background: rgba(255, 255, 255, 0.22);
 }
 
 .market-header-title {
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 800;
   color: #ffffff;
-  letter-spacing: -0.4px;
+  letter-spacing: -0.3px;
   margin: 0;
 }
 
 .market-header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .market-icon-btn {
-  width: 38px;
-  height: 38px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -1635,14 +1645,14 @@ body {
 .market-sell-pill-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   background: #ffffff;
   color: #000000;
   border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 800;
-  padding: 8px 18px;
+  padding: 4px 12px;
   cursor: pointer;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1774,8 +1784,8 @@ body {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 999px;
-  padding: 4px;
-  margin-bottom: 16px;
+  padding: 3px;
+  margin-bottom: 10px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -1788,10 +1798,10 @@ body {
   color: #949ca8;
   cursor: pointer;
   display: inline-flex;
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 600;
-  gap: 8px;
-  padding: 8px 18px;
+  gap: 6px;
+  padding: 5px 12px;
   justify-content: center;
   flex: 1;
   white-space: nowrap;
@@ -1818,7 +1828,7 @@ body {
 .market-categories-scroller {
   overflow-x: auto;
   scrollbar-width: none;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1828,7 +1838,7 @@ body {
 
 .market-categories-track {
   display: inline-flex;
-  gap: 8px;
+  gap: 6px;
   padding: 2px 0;
 }
 
@@ -1840,9 +1850,9 @@ body {
   color: #9da5b2;
   cursor: pointer;
   display: inline-flex;
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 600;
-  padding: 8px 20px;
+  padding: 5px 12px;
   white-space: nowrap;
   transition: all 0.2s ease;
 }
@@ -3486,21 +3496,35 @@ body {
   max-width: 116px;
 }
 .brand-wordmark {
-  font-family: 'Pacifico', cursive;
-  font-size: 24px;
+  font-family: 'Billabong', 'Grand Hotel', 'Pacifico', cursive;
+  font-size: 30px;
+  font-weight: 400;
   color: #ffffff !important;
-  letter-spacing: -0.5px;
+  letter-spacing: 0.5px;
   line-height: 1;
   background: none !important;
   -webkit-background-clip: unset !important;
   -webkit-text-fill-color: #ffffff !important;
   text-decoration: none;
   display: inline-block;
+  text-transform: none;
 }
 .mobile-topbar .brand-wordmark {
-  font-size: 24px;
+  font-family: 'Billabong', 'Grand Hotel', 'Pacifico', cursive;
+  font-size: 28px;
+  font-weight: 400;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
+}
+.auth-brand-wordmark {
+  font-family: 'Billabong', 'Grand Hotel', 'Pacifico', cursive;
+  font-size: 42px;
+  font-weight: 400;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  margin: 0 auto 12px;
+  text-align: center;
+  display: inline-block;
 }
 .school-switcher, .account-row, .nav-link {
   align-items: center; background: none; border: 0; border-radius: 12px; color: inherit; cursor: pointer;

@@ -6,10 +6,17 @@ import { BottomTabs } from './src/components/BottomTabs';
 import { MenuOverlay } from './src/components/MenuOverlay';
 import { AnonymousScreen } from './src/screens/AnonymousScreen';
 import { CreateFlowScreen } from './src/screens/create/CreateFlowScreen';
-import { GamesScreen } from './src/screens/GamesScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { MarketplaceScreen } from './src/screens/MarketplaceScreen';
-import { RecognitionScreen } from './src/screens/RecognitionScreen';
+import { MeetScreen } from './src/screens/MeetScreen';
+import { StatusScreen } from './src/screens/StatusScreen';
+import { MessagesScreen } from './src/screens/MessagesScreen';
+import { NotificationsScreen } from './src/screens/NotificationsScreen';
+import { SavedScreen } from './src/screens/SavedScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
+import { HelpSupportScreen } from './src/screens/HelpSupportScreen';
+import { AdminPanelScreen } from './src/screens/AdminPanelScreen';
+import { ProfileScreen } from './src/screens/ProfileScreen';
 import { AuthScreen } from './src/screens/auth/AuthScreen';
 import { OnboardingScreen } from './src/screens/onboarding/OnboardingScreen';
 import { previewRecognitionMetrics } from './src/data/recognitionData';
@@ -63,6 +70,11 @@ function AppContent() {
     }));
   };
 
+  const handleLogout = () => {
+    setProfile(null);
+    setScreen({ kind: 'auth', route: 'welcome' });
+  };
+
   return (
     <View style={styles.container}>
       {screen.kind === 'auth' ? (
@@ -85,8 +97,8 @@ function AppContent() {
               setProfile({
                 ...profileDraft,
                 recognition: {
-                  score: 0,
-                  title: getRecognitionTitle(0).name,
+                  score: 540,
+                  title: getRecognitionTitle(540).name,
                   badges: [],
                 },
               });
@@ -95,9 +107,39 @@ function AppContent() {
           }}
         />
       ) : null}
-      {screen.kind === 'recognition' ? (
-        <RecognitionScreen onBack={() => setScreen({ kind: 'main' })} profile={profile} />
+      {screen.kind === 'status' ? (
+        <StatusScreen onBack={() => setScreen({ kind: 'main' })} profile={profile} />
       ) : null}
+      {screen.kind === 'messages' ? (
+        <MessagesScreen
+          onBack={() => setScreen({ kind: 'main' })}
+          initialUserId={screen.initialChatUserId}
+          initialUserName={screen.initialChatUserName}
+        />
+      ) : null}
+      {screen.kind === 'notifications' ? (
+        <NotificationsScreen onBack={() => setScreen({ kind: 'main' })} />
+      ) : null}
+      {screen.kind === 'saved' ? (
+        <SavedScreen onBack={() => setScreen({ kind: 'main' })} />
+      ) : null}
+      {screen.kind === 'settings' ? (
+        <SettingsScreen onBack={() => setScreen({ kind: 'main' })} onLogout={handleLogout} profile={profile} />
+      ) : null}
+      {screen.kind === 'help' ? (
+        <HelpSupportScreen onBack={() => setScreen({ kind: 'main' })} />
+      ) : null}
+      {screen.kind === 'admin' ? (
+        <AdminPanelScreen onBack={() => setScreen({ kind: 'main' })} />
+      ) : null}
+      {screen.kind === 'profile' ? (
+        <ProfileScreen
+          onBack={() => setScreen({ kind: 'main' })}
+          profile={profile}
+          onUpdateProfile={(updated) => setProfile((p) => p ? { ...p, ...updated } : p)}
+        />
+      ) : null}
+
       {screen.kind === 'main' ? (
         <>
           {activeTab === 'home' ? (
@@ -111,6 +153,14 @@ function AppContent() {
               } : undefined}
             />
           ) : null}
+          {activeTab === 'meet' ? (
+            <MeetScreen
+              onMenuPress={openMenu}
+              onOpenMessages={(userId, userName) =>
+                setScreen({ kind: 'messages', initialChatUserId: userId, initialChatUserName: userName })
+              }
+            />
+          ) : null}
           {activeTab === 'create' ? (
             <CreateFlowScreen
               onClose={() => setActiveTab('home')}
@@ -120,15 +170,28 @@ function AppContent() {
               }}
             />
           ) : null}
+          {activeTab === 'anonymous' ? <AnonymousScreen onMenuPress={openMenu} /> : null}
           {activeTab === 'marketplace' ? <MarketplaceScreen onMenuPress={openMenu} /> : null}
-          {activeTab === 'games' ? <GamesScreen onMenuPress={openMenu} /> : null}
-          {activeTab === 'anonymous' ? <AnonymousScreen onBack={() => setActiveTab('home')} /> : null}
+
           {activeTab !== 'create' ? <BottomTabs activeTab={activeTab} onChange={setActiveTab} /> : null}
+
           <MenuOverlay
             visible={menuOpen}
             onClose={() => setMenuOpen(false)}
             onAccountPress={openAuth}
-            onOpenRecognition={() => setScreen({ kind: 'recognition' })}
+            onOpenStatus={() => setScreen({ kind: 'status' })}
+            onOpenMessages={() => setScreen({ kind: 'messages' })}
+            onOpenNotifications={() => setScreen({ kind: 'notifications' })}
+            onOpenSaved={() => setScreen({ kind: 'saved' })}
+            onOpenSettings={() => setScreen({ kind: 'settings' })}
+            onOpenHelp={() => setScreen({ kind: 'help' })}
+            onOpenAdmin={() => setScreen({ kind: 'admin' })}
+            onOpenProfile={() => setScreen({ kind: 'profile' })}
+            onOpenMarketplace={() => {
+              setActiveTab('marketplace');
+              setMenuOpen(false);
+            }}
+            onLogout={handleLogout}
             onToggleSchoolVisibility={() => {
               setProfile((current) => current
                 ? { ...current, showSchoolOnProfile: !current.showSchoolOnProfile }
