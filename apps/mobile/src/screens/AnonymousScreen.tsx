@@ -15,9 +15,10 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
+import { ArrowLeft } from 'lucide-react-native';
 import { CircleQuestionMark, Copy, Heart, Link2, MessageCircle, MessagesSquare, Pencil, Quote, Send, Sparkles } from 'lucide-react-native/icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconSymbol } from '../components/IconSymbol';
-import { TopBar } from '../components/TopBar';
 import { getAnonymousAccessToken, getApiBaseUrl, apiRequest } from '../services/api';
 import {
   AnonymousComment,
@@ -30,7 +31,7 @@ import {
 } from '../types/anonymous';
 
 type AnonymousScreenProps = {
-  onMenuPress: () => void;
+  onBack: () => void;
 };
 
 type ViewMode = 'feed' | 'inbox';
@@ -85,8 +86,9 @@ function rankPosts(posts: AnonymousPost[], sort: FeedSort) {
   });
 }
 
-export function AnonymousScreen({ onMenuPress }: AnonymousScreenProps) {
+export function AnonymousScreen({ onBack }: AnonymousScreenProps) {
   const styles = createStyles();
+  const insets = useSafeAreaInsets();
   const [token, setToken] = useState('');
   const [identity, setIdentity] = useState<AnonymousIdentity | null>(null);
   const [suggestedHandle, setSuggestedHandle] = useState(`Ghost ${Math.floor(1000 + Math.random() * 9000)}`);
@@ -160,26 +162,20 @@ export function AnonymousScreen({ onMenuPress }: AnonymousScreenProps) {
 
   useEffect(() => {
     let active = true;
-    let loadedIdentity: AnonymousIdentity | null = null;
     void (async () => {
       try {
         const accessToken = await getAnonymousAccessToken();
         if (!active) return;
         setToken(accessToken);
         const result = await apiRequest<AnonymousIdentity | null>('/anonymous/identity', { token: accessToken });
-        loadedIdentity = result;
         if (active) {
           setIdentity(result);
           if (result) setSuggestedHandle(result.handle);
+        }
       } catch (loadError) {
         const msg = messageFor(loadError);
         if (active && !msg.toLowerCase().includes('sign in')) {
           setError(msg);
-        }
-        if (active && !loadedIdentity) {
-          const fallbackHandle = `Ghost ${Math.floor(1000 + Math.random() * 9000)}`;
-          setIdentity({ id: 'anon-local', handle: fallbackHandle, created_at: new Date().toISOString() });
-          setSuggestedHandle(fallbackHandle);
         }
       } finally {
         if (active) {
@@ -248,15 +244,8 @@ export function AnonymousScreen({ onMenuPress }: AnonymousScreenProps) {
       setIdentity(result);
       setIdentitySetupRequested(false);
       setNotice(`You're in as ${result.handle}.`);
-    } catch {
-      const localIdentity: AnonymousIdentity = {
-        id: 'anon-local',
-        handle: chosenHandle,
-        created_at: new Date().toISOString(),
-      };
-      setIdentity(localIdentity);
-      setIdentitySetupRequested(false);
-      setNotice(`You're in as ${chosenHandle}.`);
+    } catch (saveError) {
+      setError(messageFor(saveError));
     } finally {
       setBusy(false);
     }
@@ -528,25 +517,41 @@ export function AnonymousScreen({ onMenuPress }: AnonymousScreenProps) {
   }
 
   return (
-    <View style={[styles.screen, { backgroundColor: '#000' }]}>
+    <View style={[styles.screen, { backgroundColor: '#000', paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <TopBar onMenuPress={onMenuPress} />
+        <View style={styles.header}>
+          <Pressable accessibilityLabel="Back to Room" accessibilityRole="button" onPress={onBack} style={styles.headerBack}>
+            <ArrowLeft color="#f4f5f8" size={20} />
+          </Pressable>
+        </View>
 
         {error && !(identitySetupRequested && !identity) ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
         {notice ? <Text accessibilityLiveRegion="polite" style={styles.notice}>{notice}</Text> : null}
 
         <View accessibilityRole="tablist" style={styles.viewSwitcher}>
-          <TabButton label="Feed" active={view === 'feed'} onPress={() => { setView('feed'); setIncomingToken(''); setIncomingPostId(''); setSelectedThread(null); }} />
-          <TabButton label="ME" active={view === 'inbox'} onPress={() => { setView('inbox'); setMeTab('try_these'); setSelectedThread(null); }} />
+          <TabButton
+            icon={<MessageCircle color={view === 'feed' ? '#f4f5f8' : '#8a8d91'} size={13} />}
+            label="Feed"
+            active={view === 'feed'}
+            onPress={() => { setView('feed'); setIncomingToken(''); setIncomingPostId(''); setSelectedThread(null); }}
+          />
+          <TabButton
+            icon={<IconSymbol name="Shield" framed={false} size={13} />}
+            label="ME"
+            active={view === 'inbox'}
+            onPress={() => { setView('inbox'); setMeTab('try_these'); setSelectedThread(null); }}
+          />
         </View>
 
         {view === 'feed' ? (
               <>
                 <View style={styles.discoveryRow}>
-                  <TabButton label="For You" active={feedTab === 'for_you'} onPress={() => setFeedTab('for_you')} compact />
-                  <TabButton label="General" active={feedTab === 'general'} onPress={() => setFeedTab('general')} compact />
-                  <TabButton label="🔥 Hot" active={feedTab === 'hot'} onPress={() => setFeedTab('hot')} compact />
-                  <TabButton label="↗ Trending" active={feedTab === 'trending'} onPress={() => setFeedTab('trending')} compact />
+                  <ScrollView horizontal contentContainerStyle={styles.discoveryTabs} showsHorizontalScrollIndicator={false}>
+                    <TabButton label="For You" active={feedTab === 'for_you'} onPress={() => setFeedTab('for_you')} compact />
+                    <TabButton label="General" active={feedTab === 'general'} onPress={() => setFeedTab('general')} compact />
+                    <TabButton label="Hot" active={feedTab === 'hot'} onPress={() => setFeedTab('hot')} compact />
+                    <TabButton label="Trending" active={feedTab === 'trending'} onPress={() => setFeedTab('trending')} compact />
+                  </ScrollView>
                   {identity ? <Pressable accessibilityRole="button" onPress={() => setComposerOpen((open) => !open)} style={styles.writeButton}><Text style={styles.writeButtonText}>{composerOpen ? 'Close' : '+ Write'}</Text></Pressable> : null}
                 </View>
                 {identity && composerOpen ? (
@@ -949,18 +954,22 @@ const buttonStyles = StyleSheet.create({
   text: { color: '#fff', fontSize: 11, fontWeight: '500' },
 });
 
-function TabButton({ label, active, onPress, compact = false }: { label: string; active: boolean; onPress: () => void; compact?: boolean }) {
+function TabButton({ label, active, onPress, compact = false, icon }: { label: string; active: boolean; onPress: () => void; compact?: boolean; icon?: React.ReactNode }) {
   return (
     <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={onPress} style={[tabStyles.tab, compact && tabStyles.compact, active && tabStyles.active]}>
-      <Text style={[tabStyles.label, active && tabStyles.activeLabel]}>{label}</Text>
+      <View style={tabStyles.content}>
+        {icon}
+        <Text style={[tabStyles.label, active && tabStyles.activeLabel]}>{label}</Text>
+      </View>
     </Pressable>
   );
 }
 
 const tabStyles = StyleSheet.create({
-  tab: { alignItems: 'center', backgroundColor: 'transparent', borderColor: 'transparent', borderBottomColor: 'transparent', borderBottomWidth: 2, borderRadius: 0, borderWidth: 0, flex: 1, justifyContent: 'center', minHeight: 39, paddingHorizontal: 12 },
-  compact: { flex: 0, minHeight: 36, paddingHorizontal: 10 },
+  tab: { alignItems: 'center', backgroundColor: 'transparent', borderColor: 'transparent', borderBottomColor: 'transparent', borderBottomWidth: 2, borderRadius: 0, borderWidth: 0, flex: 1, justifyContent: 'center', minHeight: 40, paddingHorizontal: 12 },
+  compact: { flex: 0, minHeight: 38, paddingHorizontal: 9 },
   active: { borderBottomColor: '#fff' },
+  content: { alignItems: 'center', flexDirection: 'row', gap: 6, justifyContent: 'center' },
   label: { color: '#8a8d91', fontSize: 11, fontWeight: '500', textAlign: 'center' },
   activeLabel: { color: '#fff' },
 });
@@ -968,6 +977,8 @@ const tabStyles = StyleSheet.create({
 const createStyles = () => StyleSheet.create({
   screen: { backgroundColor: '#000', flex: 1 },
   content: { paddingBottom: 90 },
+  header: { borderBottomColor: '#202124', borderBottomWidth: StyleSheet.hairlineWidth, justifyContent: 'center', minHeight: 50, paddingHorizontal: 14, paddingVertical: 5 },
+  headerBack: { alignItems: 'center', backgroundColor: '#17191c', borderColor: '#303236', borderRadius: 18, borderWidth: 1, height: 36, justifyContent: 'center', width: 36 },
   loadingScreen: { alignItems: 'center', flex: 1, gap: 10, justifyContent: 'center' },
   loadingText: { color: '#8a8d91', fontSize: 12 },
   hero: { borderRadius: 28, marginHorizontal: 16, marginTop: 9, overflow: 'hidden', padding: 20 },
@@ -975,7 +986,7 @@ const createStyles = () => StyleSheet.create({
   heroTitle: { color: '#fff', fontSize: 29, fontWeight: '900', lineHeight: 32, marginTop: 12 },
   heroCopy: { color: '#f3dcf4', fontSize: 12, lineHeight: 18, marginTop: 9, maxWidth: 300 },
   identityBadge: { alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 20, color: '#fff', fontSize: 10, fontWeight: '800', marginTop: 14, overflow: 'hidden', paddingHorizontal: 11, paddingVertical: 7 },
-  viewSwitcher: { borderBottomColor: '#26282a', borderBottomWidth: 1, flexDirection: 'row', gap: 0, marginHorizontal: 0, marginTop: 2, paddingHorizontal: 16 },
+  viewSwitcher: { borderBottomColor: '#26282a', borderBottomWidth: 1, flexDirection: 'row', gap: 0, marginHorizontal: 14, marginTop: 2 },
   meTabRow: { borderBottomColor: '#26282a', borderBottomWidth: 1, flexDirection: 'row', marginHorizontal: -4 },
   tryThese: { gap: 10, paddingTop: 8 },
   templateRail: { gap: 10, paddingVertical: 5, paddingRight: 14 },
@@ -1010,8 +1021,9 @@ const createStyles = () => StyleSheet.create({
   templateEditor: { backgroundColor: '#101522', borderColor: '#343e58', borderRadius: 12, borderWidth: 1, color: '#f4f5f8', fontSize: 12, minHeight: 50, paddingHorizontal: 10, paddingVertical: 9, textAlign: 'center' },
   inboxHeading: { color: '#f4f5f8', fontSize: 16, fontWeight: '600', paddingVertical: 3 },
   scopeRow: { flexDirection: 'row', gap: 0, marginHorizontal: 12, marginTop: 4 },
-  discoveryRow: { alignItems: 'center', borderBottomColor: '#26282a', borderBottomWidth: 1, flexDirection: 'row', gap: 1, marginHorizontal: 8, marginTop: 3 },
-  writeButton: { backgroundColor: '#1d9bf0', borderRadius: 20, marginLeft: 'auto', paddingHorizontal: 12, paddingVertical: 8 },
+  discoveryRow: { alignItems: 'center', borderBottomColor: '#26282a', borderBottomWidth: 1, flexDirection: 'row', gap: 5, marginHorizontal: 14, marginTop: 3 },
+  discoveryTabs: { alignItems: 'center', flexDirection: 'row', flexGrow: 1, justifyContent: 'space-between' },
+  writeButton: { alignItems: 'center', backgroundColor: '#1d9bf0', borderRadius: 20, justifyContent: 'center', marginLeft: 4, minHeight: 30, minWidth: 52, paddingHorizontal: 10 },
   writeButtonText: { color: '#fff', fontSize: 10, fontWeight: '500' },
   composer: { backgroundColor: '#080808', borderColor: '#2f3336', borderRadius: 14, borderWidth: 1, gap: 9, marginHorizontal: 14, marginTop: 10, padding: 12 },
   feedComposer: { backgroundColor: '#080808', borderColor: '#2f3336', borderRadius: 14, borderWidth: 1, gap: 9, marginHorizontal: 8, marginTop: 8, paddingHorizontal: 10, paddingVertical: 9 },
@@ -1031,8 +1043,8 @@ const createStyles = () => StyleSheet.create({
   composerFooter: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 },
   helper: { color: '#8a8d91', fontSize: 11, lineHeight: 16 },
   helperLight: { color: '#8a8d91', fontSize: 10, lineHeight: 15 },
-  feed: { gap: 0, paddingHorizontal: 0, paddingTop: 3 },
-  postCard: { backgroundColor: '#000', borderBottomColor: '#26282a', borderBottomWidth: 1, overflow: 'hidden', paddingHorizontal: 14, paddingVertical: 12 },
+  feed: { gap: 9, paddingHorizontal: 9, paddingTop: 8 },
+  postCard: { backgroundColor: '#08090b', borderColor: '#202328', borderRadius: 12, borderWidth: 1, overflow: 'hidden', paddingHorizontal: 13, paddingVertical: 12 },
   postMeta: { alignItems: 'center', flexDirection: 'row', gap: 9 },
   mask: { alignItems: 'center', backgroundColor: '#0b766e', borderRadius: 18, height: 34, justifyContent: 'center', width: 34 },
   postMetaText: { flex: 1 },

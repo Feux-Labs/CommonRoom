@@ -122,7 +122,7 @@ function AppContent() {
           ) : null}
           {activeTab === 'marketplace' ? <MarketplaceScreen onMenuPress={openMenu} /> : null}
           {activeTab === 'games' ? <GamesScreen onMenuPress={openMenu} /> : null}
-          {activeTab === 'anonymous' ? <AnonymousScreen onMenuPress={openMenu} /> : null}
+          {activeTab === 'anonymous' ? <AnonymousScreen onBack={() => setActiveTab('home')} /> : null}
           {activeTab !== 'create' ? <BottomTabs activeTab={activeTab} onChange={setActiveTab} /> : null}
           <MenuOverlay
             visible={menuOpen}

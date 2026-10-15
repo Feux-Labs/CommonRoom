@@ -25,7 +25,9 @@ export class ApiError extends Error {
 }
 
 function requiredEnvironment(name: 'EXPO_PUBLIC_SUPABASE_URL' | 'EXPO_PUBLIC_SUPABASE_ANON_KEY') {
-  const value = process.env[name];
+  const value = name === 'EXPO_PUBLIC_SUPABASE_URL'
+    ? process.env.EXPO_PUBLIC_SUPABASE_URL
+    : process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
   if (!value) throw new ApiError(`Missing ${name}. Configure Supabase for the mobile app.`, 0);
   return value;
 }
