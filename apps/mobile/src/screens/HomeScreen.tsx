@@ -83,6 +83,11 @@ export function HomeScreen({
   const [selectedProfile, setSelectedProfile] = useState<RoomProfile | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Network sync status for slow networks
+  const [networkStatus, setNetworkStatus] = useState<'slow' | 'syncing' | 'synced' | 'idle'>(
+    initialSlowNetwork ? 'slow' : 'idle'
+  );
+
   const selectedPost = posts.find((p) => p.id === selectedPostId) ?? posts[activeIndex];
 
   const scope: RoomScope =
@@ -103,6 +108,36 @@ export function HomeScreen({
     refreshFeed();
     setActiveIndex(0);
   }, [refreshFeed]);
+
+  // If slow network on startup, wait for connection to arrive and then live-update room
+  useEffect(() => {
+    if (initialSlowNetwork) {
+      setNetworkStatus('slow');
+      const connectTimer = setTimeout(() => {
+        setNetworkStatus('syncing');
+        refreshFeed();
+        const finishTimer = setTimeout(() => {
+          setNetworkStatus('synced');
+          const dismissTimer = setTimeout(() => {
+            setNetworkStatus('idle');
+          }, 2600);
+          return () => clearTimeout(dismissTimer);
+        }, 1200);
+        return () => clearTimeout(finishTimer);
+      }, 3000);
+
+      return () => clearTimeout(connectTimer);
+    }
+  }, [initialSlowNetwork, refreshFeed]);
+
+  const handleManualSync = () => {
+    setNetworkStatus('syncing');
+    refreshFeed();
+    setTimeout(() => {
+      setNetworkStatus('synced');
+      setTimeout(() => setNetworkStatus('idle'), 2400);
+    }, 800);
+  };
 
   // Insert local/new posts into roomService when submitted
   useEffect(() => {
@@ -231,6 +266,42 @@ export function HomeScreen({
     <View style={styles.screen}>
       {/* Top Header */}
       <TopBar onMenuPress={onMenuPress} />
+
+      {/* Network Arrival & Sync Banner (shown when splash moves to room during slow network) */}
+      {networkStatus === 'slow' ? (
+        <View style={styles.networkBanner}>
+          <View style={styles.networkBannerLeft}>
+            <ActivityIndicator size="small" color="#f59e0b" />
+            <Text style={styles.networkBannerText}>
+              Slow network · Waiting to sync live room…
+            </Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={handleManualSync}
+            style={styles.syncBtn}
+          >
+            <RefreshCw size={11} color="#f59e0b" />
+            <Text style={styles.syncBtnText}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : networkStatus === 'syncing' ? (
+        <View style={styles.networkBanner}>
+          <View style={styles.networkBannerLeft}>
+            <ActivityIndicator size="small" color="#6366f1" />
+            <Text style={[styles.networkBannerText, { color: '#818cf8' }]}>
+              Network detected! Syncing fresh campus posts…
+            </Text>
+          </View>
+        </View>
+      ) : networkStatus === 'synced' ? (
+        <View style={[styles.networkBanner, styles.networkBannerSynced]}>
+          <Wifi size={13} color="#10b981" />
+          <Text style={[styles.networkBannerText, { color: '#10b981' }]}>
+            Connected · Room is up to date
+          </Text>
+        </View>
+      ) : null}
 
       {/* Stories Carousel */}
       <RoomStoriesBar
@@ -928,5 +999,46 @@ const createStyles = (colors: AppColors) =>
       color: colors.textMuted,
       fontSize: 12,
       fontWeight: '600',
+    },
+    networkBanner: {
+      alignItems: 'center',
+      backgroundColor: 'rgba(245, 158, 11, 0.1)',
+      borderBottomColor: 'rgba(245, 158, 11, 0.25)',
+      borderBottomWidth: 1,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 7,
+    },
+    networkBannerSynced: {
+      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+      borderBottomColor: 'rgba(16, 185, 129, 0.25)',
+      gap: 6,
+      justifyContent: 'center',
+    },
+    networkBannerLeft: {
+      alignItems: 'center',
+      flex: 1,
+      flexDirection: 'row',
+      gap: 8,
+    },
+    networkBannerText: {
+      color: '#f59e0b',
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    syncBtn: {
+      alignItems: 'center',
+      backgroundColor: 'rgba(245, 158, 11, 0.2)',
+      borderRadius: 10,
+      flexDirection: 'row',
+      gap: 4,
+      paddingHorizontal: 9,
+      paddingVertical: 3,
+    },
+    syncBtnText: {
+      color: '#f59e0b',
+      fontSize: 11,
+      fontWeight: '700',
     },
   });

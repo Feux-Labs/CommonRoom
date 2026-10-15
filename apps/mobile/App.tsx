@@ -19,6 +19,7 @@ import { AdminPanelScreen } from './src/screens/AdminPanelScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { AuthScreen } from './src/screens/auth/AuthScreen';
 import { OnboardingScreen } from './src/screens/onboarding/OnboardingScreen';
+import { SplashScreen } from './src/components/SplashScreen';
 import { previewRecognitionMetrics } from './src/data/recognitionData';
 import { calculateRecognitionScore, getRecognitionTitle } from './src/services/recognition';
 import { ThemeContext, useAppTheme } from './src/theme/ThemeContext';
@@ -42,6 +43,8 @@ export default function App() {
 function AppContent() {
   const { mode, colors } = useAppTheme();
   const styles = createStyles(colors);
+  const [showSplash, setShowSplash] = useState(true);
+  const [isNetworkSlow, setIsNetworkSlow] = useState(false);
   const [activeTab, setActiveTab] = useState<MainTab>('home');
   const [menuOpen, setMenuOpen] = useState(false);
   const [screen, setScreen] = useState<AppScreen>({ kind: 'main' });
@@ -74,6 +77,17 @@ function AppContent() {
     setProfile(null);
     setScreen({ kind: 'auth', route: 'welcome' });
   };
+
+  if (showSplash) {
+    return (
+      <SplashScreen
+        onFinish={(isSlow) => {
+          setIsNetworkSlow(Boolean(isSlow));
+          setShowSplash(false);
+        }}
+      />
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -151,6 +165,7 @@ function AppContent() {
                 displayName: profile.displayName,
                 username: profile.displayName.toLowerCase().replace(/\s+/g, '_'),
               } : undefined}
+              initialSlowNetwork={isNetworkSlow}
             />
           ) : null}
           {activeTab === 'meet' ? (
