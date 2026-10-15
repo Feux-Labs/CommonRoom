@@ -18,7 +18,9 @@ import {
   View,
 } from 'react-native';
 import {
+  Bookmark,
   Check,
+  Compass,
   Eye,
   GraduationCap,
   Heart,
@@ -231,6 +233,7 @@ export function MarketplaceScreen({ onMenuPress }: MarketplaceScreenProps) {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <ShoppingCart color={colors.text} size={22} strokeWidth={2.4} />
+          <View style={styles.headerDivider} />
           <Text style={styles.headerTitle}>Marketplace</Text>
         </View>
 
@@ -322,16 +325,16 @@ export function MarketplaceScreen({ onMenuPress }: MarketplaceScreenProps) {
         </View>
       )}
 
-      {/* Matured Segmented Tabs: Explore | Saved | My Listings (Single-line, No Wrapping) */}
+      {/* Matured Segmented Tabs: Explore | Saved | My Listings (Image 1) */}
       <View style={styles.segmentedControlWrap}>
         <View style={styles.segmentedControl}>
           <Pressable
             style={[styles.segmentBtn, tab === 'explore' && styles.segmentBtnActive]}
             onPress={() => setTab('explore')}
           >
-            <ShoppingCart
-              color={tab === 'explore' ? colors.inverse : colors.textMuted}
-              size={13}
+            <Compass
+              color={tab === 'explore' ? '#000000' : colors.textMuted}
+              size={14}
               strokeWidth={2.2}
             />
             <Text style={[styles.segmentText, tab === 'explore' && styles.segmentTextActive]}>
@@ -343,10 +346,10 @@ export function MarketplaceScreen({ onMenuPress }: MarketplaceScreenProps) {
             style={[styles.segmentBtn, tab === 'saved' && styles.segmentBtnActive]}
             onPress={() => setTab('saved')}
           >
-            <Heart
-              color={tab === 'saved' ? colors.inverse : colors.textMuted}
-              size={13}
-              fill={tab === 'saved' ? colors.inverse : 'none'}
+            <Bookmark
+              color={tab === 'saved' ? '#000000' : colors.textMuted}
+              size={14}
+              fill={tab === 'saved' ? '#000000' : 'none'}
             />
             <Text style={[styles.segmentText, tab === 'saved' && styles.segmentTextActive]}>
               Saved
@@ -358,8 +361,8 @@ export function MarketplaceScreen({ onMenuPress }: MarketplaceScreenProps) {
             onPress={() => setTab('my_listings')}
           >
             <Tag
-              color={tab === 'my_listings' ? colors.inverse : colors.textMuted}
-              size={13}
+              color={tab === 'my_listings' ? '#000000' : colors.textMuted}
+              size={14}
             />
             <Text style={[styles.segmentText, tab === 'my_listings' && styles.segmentTextActive]}>
               My Listings
@@ -394,6 +397,7 @@ export function MarketplaceScreen({ onMenuPress }: MarketplaceScreenProps) {
 
       {/* 2-Column Product Grid */}
       <FlatList
+        key="marketplace-grid-2cols"
         data={displayedListings}
         keyExtractor={(item) => item.id}
         numColumns={2}
@@ -501,6 +505,17 @@ export function MarketplaceScreen({ onMenuPress }: MarketplaceScreenProps) {
           </Pressable>
         )}
       />
+
+      {/* Floating Sell Action Button for Quick Access */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Post new item"
+        style={styles.floatingFab}
+        onPress={() => setComposerOpen(true)}
+      >
+        <Plus color="#000000" size={16} strokeWidth={3} />
+        <Text style={styles.floatingFabText}>Sell</Text>
+      </Pressable>
 
       {/* Listing Detail Sheet Modal */}
       {selectedListing && (
@@ -927,7 +942,12 @@ const createStyles = (colors: AppColors) =>
     headerLeft: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      gap: 12,
+    },
+    headerDivider: {
+      width: 1,
+      height: 20,
+      backgroundColor: 'rgba(255, 255, 255, 0.22)',
     },
     headerTitle: {
       fontSize: 18,
@@ -941,10 +961,12 @@ const createStyles = (colors: AppColors) =>
       gap: 8,
     },
     iconBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: 'rgba(255, 255, 255, 0.06)',
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: 'rgba(255, 255, 255, 0.04)',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.16)',
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -955,14 +977,41 @@ const createStyles = (colors: AppColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 5,
-      backgroundColor: colors.text,
-      paddingHorizontal: 14,
+      backgroundColor: '#ffffff',
+      paddingHorizontal: 16,
       paddingVertical: 7,
       borderRadius: 999,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.8)',
     },
     sellBtnText: {
-      color: colors.inverse,
-      fontSize: 12,
+      color: '#000000',
+      fontSize: 12.5,
+      fontWeight: '800',
+    },
+    floatingFab: {
+      position: 'absolute',
+      right: 16,
+      bottom: 84,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: '#ffffff',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 999,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.4,
+      shadowRadius: 8,
+      elevation: 6,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.3)',
+      zIndex: 50,
+    },
+    floatingFabText: {
+      color: '#000000',
+      fontSize: 13,
       fontWeight: '800',
     },
     searchBar: {
@@ -1029,15 +1078,15 @@ const createStyles = (colors: AppColors) =>
     },
     segmentedControlWrap: {
       paddingHorizontal: 16,
-      marginTop: 12,
+      marginTop: 10,
     },
     segmentedControl: {
       flexDirection: 'row',
-      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+      backgroundColor: 'rgba(255, 255, 255, 0.04)',
       borderRadius: 999,
       padding: 3,
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.08)',
+      borderColor: 'rgba(255, 255, 255, 0.1)',
     },
     segmentBtn: {
       flex: 1,
@@ -1049,65 +1098,68 @@ const createStyles = (colors: AppColors) =>
       borderRadius: 999,
     },
     segmentBtnActive: {
-      backgroundColor: colors.text,
+      backgroundColor: '#ffffff',
     },
     segmentText: {
       fontSize: 12,
       fontWeight: '600',
-      color: colors.textMuted,
+      color: '#8e96a4',
     },
     segmentTextActive: {
-      color: colors.inverse,
+      color: '#000000',
       fontWeight: '800',
     },
     categoriesWrap: {
-      marginTop: 10,
+      marginTop: 12,
+      marginBottom: 4,
     },
     categoriesList: {
       paddingHorizontal: 16,
       gap: 8,
     },
     categoryChip: {
-      paddingHorizontal: 14,
-      paddingVertical: 6,
+      paddingHorizontal: 16,
+      paddingVertical: 7,
       borderRadius: 999,
-      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+      backgroundColor: 'rgba(255, 255, 255, 0.04)',
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.1)',
+      borderColor: 'rgba(255, 255, 255, 0.12)',
     },
     categoryChipActive: {
-      backgroundColor: colors.text,
-      borderColor: colors.text,
+      backgroundColor: '#ffffff',
+      borderColor: '#ffffff',
     },
     categoryChipText: {
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: '600',
-      color: colors.textMuted,
+      color: '#9da5b2',
     },
     categoryChipTextActive: {
-      color: colors.inverse,
+      color: '#000000',
       fontWeight: '800',
     },
     gridContainer: {
-      paddingHorizontal: 14,
-      paddingTop: 12,
+      paddingHorizontal: 12,
+      paddingTop: 10,
       paddingBottom: 90, // Leave room for bottom bar
     },
     gridRow: {
       justifyContent: 'space-between',
-      marginBottom: 12,
+      gap: 8,
+      marginBottom: 8,
     },
     card: {
-      width: CARD_WIDTH,
+      flex: 1,
+      maxWidth: '48.5%',
       backgroundColor: '#111114',
-      borderRadius: 14,
+      borderRadius: 10,
       borderWidth: 1,
       borderColor: 'rgba(255, 255, 255, 0.08)',
       overflow: 'hidden',
     },
     cardMedia: {
       width: '100%',
-      height: CARD_WIDTH * 0.9,
+      height: 100,
       backgroundColor: '#000',
       position: 'relative',
     },
@@ -1117,32 +1169,32 @@ const createStyles = (colors: AppColors) =>
     },
     cardBadge: {
       position: 'absolute',
-      top: 6,
-      left: 6,
-      backgroundColor: 'rgba(0, 0, 0, 0.72)',
-      paddingHorizontal: 6,
+      top: 5,
+      left: 5,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      paddingHorizontal: 5,
       paddingVertical: 2,
       borderRadius: 4,
     },
     cardBadgeText: {
-      fontSize: 9,
+      fontSize: 8,
       fontWeight: '700',
       color: '#fff',
     },
     cardHeartBtn: {
       position: 'absolute',
-      top: 6,
-      right: 6,
-      width: 26,
-      height: 26,
-      borderRadius: 13,
+      top: 5,
+      right: 5,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
       backgroundColor: 'rgba(0, 0, 0, 0.65)',
       alignItems: 'center',
       justifyContent: 'center',
     },
     cardBody: {
-      padding: 10,
-      gap: 5,
+      padding: 6,
+      gap: 2,
     },
     cardTopRow: {
       flexDirection: 'row',
@@ -1150,36 +1202,36 @@ const createStyles = (colors: AppColors) =>
       alignItems: 'center',
     },
     cardCategoryText: {
-      fontSize: 9,
+      fontSize: 8,
       fontWeight: '700',
       color: colors.textMuted,
       letterSpacing: 0.5,
     },
     cardTimeText: {
-      fontSize: 9,
+      fontSize: 8,
       color: colors.textMuted,
     },
     cardPrice: {
-      fontSize: 15,
+      fontSize: 13,
       fontWeight: '800',
       color: '#ffffff',
       letterSpacing: -0.3,
     },
     cardTitle: {
-      fontSize: 12,
+      fontSize: 10.5,
       fontWeight: '600',
       color: colors.text,
-      lineHeight: 16,
-      minHeight: 32,
+      lineHeight: 13,
+      minHeight: 26,
     },
     cardLocationRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      marginTop: 2,
+      gap: 2,
+      marginTop: 1,
     },
     cardLocationText: {
-      fontSize: 10,
+      fontSize: 8.5,
       color: colors.textMuted,
       flex: 1,
     },
@@ -1189,40 +1241,40 @@ const createStyles = (colors: AppColors) =>
       alignItems: 'center',
       borderTopWidth: 1,
       borderTopColor: 'rgba(255, 255, 255, 0.06)',
-      paddingTop: 6,
-      marginTop: 4,
+      paddingTop: 4,
+      marginTop: 2,
     },
     cardSellerBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      gap: 3,
       flex: 1,
     },
     cardSellerAvatar: {
-      width: 14,
-      height: 14,
-      borderRadius: 7,
+      width: 12,
+      height: 12,
+      borderRadius: 6,
       backgroundColor: '#27272a',
       alignItems: 'center',
       justifyContent: 'center',
     },
     cardSellerAvatarLetter: {
-      fontSize: 8,
+      fontSize: 7,
       fontWeight: '800',
       color: '#fff',
     },
     cardSellerName: {
-      fontSize: 10,
+      fontSize: 8.5,
       color: colors.textMuted,
       flex: 1,
     },
     cardViewsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 3,
+      gap: 2,
     },
     cardViewsText: {
-      fontSize: 10,
+      fontSize: 8.5,
       color: colors.textMuted,
     },
     emptyState: {

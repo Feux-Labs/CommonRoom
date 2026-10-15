@@ -73,18 +73,6 @@ export function MenuOverlay({
           <Text style={styles.stat}>1.2K Followers</Text>
           <Text style={styles.stat}>892 Following</Text>
         </View>
-        <View style={styles.section}>
-          <Text style={styles.appearanceLabel}>Appearance</Text>
-          <Pressable
-            accessibilityRole="switch"
-            accessibilityState={{ checked: mode === 'dark' }}
-            onPress={toggleTheme}
-            style={styles.themeRow}
-          >
-            <Text style={styles.rowText}>{mode === 'dark' ? 'Dark mode' : 'Light mode'}</Text>
-            <Text style={styles.themeAction}>Switch to {mode === 'dark' ? 'light' : 'dark'}</Text>
-          </Pressable>
-        </View>
         <Pressable accessibilityRole="button" onPress={onAccountPress} style={styles.accountAction}>
           <Text style={styles.accountTitle}>Sign in / Create account</Text>
           <Text style={styles.accountNote}>Preview only · no account data is saved</Text>
@@ -105,7 +93,7 @@ export function MenuOverlay({
           </View>
         ))}
         <View style={styles.premium}>
-          <Text style={styles.premiumTitle}>Common Room Premium</Text>
+          <Text style={styles.premiumTitle}>Commonroom Premium</Text>
           <Text style={styles.premiumCopy}>Get more from your campus experience</Text>
         </View>
       </ScrollView>

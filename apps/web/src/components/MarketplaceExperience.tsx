@@ -3,10 +3,12 @@
 import {
   AlertTriangle,
   ArrowLeft,
+  Bookmark,
   BookOpen,
   Briefcase,
   CheckCircle2,
   Coffee,
+  Compass,
   Copy,
   Edit3,
   Eye,
@@ -92,6 +94,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
   const [showPriceFilter, setShowPriceFilter] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
   // Listings data
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
@@ -254,7 +257,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
     setFormPrice('');
     setFormCategory('electronics');
     setFormCondition('like_new');
-    setFormLocation('Campus Main Library / Hostel');
+    setFormLocation('Main Library / Hostel');
     setFormPhone('');
     setFormImageUrl('');
     setFormImages([
@@ -318,7 +321,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
       price: priceNum,
       category: formCategory,
       condition: formCondition,
-      location: formLocation.trim() || 'Campus',
+      location: formLocation.trim() || 'Local',
       contact_phone: formPhone.trim() || undefined,
       images:
         formImages.length > 0
@@ -362,7 +365,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
 
         const created = json.data as MarketplaceListing;
         setListings((current) => [created, ...current]);
-        setNotice('Your listing is live on campus marketplace!');
+        setNotice('Your listing is live on the marketplace!');
       }
 
       setComposerOpen(false);
@@ -449,7 +452,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
 
       setReportModalOpen(false);
       setReportingListingId(null);
-      setNotice('Thank you. Common Room moderators will review this listing to keep students safe.');
+      setNotice('Thank you. Commonroom moderators will review this listing to keep students safe.');
     } catch {
       setError('Could not submit report. Please try again.');
     }
@@ -469,25 +472,100 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
   return (
     <main className="market-shell">
       <div className="market-wrap">
-        {/* Top bar matching monochrome branding header */}
-        <header className="market-topbar">
-          <a className="market-brand" href="/">
-            <Image
-              alt="Common Room"
-              className="market-brand-logo"
-              height={26}
-              priority
-              src="/common-room-full-logo-white.png"
-              width={116}
-            />
-            <span className="market-brand-badge">MARKETPLACE</span>
-          </a>
-          <div className="market-topbar-actions">
-            <a className="market-home-link" href="/">
-              <ArrowLeft size={14} /> Back to Home
-            </a>
+        {/* Header matching Mobile Marketplace design (Screenshot 1) */}
+        <header className="market-header">
+          <div className="market-header-left">
+            <ShoppingCart size={22} strokeWidth={2.4} />
+            <span className="market-header-divider" />
+            <h1 className="market-header-title">Marketplace</h1>
+          </div>
+          <div className="market-header-actions">
+            <button
+              className={`market-icon-btn ${showSearch ? 'market-icon-btn-active' : ''}`}
+              onClick={() => setShowSearch((prev) => !prev)}
+              aria-label="Search items"
+              type="button"
+            >
+              <Search size={18} />
+            </button>
+            <button
+              className={`market-icon-btn ${showPriceFilter || minPrice || maxPrice ? 'market-icon-btn-active' : ''}`}
+              onClick={() => setShowPriceFilter((prev) => !prev)}
+              aria-label="Filter items"
+              type="button"
+            >
+              <SlidersHorizontal size={18} />
+            </button>
+            <button
+              className="market-sell-pill-btn"
+              onClick={openCreateComposer}
+              type="button"
+            >
+              <Plus size={15} strokeWidth={2.8} />
+              <span>Sell</span>
+            </button>
           </div>
         </header>
+
+        {showSearch ? (
+          <div className="market-search-dropdown">
+            <Search size={16} className="market-search-icon" />
+            <input
+              type="text"
+              autoFocus
+              placeholder="Search textbooks, electronics, gear…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search marketplace"
+            />
+            {searchQuery ? (
+              <button onClick={() => setSearchQuery('')} className="market-search-clear" type="button">
+                <X size={14} />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {showPriceFilter ? (
+          <div className="market-price-filter-row">
+            <span className="market-filter-label">Price (₦):</span>
+            <input
+              type="number"
+              placeholder="Min"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+              className="market-price-input"
+            />
+            <span className="market-dash">–</span>
+            <input
+              type="number"
+              placeholder="Max"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              className="market-price-input"
+            />
+            {minPrice || maxPrice ? (
+              <button
+                type="button"
+                className="market-reset-filter-btn"
+                onClick={() => { setMinPrice(''); setMaxPrice(''); }}
+              >
+                Reset
+              </button>
+            ) : null}
+            <select
+              aria-label="Sort listings"
+              className="market-select"
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value as SortOption)}
+            >
+              <option value="newest">Newest First</option>
+              <option value="popular">Most Popular</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+            </select>
+          </div>
+        ) : null}
 
         {/* Global Notifications */}
         {error ? (
@@ -514,30 +592,30 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
             className={tab === 'explore' ? 'market-tab market-tab-active' : 'market-tab'}
             onClick={() => setTab('explore')}
           >
-            <ShoppingCart size={15} /> Explore
+            <Compass size={15} /> <span>Explore</span>
           </button>
           <button
             aria-current={tab === 'saved' ? 'page' : undefined}
             className={tab === 'saved' ? 'market-tab market-tab-active' : 'market-tab'}
             onClick={() => setTab('saved')}
           >
-            <Heart size={15} /> Saved
+            <Bookmark size={15} /> <span>Saved</span>
           </button>
           <button
             aria-current={tab === 'my_listings' ? 'page' : undefined}
             className={tab === 'my_listings' ? 'market-tab market-tab-active' : 'market-tab'}
             onClick={() => setTab('my_listings')}
           >
-            <Tag size={15} /> My Listings
+            <Tag size={15} /> <span>My Listings</span>
           </button>
         </nav>
 
-        {/* Category Pills Carousel */}
+        {/* Category Pills Carousel (Text only matching Screenshot 2) */}
         <div className="market-categories-scroller">
           <div className="market-categories-track" role="tablist" aria-label="Marketplace categories">
             {MARKETPLACE_CATEGORIES.map((cat) => {
-              const Icon = getCategoryIcon(cat.id);
               const isActive = selectedCategory === cat.id;
+              const label = cat.id === 'textbooks' ? 'Textbooks' : cat.label;
               return (
                 <button
                   key={cat.id}
@@ -546,104 +624,10 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
                   className={`market-category-pill ${isActive ? 'market-category-pill-active' : ''}`}
                   onClick={() => setSelectedCategory(cat.id)}
                 >
-                  <Icon size={14} />
-                  <span>{cat.label}</span>
+                  <span>{label}</span>
                 </button>
               );
             })}
-          </div>
-        </div>
-
-        {/* Search, Filter Bar and Action Button */}
-        <div className="market-controls-row">
-          <div className="market-search-box">
-            <Search size={16} className="market-search-icon" />
-            <input
-              type="text"
-              placeholder="Search textbooks, laptops, hostel gear, notes…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="Search marketplace"
-            />
-            {searchQuery ? (
-              <button onClick={() => setSearchQuery('')} className="market-search-clear">
-                <X size={14} />
-              </button>
-            ) : null}
-          </div>
-
-          <div className="market-actions-group">
-            <select
-              aria-label="Sort listings"
-              className="market-select"
-              value={sortOption}
-              onChange={(e) => setSortOption(e.target.value as SortOption)}
-            >
-              <option value="newest">Newest First</option>
-              <option value="popular">Most Popular</option>
-              <option value="price_asc">Price: Low to High</option>
-              <option value="price_desc">Price: High to Low</option>
-            </select>
-
-            <button
-              className={`market-filter-btn ${minPrice || maxPrice ? 'market-filter-btn-active' : ''}`}
-              onClick={() => setShowPriceFilter((prev) => !prev)}
-              aria-label="Filter price"
-            >
-              <SlidersHorizontal size={14} />
-              <span>Price</span>
-            </button>
-
-            <button className="market-create-btn" onClick={openCreateComposer}>
-              <Plus size={16} /> List Item
-            </button>
-          </div>
-        </div>
-
-        {/* Expandable Price Range Filter Drawer */}
-        {showPriceFilter ? (
-          <div className="market-price-drawer">
-            <div className="market-price-inputs">
-              <label>
-                <span>Min Price (₦)</span>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value)}
-                />
-              </label>
-              <label>
-                <span>Max Price (₦)</span>
-                <input
-                  type="number"
-                  placeholder="Any"
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
-                />
-              </label>
-              <button
-                className="market-price-clear-btn"
-                onClick={() => {
-                  setMinPrice('');
-                  setMaxPrice('');
-                }}
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {/* Student Campus Safety Notice */}
-        <div className="market-safety-card">
-          <ShieldCheck size={20} className="market-safety-icon" />
-          <div className="market-safety-copy">
-            <strong>Campus Student Safe Trade Guide</strong>
-            <p>
-              Always inspect items in person. Meet in busy daylight campus spots (e.g. Student Union Building, Main
-              Library, or Campus Gate). Never wire money before receiving the item.
-            </p>
           </div>
         </div>
 
@@ -651,7 +635,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
         {isLoading ? (
           <div className="market-loading-state">
             <div className="market-spinner" />
-            <p>Finding listings on your campus…</p>
+            <p>Finding listings near you…</p>
           </div>
         ) : listings.length === 0 ? (
           <div className="market-empty-state">
@@ -857,7 +841,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
                   title="View seller profile"
                 >
                   <strong>{selectedListing.seller_name}</strong>
-                  <span>@{selectedListing.seller_username || 'campus_student'}</span>
+                  <span>@{selectedListing.seller_username || 'seller'}</span>
                   <small>
                     <GraduationCap size={13} className="market-school-icon" />
                     {selectedListing.seller_school || selectedListing.school || 'Verified Student (No school listed)'}
@@ -946,7 +930,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
                 </button>
               </div>
               <p className="market-contact-intro">
-                Reach out to arrange a safe in-person inspection and handoff on campus.
+                Reach out to arrange a safe in-person inspection and handoff.
               </p>
 
               <div className="market-contact-details">
@@ -994,7 +978,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
               aria-label="Create marketplace listing"
             >
               <div className="market-modal-top">
-                <h3>{editingListing ? 'Edit Your Listing' : 'List an Item on Campus'}</h3>
+                <h3>{editingListing ? 'Edit Your Listing' : 'List an Item'}</h3>
                 <button className="market-modal-close" onClick={() => setComposerOpen(false)}>
                   <X size={18} />
                 </button>
@@ -1060,7 +1044,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
                     <input
                       required
                       type="text"
-                      placeholder="e.g. Moremi Hall, Yaba, Ikeja, Main Gate, Campus SUB..."
+                      placeholder="e.g. Moremi Hall, Yaba, Ikeja, Main Gate, SUB..."
                       value={formLocation}
                       onChange={(e) => setFormLocation(e.target.value)}
                     />
@@ -1204,7 +1188,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
                 <div className="market-seller-profile-names">
                   <h3>{sellerProfileListing.seller_name}</h3>
                   <span className="market-seller-profile-handle">
-                    @{sellerProfileListing.seller_username || 'campus_student'}
+                    @{sellerProfileListing.seller_username || 'seller'}
                   </span>
                   <span className="market-verified-badge">
                     <CheckCircle2 size={13} /> Verified Student
@@ -1278,6 +1262,17 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
             </div>
           </div>
         ) : null}
+
+        {/* Mobile Floating Action Button for selling */}
+        <button
+          className="market-floating-sell-fab"
+          onClick={openCreateComposer}
+          aria-label="Sell an item"
+          type="button"
+        >
+          <Plus size={16} strokeWidth={3} />
+          <span>Sell</span>
+        </button>
       </div>
     </main>
   );

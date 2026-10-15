@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BottomTabs } from './src/components/BottomTabs';
 import { MenuOverlay } from './src/components/MenuOverlay';
 import { AnonymousScreen } from './src/screens/AnonymousScreen';
@@ -23,9 +24,11 @@ export default function App() {
   const toggleTheme = () => setMode((current) => current === 'dark' ? 'light' : 'dark');
 
   return (
-    <ThemeContext.Provider value={{ mode, colors: palettes[mode], toggleTheme }}>
-      <AppContent />
-    </ThemeContext.Provider>
+    <SafeAreaProvider>
+      <ThemeContext.Provider value={{ mode, colors: palettes[mode], toggleTheme }}>
+        <AppContent />
+      </ThemeContext.Provider>
+    </SafeAreaProvider>
   );
 }
 
@@ -111,7 +114,7 @@ function AppContent() {
           {activeTab === 'create' ? (
             <CreateFlowScreen
               onClose={() => setActiveTab('home')}
-              onPost={(post) => {
+              onPost={(post: FeedPost) => {
                 setLocalPosts((current) => [post, ...current]);
                 setActiveTab('home');
               }}

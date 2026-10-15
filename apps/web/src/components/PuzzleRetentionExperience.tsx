@@ -449,7 +449,7 @@ export function PuzzleRetentionExperience({
         </div>
         <div className="puzzle-progress-card">
           <div className="puzzle-progress-copy">
-            <strong>Come back for a fresh campus challenge every day.</strong>
+            <strong>Come back for a fresh challenge every day.</strong>
             <p>Choose a difficulty. Your puzzle and unfinished attempt are saved on this device.</p>
           </div>
           <div className="puzzle-stat-strip">
@@ -468,7 +468,7 @@ export function PuzzleRetentionExperience({
 
         <div className="puzzle-leaderboard">
           <div className="puzzle-leaderboard-heading">
-            <div><span className="games-kicker">CAMPUS CHALLENGE</span><h3>Leaderboard</h3></div>
+            <div><span className="games-kicker">DAILY CHALLENGE</span><h3>Leaderboard</h3></div>
             <label className="puzzle-privacy-select">Show me to
               <select aria-label="Leaderboard privacy" onChange={(event) => void changeVisibility(event.target.value as Visibility)} value={data.visibility}>
                 <option value="private">Only me</option>
@@ -612,12 +612,12 @@ function PuzzleDialog({
   const [shareMessage, setShareMessage] = useState('');
 
   const shareResult = async () => {
-    const shareText = `Daily Campus Word Puzzle · ${puzzleDifficulties[difficulty].label} · ${result?.score ?? scorePreview} points · ${formatElapsed(result?.elapsedSeconds ?? elapsedSeconds)} · ${date}`;
+    const shareText = `Daily Word Puzzle · ${puzzleDifficulties[difficulty].label} · ${result?.score ?? scorePreview} points · ${formatElapsed(result?.elapsedSeconds ?? elapsedSeconds)} · ${date}`;
     try {
       if (navigator.share) await navigator.share({ text: shareText });
       else {
         await navigator.clipboard.writeText(shareText);
-        setShareMessage('Result copied. Share it with your campus group.');
+        setShareMessage('Result copied. Share it with your group.');
       }
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
@@ -636,12 +636,12 @@ function PuzzleDialog({
         role="dialog"
       >
         <div className="games-puzzle-topbar">
-          <span className="games-kicker">DAILY CAMPUS CHALLENGE · {date}</span>
+          <span className="games-kicker">DAILY CHALLENGE · {date}</span>
           <button className="games-close" onClick={onClose} type="button">Close</button>
         </div>
         <div className="games-puzzle-heading">
           <h2 id="daily-puzzle-title">Daily Word Puzzle</h2>
-          <p>Find every campus word by tracing adjacent letters in a straight line.</p>
+          <p>Find every word by tracing adjacent letters in a straight line.</p>
           <div className="games-puzzle-art" role="img" aria-label="Daily Word Puzzle artwork" />
         </div>
         <div className="puzzle-difficulty-switch" aria-label="Puzzle difficulty">
@@ -659,7 +659,7 @@ function PuzzleDialog({
           </div>
         ) : null}
         <p aria-live="polite" className="games-puzzle-message">
-          {complete ? 'Puzzle complete! You found every campus word.' : 'Tap each word’s letters in order, moving one square at a time.'}
+          {complete ? 'Puzzle complete! You found every word.' : 'Tap each word’s letters in order, moving one square at a time.'}
         </p>
         {hintText ? <p className="puzzle-hint-text" role="status">{hintText}</p> : null}
         <div aria-label={`${puzzleDifficulties[difficulty].label} word search grid`} className={`games-puzzle-grid puzzle-grid-${difficulty}`}>

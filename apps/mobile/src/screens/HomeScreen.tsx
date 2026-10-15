@@ -157,8 +157,8 @@ export function HomeScreen({
   const handleShare = async (post: RoomPost) => {
     try {
       await Share.share({
-        title: `Post by ${post.authorName} on Common Room`,
-        message: `${post.authorName}: "${post.caption}" - shared from Common Room`,
+        title: `Post by ${post.authorName} on Commonroom`,
+        message: `${post.authorName}: "${post.caption}" - shared from Commonroom`,
       });
     } catch {
       showToast('Post link shared');

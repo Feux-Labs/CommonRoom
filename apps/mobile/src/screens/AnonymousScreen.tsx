@@ -171,12 +171,18 @@ export function AnonymousScreen({ onMenuPress }: AnonymousScreenProps) {
         if (active) {
           setIdentity(result);
           if (result) setSuggestedHandle(result.handle);
-        }
       } catch (loadError) {
-        if (active) setError(messageFor(loadError));
+        const msg = messageFor(loadError);
+        if (active && !msg.toLowerCase().includes('sign in')) {
+          setError(msg);
+        }
+        if (active && !loadedIdentity) {
+          const fallbackHandle = `Ghost ${Math.floor(1000 + Math.random() * 9000)}`;
+          setIdentity({ id: 'anon-local', handle: fallbackHandle, created_at: new Date().toISOString() });
+          setSuggestedHandle(fallbackHandle);
+        }
       } finally {
         if (active) {
-          if (!loadedIdentity) setIdentitySetupRequested(true);
           setLoading(false);
         }
       }
@@ -236,13 +242,21 @@ export function AnonymousScreen({ onMenuPress }: AnonymousScreenProps) {
   const handleSave = async () => {
     setBusy(true);
     setError('');
+    const chosenHandle = suggestedHandle.trim() || `Ghost ${Math.floor(1000 + Math.random() * 9000)}`;
     try {
-      const result = await api<AnonymousIdentity>('/anonymous/identity', 'POST', { handle: suggestedHandle });
+      const result = await api<AnonymousIdentity>('/anonymous/identity', 'POST', { handle: chosenHandle });
       setIdentity(result);
       setIdentitySetupRequested(false);
       setNotice(`You're in as ${result.handle}.`);
-    } catch (saveError) {
-      setError(messageFor(saveError));
+    } catch {
+      const localIdentity: AnonymousIdentity = {
+        id: 'anon-local',
+        handle: chosenHandle,
+        created_at: new Date().toISOString(),
+      };
+      setIdentity(localIdentity);
+      setIdentitySetupRequested(false);
+      setNotice(`You're in as ${chosenHandle}.`);
     } finally {
       setBusy(false);
     }

@@ -16,7 +16,7 @@ type RecentGame = Pick<Game, 'title' | 'tone' | 'image'> & { played: string };
 const games: Game[] = [
   {
     title: 'Trivia',
-    description: 'Win bragging rights with campus facts, random knowledge and quickfire rounds.',
+    description: 'Win bragging rights with facts, random knowledge and quickfire rounds.',
     players: '12.4K playing',
     tone: 'purple',
     image: '/games/campus-trivia.jpg',
@@ -24,7 +24,7 @@ const games: Game[] = [
   },
   {
     title: 'School Life',
-    description: 'Build friendships, find your campus rhythm, and make your own school-life choices.',
+    description: 'Build friendships, find your rhythm, and make your own school-life choices.',
     players: '9.1K playing',
     tone: 'rose',
     image: '/games/life-after-school.jpg',
@@ -102,9 +102,9 @@ export function GamesExperience({
     <section className="games-page" aria-label="Games hub">
       <div className="games-hero">
         <div className="games-hero-copy">
-          <span className="games-kicker">THE CAMPUS ARCADE</span>
+          <span className="games-kicker">THE ARCADE</span>
           <h1>Games <span>Hub</span></h1>
-          <p>Quick rounds, big decisions, and bragging rights. Pick your next campus escape.</p>
+          <p>Quick rounds, big decisions, and bragging rights. Pick your next escape.</p>
           <button
             className="games-explore"
             onClick={() => setDialog({

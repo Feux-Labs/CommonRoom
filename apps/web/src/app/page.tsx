@@ -1,4 +1,4 @@
-'use client';
+v'use client';
 
 import {
   Bell,
@@ -107,7 +107,21 @@ export default function Home() {
   const focusPostId = pathname?.startsWith('/posts/') ? pathname.split('/')[2] ?? null : null;
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
-  const [tab, setTab] = useState<AppTab>('home');
+  const [tab, setTabState] = useState<AppTab>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('commonroom_active_tab') as AppTab;
+      if (saved && ['home', 'create', 'dating', 'marketplace', 'games', 'anonymous', 'profile'].includes(saved)) {
+        return saved;
+      }
+    }
+    return 'home';
+  });
+  const setTab = useCallback((nextTab: AppTab) => {
+    setTabState(nextTab);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('commonroom_active_tab', nextTab);
+    }
+  }, []);
   const [roomRefresh, setRoomRefresh] = useState(0);
   const [authRoute, setAuthRoute] = useState<'welcome' | 'sign-in' | 'sign-up' | 'forgot-password'>('welcome');
   const [loginMethod, setLoginMethod] = useState<'email' | 'apple'>('email');
@@ -147,8 +161,8 @@ export default function Home() {
   const [notifications, setNotifications] = useState([
     { id: '1', actor: 'Joyce A.', text: 'liked your lecture photo from ABU', time: '15m ago', type: 'like', read: false },
     { id: '2', actor: 'Mide B.', text: 'commented on study group: "Library 3rd floor quiet corner is the best."', time: '1h ago', type: 'comment', read: false },
-    { id: '3', actor: 'Chidi Eze', text: 'started following you on Common Room', time: '3h ago', type: 'follow', read: false },
-    { id: '4', actor: 'Campus Safety', text: 'Mid-term registration closes on Friday across faculties.', time: '1d ago', type: 'alert', read: true },
+    { id: '3', actor: 'Chidi Eze', text: 'started following you on Commonroom', time: '3h ago', type: 'follow', read: false },
+    { id: '4', actor: 'Community', text: 'Mid-term registration closes on Friday across faculties.', time: '1d ago', type: 'alert', read: true },
   ]);
 
   const configuredNow = isSupabaseConfigured();
@@ -201,7 +215,6 @@ export default function Home() {
       setAgeConfirmed(profileRecord.ageEligibilityConfirmed);
       setInterests(profileRecord.interests);
       setShowSchool(profileRecord.showSchoolOnProfile);
-      setTab('home');
     } else {
       setProfile(null);
       setDisplayName(activeSession.user.user_metadata.display_name ?? '');
@@ -408,7 +421,7 @@ export default function Home() {
     setInterests(savedProfile.interests);
     setShowSchool(savedProfile.showSchoolOnProfile);
     setTab('home');
-    setNotice('Your profile is ready. Welcome to Common Room!');
+    setNotice('Your profile is ready. Welcome to Commonroom!');
   };
 
   const publishPost = async (event: FormEvent<HTMLFormElement>) => {
@@ -506,7 +519,7 @@ export default function Home() {
   };
 
   const tabs: { id: AppTab; label: string; icon: LucideIcon }[] = [
-    { id: 'home', label: 'Home', icon: HomeIcon },
+    { id: 'home', label: 'Room', icon: HomeIcon },
     { id: 'create', label: 'Create', icon: Plus },
     { id: 'anonymous', label: 'Anonymous', icon: MessageCircle },
     { id: 'marketplace', label: 'Marketplace', icon: ShoppingCart },
@@ -515,7 +528,7 @@ export default function Home() {
   ];
 
   if (loading) {
-    return <main className="boot-screen"><div className="loader" /><span>Opening your campus space…</span></main>;
+    return <main className="boot-screen"><div className="loader" /><span>Loading your space…</span></main>;
   }
 
   const needsProfile = Boolean(session && !profile && configured);
@@ -548,10 +561,10 @@ export default function Home() {
           </header>
           <Image alt="Common Room" className="native-auth-logo" height={34} priority src="/common-room-full-logo-white.png" width={120} />
           <h1 className="native-auth-title">
-            {authRoute === 'welcome' ? 'Your campus, your people.' : authRoute === 'sign-up' ? 'Create your account' : authRoute === 'forgot-password' ? 'Reset your password' : 'Log in'}
+            {authRoute === 'welcome' ? 'Your vibe, your people.' : authRoute === 'sign-up' ? 'Create your account' : authRoute === 'forgot-password' ? 'Reset your password' : 'Log in'}
           </h1>
           <p className="native-auth-subtitle">
-            {authRoute === 'welcome' ? 'A shared space for your school community.' : 'Connect with your campus community.'}
+            {authRoute === 'welcome' ? 'A shared space for your community.' : 'Connect with your community.'}
           </p>
           {!configured ? (
             <div className="native-auth-setup">
@@ -624,8 +637,8 @@ export default function Home() {
       <aside className="sidebar">
         <Brand darkMode={darkMode} />
         <div className="school-switcher">
-          <div className="school-avatar">{profile.school?.slice(0, 1) ?? 'C'}</div>
-          <div><strong>{profile.school ?? 'All schools'}</strong><span>Campus community</span></div>
+          <div className="school-avatar">{profile.school?.slice(0, 1) ?? 'S'}</div>
+          <div><strong>{profile.school ?? 'All communities'}</strong><span>Your community</span></div>
           <ChevronDown size={15} />
         </div>
         <nav className="primary-nav" aria-label="Main navigation">
@@ -641,8 +654,8 @@ export default function Home() {
         <div className="sidebar-spacer" />
         <div className="sidebar-promo">
           <div className="promo-icon"><Compass size={20} /></div>
-          <strong>Your school, in one place</strong>
-          <p>Catch campus moments, ask questions, and share what matters.</p>
+          <strong>Everything, in one place</strong>
+          <p>Catch moments, ask questions, and share what matters.</p>
         </div>
         <button className="account-row" onClick={() => setMenuOpen((open) => !open)}>
           <span className="profile-avatar">{profile.displayName.slice(0, 1).toUpperCase()}</span>
@@ -652,46 +665,48 @@ export default function Home() {
       </aside>
 
       <section className="workspace">
-        <header className="mobile-topbar">
-          <Brand darkMode={darkMode} />
-          <div className="mobile-topbar-actions">
-            <button
-              className="icon-button mobile-topbar-btn"
-              aria-label="Search campus"
-              onClick={() => setSearchModalOpen(true)}
-              type="button"
-            >
-              <Search size={19} />
-            </button>
-            <button
-              className="icon-button mobile-topbar-btn"
-              aria-label="Campus notifications"
-              onClick={() => {
-                setNotificationsOpen((prev) => !prev);
-                setMenuOpen(false);
-              }}
-              type="button"
-            >
-              <Bell size={19} />
-              {notifications.some((n) => !n.read) ? (
-                <span className="notification-dot" />
-              ) : null}
-            </button>
-            <button
-              className="mobile-avatar-btn"
-              aria-label="Account menu"
-              onClick={() => {
-                setMenuOpen((prev) => !prev);
-                setNotificationsOpen(false);
-              }}
-              type="button"
-            >
-              <span className="profile-avatar-circle">
-                {profile.displayName.slice(0, 1).toUpperCase()}
-              </span>
-            </button>
-          </div>
-        </header>
+        {tab === 'home' ? (
+          <header className="mobile-topbar">
+            <Brand darkMode={darkMode} />
+            <div className="mobile-topbar-actions">
+              <button
+                className="icon-button mobile-topbar-btn"
+                aria-label="Search"
+                onClick={() => setSearchModalOpen(true)}
+                type="button"
+              >
+                <Search size={19} />
+              </button>
+              <button
+                className="icon-button mobile-topbar-btn"
+                aria-label="Notifications"
+                onClick={() => {
+                  setNotificationsOpen((prev) => !prev);
+                  setMenuOpen(false);
+                }}
+                type="button"
+              >
+                <Bell size={19} />
+                {notifications.some((n) => !n.read) ? (
+                  <span className="notification-dot" />
+                ) : null}
+              </button>
+              <button
+                className="mobile-avatar-btn"
+                aria-label="Account menu"
+                onClick={() => {
+                  setMenuOpen((prev) => !prev);
+                  setNotificationsOpen(false);
+                }}
+                type="button"
+              >
+                <span className="profile-avatar-circle">
+                  {profile.displayName.slice(0, 1).toUpperCase()}
+                </span>
+              </button>
+            </div>
+          </header>
+        ) : null}
 
         <header className="workspace-topbar">
           <div className="workspace-heading">
@@ -700,12 +715,12 @@ export default function Home() {
           <div className="topbar-actions">
             <button className="search-button" onClick={() => setSearchModalOpen(true)} type="button">
               <Search size={16} />
-              <span>Search your campus</span>
+              <span>Search</span>
               <kbd>⌘ K</kbd>
             </button>
             <button
               className="icon-button topbar-bell-btn"
-              aria-label="Campus notifications"
+              aria-label="Notifications"
               onClick={() => setNotificationsOpen((prev) => !prev)}
               type="button"
             >
@@ -749,7 +764,7 @@ export default function Home() {
                     <label className="upload-zone">
                       <ImagePlus size={24} />
                       <strong>Choose {createType === 'photo' ? 'photos' : 'a video'}</strong>
-                      <span>Media uploads directly to your private school community storage.</span>
+                      <span>Media uploads directly to your private community storage.</span>
                       <input
                         accept={createType === 'photo' ? 'image/*' : 'video/*'}
                         multiple={createType === 'photo'}
@@ -837,7 +852,7 @@ export default function Home() {
                     </div>
                   )
                 ) : null}
-                <label>Caption<textarea value={createCaption} onChange={(event) => setCreateCaption(event.target.value)} maxLength={3000} rows={4} placeholder={createType === 'question' ? 'Ask your school community…' : 'What would you like to share?'} /></label>
+                <label>Caption<textarea value={createCaption} onChange={(event) => setCreateCaption(event.target.value)} maxLength={3000} rows={4} placeholder={createType === 'question' ? 'Ask the community…' : 'What would you like to share?'} /></label>
                 {createType === 'poll' ? (
                   <div className="poll-options">
                     <span className="field-label">Poll answers</span>
@@ -846,11 +861,11 @@ export default function Home() {
                   </div>
                 ) : null}
                 <div className="form-grid">
-                  <label>Location (optional)<input value={createLocation} onChange={(event) => setCreateLocation(event.target.value)} maxLength={120} placeholder="Add a campus location" /></label>
+                  <label>Location (optional)<input value={createLocation} onChange={(event) => setCreateLocation(event.target.value)} maxLength={120} placeholder="Add a location" /></label>
                   <label>Audience<select value={createAudience} onChange={(event) => setCreateAudience(event.target.value as Audience)}><option>Public</option><option>Followers</option><option>Private</option></select></label>
                 </div>
                 <div className="form-footnote"><ShieldCheck size={16} /><span>Audience permissions are enforced by the API and database policies.</span></div>
-                <button className="primary-button" type="submit">Publish to Common Room</button>
+                <button className="primary-button" type="submit">Publish to Commonroom</button>
               </form>
             </section>
           ) : null}
@@ -913,7 +928,7 @@ export default function Home() {
           ) : null}
 
           {tab === 'anonymous' ? (
-            <AnonymousExperience />
+            <AnonymousExperience initialSession={session} onBack={() => setTab('home')} />
           ) : null}
 
           {tab === 'marketplace' ? (
@@ -935,7 +950,7 @@ export default function Home() {
                 <div><strong>Dating profile</strong><p>Choose whether your profile can appear to other age-eligible students.</p></div>
                 <label className="switch-row"><span>Show my profile to students</span><input checked={datingOptIn} onChange={(event) => setDatingOptIn(event.target.checked)} type="checkbox" /></label>
                 <label>Short bio<textarea value={datingBio} onChange={(event) => setDatingBio(event.target.value)} maxLength={500} rows={2} placeholder="A little about you" /></label>
-                <label>Interests<input value={datingInterests} onChange={(event) => setDatingInterests(event.target.value)} placeholder="Music, books, campus life" /></label>
+                <label>Interests<input value={datingInterests} onChange={(event) => setDatingInterests(event.target.value)} placeholder="Music, books, vibes" /></label>
                 <button className="secondary-button" type="submit">Save dating preferences</button>
               </form>
               <div className="dating-grid">
@@ -993,7 +1008,7 @@ export default function Home() {
                 <span className="profile-avatar">{profile.displayName.slice(0, 1).toUpperCase()}</span>
                 <div className="account-menu-user">
                   <strong>{profile.displayName}</strong>
-                  <small>{profile.school ?? 'Common Room'}</small>
+                  <small>{profile.school ?? 'Commonroom'}</small>
                 </div>
                 <button className="icon-button" onClick={() => setMenuOpen(false)} aria-label="Close menu" type="button">
                   <X size={16} />
@@ -1004,7 +1019,7 @@ export default function Home() {
                   <Users size={16} /> My profile
                 </button>
                 <button onClick={() => { setTab('dating'); setMenuOpen(false); }} type="button">
-                  <Heart size={16} /> Campus Dating
+                  <Heart size={16} /> Dating
                 </button>
                 <button onClick={() => { setTab('create'); setMenuOpen(false); }} type="button">
                   <Plus size={16} /> Create post
@@ -1021,7 +1036,7 @@ export default function Home() {
         {notificationsOpen ? (
           <>
             <div className="menu-backdrop" onClick={() => setNotificationsOpen(false)} />
-            <div className="notifications-dropdown" role="dialog" aria-label="Campus Notifications">
+            <div className="notifications-dropdown" role="dialog" aria-label="Notifications">
               <div className="notifications-header">
                 <div className="notifications-heading">
                   <Bell size={16} />
@@ -1087,8 +1102,8 @@ export default function Home() {
               </div>
 
               <div className="search-modal-tags">
-                <span className="search-tags-label">Trending on campus:</span>
-                {['#Unilag', '#ABU', '#ExamSeason', '#HostelLife', '#TechStudents', '#GreatIfe'].map((tag) => (
+                <span className="search-tags-label">Trending now:</span>
+                {['#Vibes', '#StudyTips', '#ExamSeason', '#HostelLife', '#TechStudents', '#GlowUp'].map((tag) => (
                   <button
                     key={tag}
                     className="search-tag-chip"
@@ -1103,7 +1118,7 @@ export default function Home() {
               <div className="search-modal-results">
                 {searchQuery.trim() ? (
                   <>
-                    <div className="search-section-title">Campuses & Communities</div>
+                    <div className="search-section-title">Communities</div>
                     {institutions
                       .filter((inst) => `${inst.name} ${inst.location}`.toLowerCase().includes(searchQuery.toLowerCase()))
                       .slice(0, 4)
@@ -1131,7 +1146,7 @@ export default function Home() {
                   </>
                 ) : (
                   <div className="search-empty-prompt">
-                    <p>Type student names, university tags, or exam topics to search your campus community.</p>
+                    <p>Type names, tags, or topics to search your community.</p>
                   </div>
                 )}
               </div>
@@ -1158,15 +1173,8 @@ export default function Home() {
 
 function Brand({ darkMode = true }: { darkMode?: boolean }) {
   return (
-    <a href="/" className="brand-link" aria-label="Common Room home">
-      <Image
-        alt="Common Room"
-        className="brand-logo"
-        height={28}
-        priority
-        src={darkMode ? '/common-room-full-logo-white.png' : '/common-room-full-logo.png'}
-        width={132}
-      />
+    <a href="/" className="brand-link" aria-label="Commonroom home">
+      <span className="brand-wordmark">Commonroom</span>
     </a>
   );
 }
@@ -1218,7 +1226,7 @@ function ProfileForm({
   error: string;
   disabled: boolean;
 }) {
-  const interestOptions = ['Campus life', 'Technology', 'Music', 'Sports', 'Gaming', 'Entrepreneurship', 'Arts', 'Study tips'];
+  const interestOptions = ['Social life', 'Technology', 'Music', 'Sports', 'Gaming', 'Entrepreneurship', 'Arts', 'Study tips'];
 
   return (
     <form className="panel profile-form" onSubmit={onSubmit}>

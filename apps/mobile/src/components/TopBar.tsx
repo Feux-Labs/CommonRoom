@@ -1,5 +1,5 @@
-import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../theme/ThemeContext';
 import { AppColors } from '../theme/tokens';
 import { IconSymbol } from './IconSymbol';
@@ -13,25 +13,25 @@ type TopBarProps = {
 };
 
 export function TopBar({ title, showBell = true, showAvatar = true, showMenuButton = false, onMenuPress }: TopBarProps) {
-  const { colors, mode } = useAppTheme();
-  const styles = createStyles(colors);
+  const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const styles = createStyles(colors, insets.top);
 
   return (
     <View style={styles.wrap}>
-      <Image
-        accessibilityLabel="Common Room logo"
-        contentFit="contain"
-        source={mode === 'dark'
-          ? require('../../COMMON ROOM full logo white.png')
-          : require('../../COMMON ROOM full logo.png')}
-        style={styles.logo}
-      />
+      {/* Centered Brand Title in pure white, safe below iPhone notch / island */}
+      <View style={styles.centerWrap} pointerEvents="none">
+        <Text style={styles.brandTitle}>{title || 'Commonroom'}</Text>
+      </View>
+
+      <View style={styles.leftPlaceholder} />
+
       <View style={styles.actions}>
-        <IconSymbol name="Search" framed={false} size={11} />
-        {showBell ? <IconSymbol name="Bell" framed={false} size={11} /> : null}
+        <IconSymbol name="Search" framed={false} size={15} />
+        {showBell ? <IconSymbol name="Bell" framed={false} size={15} /> : null}
         {showMenuButton ? (
           <Pressable accessibilityRole="button" accessibilityLabel="Open menu" onPress={onMenuPress}>
-            <IconSymbol name="Menu" framed={false} size={11} />
+            <IconSymbol name="Menu" framed={false} size={15} />
           </Pressable>
         ) : null}
         {showAvatar ? (
@@ -40,43 +40,56 @@ export function TopBar({ title, showBell = true, showAvatar = true, showMenuButt
           </Pressable>
         ) : null}
       </View>
-      {title ? <Text style={styles.title}>{title}</Text> : null}
     </View>
   );
 }
 
-const createStyles = (colors: AppColors) => StyleSheet.create({
+const createStyles = (colors: AppColors, topInset: number) => StyleSheet.create({
   wrap: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    paddingHorizontal: 14,
-    paddingTop: 8,
+    paddingHorizontal: 16,
+    paddingTop: topInset > 0 ? topInset : 12,
+    paddingBottom: 8,
+    position: 'relative',
+    backgroundColor: colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
-  logo: {
-    height: 28,
-    width: 96,
+  centerWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: topInset > 0 ? topInset : 12,
+    bottom: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  title: {
-    color: colors.text,
-    fontSize: 18,
+  brandTitle: {
+    color: '#ffffff',
+    fontSize: 20,
     fontWeight: '900',
-    letterSpacing: -0.4,
-    marginTop: 7,
-    width: '100%',
+    letterSpacing: -0.5,
+  },
+  leftPlaceholder: {
+    width: 32,
+    height: 32,
   },
   actions: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 7,
+    gap: 12,
+    marginLeft: 'auto',
+    zIndex: 2,
   },
   avatar: {
     backgroundColor: colors.surfaceSoft,
-    borderColor: colors.text,
+    borderColor: '#ffffff',
     borderRadius: 18,
-    borderWidth: 1,
-    height: 26,
-    width: 26,
+    borderWidth: 1.5,
+    height: 28,
+    width: 28,
   },
 });
+

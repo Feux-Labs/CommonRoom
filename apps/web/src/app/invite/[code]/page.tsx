@@ -13,7 +13,7 @@ function InviteContent({ params }: { params: Promise<{ code: string }> }) {
       const supabase = getBrowserSupabase();
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
-        if (active) setMessage('Sign in on Common Room, then open this invite again.');
+        if (active) setMessage('Sign in on Commonroom, then open this invite again.');
         return;
       }
       const response = await fetch('/api/v1/invites/redeem', {
@@ -41,7 +41,7 @@ function InviteContent({ params }: { params: Promise<{ code: string }> }) {
     <main className="auth-shell">
       <div className="auth-card">
         <p>{message}</p>
-        <a className="text-link" href="/">Back to Common Room</a>
+        <a className="text-link" href="/">Back to Commonroom</a>
       </div>
     </main>
   );

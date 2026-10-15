@@ -4,6 +4,8 @@ import {
   Bookmark,
   ChevronLeft,
   ChevronRight,
+  EyeOff,
+  Flag,
   Heart,
   ImagePlus,
   MapPin,
@@ -15,6 +17,9 @@ import {
   Send,
   Share2,
   ShieldCheck,
+  SlidersHorizontal,
+  Trash2,
+  UserCheck,
   UserPlus,
   Users,
   X,
@@ -93,6 +98,7 @@ export function RoomExperience({
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [replyTo, setReplyTo] = useState<Record<string, RoomComment | null>>({});
   const [menuPostId, setMenuPostId] = useState<string | null>(null);
+  const [reportModalPost, setReportModalPost] = useState<RoomPost | null>(null);
   const [viewer, setViewer] = useState<ViewerState | null>(null);
   const [openProfile, setOpenProfile] = useState<RoomProfile | null>(null);
   const [mediaIndex, setMediaIndex] = useState<Record<string, number>>({});
@@ -280,22 +286,46 @@ export function RoomExperience({
     }
   };
 
+  const REPORT_REASONS = [
+    'Inappropriate or offensive content',
+    'Harassment or bullying',
+    'Spam or misleading information',
+    'Violation of community guidelines',
+  ];
+
   const sharePost = async (post: RoomPost) => {
+    const postUrl = `${window.location.origin}/posts/${post.id}`;
     try {
-      const result = await roomRequest<{ url: string }>(`/api/v1/posts/${post.id}/share`, accessToken, 'POST');
+      if (navigator.share) {
+        await navigator.share({
+          title: `Post by ${post.authorName} on Commonroom`,
+          text: post.caption || `Post by ${post.authorName} on Commonroom`,
+          url: postUrl,
+        });
+        await roomRequest<{ url: string }>(`/api/v1/posts/${post.id}/share`, accessToken, 'POST').catch(() => {});
+      } else {
+        await navigator.clipboard.writeText(postUrl);
+        onNotice('Share link copied to clipboard.');
+        await roomRequest<{ url: string }>(`/api/v1/posts/${post.id}/share`, accessToken, 'POST').catch(() => {});
+      }
       patchPost(post.id, (item) => ({ ...item, shares: item.shares + 1 }));
-      await navigator.clipboard.writeText(result.url);
-      onNotice('Share link copied.');
     } catch (error) {
-      onError(error instanceof Error ? error.message : 'This post could not be shared.');
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      try {
+        await navigator.clipboard.writeText(postUrl);
+        onNotice('Share link copied to clipboard.');
+      } catch {
+        onError('This post could not be shared.');
+      }
     }
   };
 
-  const reportPost = async (post: RoomPost) => {
+  const handleConfirmReport = async (post: RoomPost, reason: string) => {
     try {
-      await roomRequest(`/api/v1/posts/${post.id}/report`, accessToken, 'POST', { reason: 'Inappropriate content' });
+      await roomRequest(`/api/v1/posts/${post.id}/report`, accessToken, 'POST', { reason });
+      setReportModalPost(null);
       setMenuPostId(null);
-      onNotice('Report received. Thanks for helping keep Room safe.');
+      onNotice('Thank you for reporting. Our safety team has been notified.');
     } catch (error) {
       onError(error instanceof Error ? error.message : 'This post could not be reported.');
     }
@@ -421,6 +451,7 @@ export function RoomExperience({
   const activeItem = viewer?.kind === 'story' ? activeStory?.items[viewer.itemIndex] : viewerPost;
   const viewerItems = activeItem ? postMedia(activeItem) : [];
   const viewerMedia = viewerItems[mediaIndex[activeItem?.id ?? ''] ?? 0] ?? viewerItems[0] ?? null;
+  const activeMenuPost = menuPostId ? findPost(menuPostId) : null;
 
   const advanceStory = useCallback((delta: number) => {
     setViewer((current) => {
@@ -536,23 +567,15 @@ export function RoomExperience({
             <strong>{post.authorName}</strong>
             <span>@{post.authorUsername} · {post.time}</span>
           </button>
-          <button className="icon-button subtle" aria-label="More post options" onClick={() => setMenuPostId(menuPostId === post.id ? null : post.id)} type="button"><MoreHorizontal size={19} /></button>
+          <button
+            className="icon-button subtle post-options-trigger"
+            aria-label="Post options"
+            onClick={() => setMenuPostId(menuPostId === post.id ? null : post.id)}
+            type="button"
+          >
+            <SlidersHorizontal size={18} />
+          </button>
         </div>
-        {menuPostId === post.id ? (
-          <div className="post-menu">
-            {post.authorId === profile.id ? (
-              <button onClick={() => void deletePost(post)} type="button">Delete</button>
-            ) : (
-              <>
-                <button onClick={() => void followPerson({ id: post.authorId, display_name: post.authorName, following: followingById[post.authorId] === true })} type="button">
-                  {followingById[post.authorId] ? 'Unfollow' : 'Follow'}
-                </button>
-                <button onClick={() => hidePost(post)} type="button">Not interested</button>
-                <button onClick={() => void reportPost(post)} type="button">Report</button>
-              </>
-            )}
-          </div>
-        ) : null}
         {post.school ? <div className="post-school">{post.school}</div> : null}
         {post.caption ? <p className="post-caption">{post.caption}</p> : null}
         {post.location ? <div className="post-location"><MapPin size={13} />{post.location}</div> : null}
@@ -593,14 +616,6 @@ export function RoomExperience({
   return (
     <div className="home-layout">
       <section className="feed-column">
-        <div className="page-heading">
-          <div>
-            <span className="eyebrow">YOUR CAMPUS COMMUNITY</span>
-            <h1>Home</h1>
-          </div>
-          <button className="mobile-compose" onClick={onCreate} type="button"><Plus size={17} /> Create</button>
-        </div>
-
         <div className="stories-rail" aria-label="Stories">
           <button className="story-chip add-story" onClick={() => (ownStoryIndex >= 0 ? openStory(ownStoryIndex) : onCreate())} type="button">
             <span className="story-avatar">{initials(profile.displayName)}<i><Plus size={11} /></i></span>
@@ -624,12 +639,6 @@ export function RoomExperience({
             <button key={id} role="tab" aria-selected={scope === id} className={scope === id ? 'feed-tab active' : 'feed-tab'} onClick={() => setScope(id)} type="button">{label}</button>
           ))}
         </div>
-
-        <button className="quick-composer" onClick={onCreate} type="button">
-          <span className="profile-avatar">{initials(profile.displayName)}</span>
-          <span>Share a moment with your campus…</span>
-          <ImagePlus size={18} />
-        </button>
 
         {loading ? <div className="feed-status">Loading Room…</div> : null}
         {!loading && posts.length === 0 && !feedError ? (
@@ -798,6 +807,125 @@ export function RoomExperience({
         <div className="media-viewer" role="dialog" aria-modal="true" aria-label="Post">
           <button className="viewer-close" aria-label="Close viewer" onClick={() => setViewer(null)} type="button"><X size={18} /></button>
           <div className="viewer-frame">{renderPost(activeItem)}</div>
+        </div>
+      ) : null}
+
+      {/* Modern Post Options Bottom Sheet */}
+      {activeMenuPost ? (
+        <div className="post-options-backdrop" onClick={() => setMenuPostId(null)}>
+          <div className="post-options-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Post options">
+            <div className="post-options-handle" />
+            <div className="post-options-list">
+              {activeMenuPost.authorId !== profile.id ? (
+                <button
+                  className="post-option-item"
+                  onClick={() => {
+                    void followPerson({
+                      id: activeMenuPost.authorId,
+                      display_name: activeMenuPost.authorName,
+                      following: followingById[activeMenuPost.authorId] === true,
+                    });
+                    setMenuPostId(null);
+                  }}
+                  type="button"
+                >
+                  {followingById[activeMenuPost.authorId] ? (
+                    <>
+                      <UserCheck size={19} />
+                      <span>Unfollow @{activeMenuPost.authorUsername}</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={19} />
+                      <span>Follow @{activeMenuPost.authorUsername}</span>
+                    </>
+                  )}
+                </button>
+              ) : null}
+
+              <button
+                className="post-option-item"
+                onClick={() => {
+                  void sharePost(activeMenuPost);
+                  setMenuPostId(null);
+                }}
+                type="button"
+              >
+                <Share2 size={19} />
+                <span>Share via link</span>
+              </button>
+
+              <button
+                className="post-option-item"
+                onClick={() => hidePost(activeMenuPost)}
+                type="button"
+              >
+                <EyeOff size={19} />
+                <span>Not interested in this post</span>
+              </button>
+
+              {activeMenuPost.authorId !== profile.id ? (
+                <button
+                  className="post-option-item"
+                  onClick={() => {
+                    setReportModalPost(activeMenuPost);
+                    setMenuPostId(null);
+                  }}
+                  type="button"
+                >
+                  <Flag size={19} />
+                  <span>Report post</span>
+                </button>
+              ) : null}
+
+              {activeMenuPost.authorId === profile.id ? (
+                <button
+                  className="post-option-item destructive"
+                  onClick={() => void deletePost(activeMenuPost)}
+                  type="button"
+                >
+                  <Trash2 size={19} />
+                  <span>Delete post</span>
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Post Safety Reporting Modal */}
+      {reportModalPost ? (
+        <div className="post-options-backdrop" onClick={() => setReportModalPost(null)}>
+          <div className="post-options-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Report post">
+            <div className="post-options-handle" />
+            <div className="post-options-header">
+              <strong>Report post</strong>
+              <button
+                className="icon-button subtle"
+                onClick={() => setReportModalPost(null)}
+                aria-label="Close"
+                type="button"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="post-report-subtitle">
+              Why are you reporting this post from @{reportModalPost.authorUsername}?
+            </p>
+            <div className="post-report-reasons">
+              {REPORT_REASONS.map((reason) => (
+                <button
+                  key={reason}
+                  className="post-report-reason-btn"
+                  onClick={() => void handleConfirmReport(reportModalPost, reason)}
+                  type="button"
+                >
+                  <span>{reason}</span>
+                  <ChevronRight size={16} />
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       ) : null}
     </div>
