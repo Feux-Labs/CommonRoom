@@ -61,6 +61,12 @@ export function isAuthenticatedRequest(value: AuthenticatedRequest | NextRespons
   return !(value instanceof NextResponse);
 }
 
+export function requireRegisteredUser(auth: AuthenticatedRequest): NextResponse | null {
+  return auth.user.is_anonymous
+    ? apiError('account_required', 'Create an account to perform this action.', 403)
+    : null;
+}
+
 export function apiError(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
 }

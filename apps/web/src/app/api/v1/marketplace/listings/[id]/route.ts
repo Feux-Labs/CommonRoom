@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, parseJson } from '@/lib/supabase-server';
+import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, parseJson, requireRegisteredUser } from '@/lib/supabase-server';
 import { INITIAL_MARKETPLACE_LISTINGS } from '@/lib/marketplace-seed';
 import type { MarketplaceListing, UpdateListingInput } from '@/lib/marketplace-contracts';
 
@@ -10,6 +9,7 @@ export async function GET(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const authResult = await authenticateRequest(request);
   const userId = isAuthenticatedRequest(authResult) ? authResult.user.id : null;
+  const canContactSeller = isAuthenticatedRequest(authResult) && !authResult.user.is_anonymous;
 
   if (isAuthenticatedRequest(authResult)) {
     try {
@@ -48,7 +48,7 @@ export async function GET(request: Request, context: RouteContext) {
           seller_username: dbItem.seller?.username || null,
           seller_avatar: null,
           seller_school: dbItem.seller?.school || dbItem.school || null,
-          seller_phone: dbItem.contact_phone || null,
+          seller_phone: canContactSeller ? dbItem.contact_phone || null : null,
           title: dbItem.title,
           description: dbItem.description,
           price: Number(dbItem.price),
@@ -81,6 +81,7 @@ export async function GET(request: Request, context: RouteContext) {
   found.views_count += 1;
   return apiSuccess({
     ...found,
+    seller_phone: canContactSeller ? found.seller_phone : null,
     is_mine: userId !== null && found.seller_id === userId,
   });
 }
@@ -91,99 +92,63 @@ export async function PUT(request: Request, context: RouteContext) {
   if (!body) return apiError('invalid_body', 'Invalid update data.', 400);
 
   const authResult = await authenticateRequest(request);
-  const userId = isAuthenticatedRequest(authResult) ? authResult.user.id : null;
-
-  if (isAuthenticatedRequest(authResult)) {
-    try {
-      const { supabase } = authResult;
-      // Check ownership
-      const { data: existing } = await supabase
-        .from('marketplace_listings')
-        .select('seller_id')
-        .eq('id', id)
-        .single();
-
-      if (existing && existing.seller_id !== userId) {
-        return apiError('forbidden', 'You can only update your own listings.', 403);
-      }
-
-      const updateData: Record<string, unknown> = {
-        updated_at: new Date().toISOString(),
-      };
-      if (body.title) updateData.title = body.title.trim();
-      if (body.description) updateData.description = body.description.trim();
-      if (body.price !== undefined) updateData.price = body.price;
-      if (body.category) updateData.category = body.category;
-      if (body.condition) updateData.condition = body.condition;
-      if (body.location) updateData.location = body.location.trim();
-      if (body.status) updateData.status = body.status;
-      if (body.images) updateData.images = body.images;
-      if (body.contact_phone !== undefined) updateData.contact_phone = body.contact_phone;
-
-      const { data: updatedDb, error: updateError } = await supabase
-        .from('marketplace_listings')
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (!updateError && updatedDb) {
-        return apiSuccess(updatedDb);
-      }
-    } catch {
-      // Fallback
-    }
+  if (!isAuthenticatedRequest(authResult)) return authResult;
+  const accountError = requireRegisteredUser(authResult);
+  if (accountError) return accountError;
+  const { supabase, user } = authResult;
+  const { data: existing, error: readError } = await supabase
+    .from('marketplace_listings')
+    .select('seller_id')
+    .eq('id', id)
+    .maybeSingle();
+  if (readError) return apiError('listing_update_failed', 'This listing could not be updated.', 500);
+  if (!existing) return apiError('listing_not_found', 'This listing could not be found.', 404);
+  if (existing.seller_id !== user.id) {
+    return apiError('forbidden', 'You can only update your own listings.', 403);
   }
 
-  // In-memory fallback
-  const found = INITIAL_MARKETPLACE_LISTINGS.find((item) => item.id === id);
-  if (!found) {
-    return apiError('listing_not_found', 'This listing could not be found.', 404);
-  }
+  const updateData: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+  if (body.title) updateData.title = body.title.trim();
+  if (body.description) updateData.description = body.description.trim();
+  if (body.price !== undefined) updateData.price = body.price;
+  if (body.category) updateData.category = body.category;
+  if (body.condition) updateData.condition = body.condition;
+  if (body.location) updateData.location = body.location.trim();
+  if (body.status) updateData.status = body.status;
+  if (body.images) updateData.images = body.images;
+  if (body.contact_phone !== undefined) updateData.contact_phone = body.contact_phone;
 
-  if (body.title) found.title = body.title.trim();
-  if (body.description) found.description = body.description.trim();
-  if (body.price !== undefined) found.price = body.price;
-  if (body.category) found.category = body.category;
-  if (body.condition) found.condition = body.condition;
-  if (body.location) found.location = body.location.trim();
-  if (body.status) found.status = body.status;
-  if (body.images) found.images = body.images;
-  if (body.contact_phone !== undefined) found.seller_phone = body.contact_phone;
-  found.updated_at = new Date().toISOString();
-
-  return apiSuccess(found);
+  const { data: updatedDb, error: updateError } = await supabase
+    .from('marketplace_listings')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single();
+  if (updateError || !updatedDb) return apiError('listing_update_failed', 'This listing could not be updated.', 500);
+  return apiSuccess(updatedDb);
 }
 
 export async function DELETE(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const authResult = await authenticateRequest(request);
-  const userId = isAuthenticatedRequest(authResult) ? authResult.user.id : null;
-
-  if (isAuthenticatedRequest(authResult)) {
-    try {
-      const { supabase } = authResult;
-      const { data: existing } = await supabase
-        .from('marketplace_listings')
-        .select('seller_id')
-        .eq('id', id)
-        .single();
-
-      if (existing && existing.seller_id !== userId) {
-        return apiError('forbidden', 'You can only delete your own listings.', 403);
-      }
-
-      await supabase.from('marketplace_listings').delete().eq('id', id);
-      return apiSuccess({ deleted: true });
-    } catch {
-      // Fallback
-    }
+  if (!isAuthenticatedRequest(authResult)) return authResult;
+  const accountError = requireRegisteredUser(authResult);
+  if (accountError) return accountError;
+  const { supabase, user } = authResult;
+  const { data: existing, error: readError } = await supabase
+    .from('marketplace_listings')
+    .select('seller_id')
+    .eq('id', id)
+    .maybeSingle();
+  if (readError) return apiError('listing_delete_failed', 'This listing could not be deleted.', 500);
+  if (!existing) return apiError('listing_not_found', 'This listing could not be found.', 404);
+  if (existing.seller_id !== user.id) {
+    return apiError('forbidden', 'You can only delete your own listings.', 403);
   }
 
-  const index = INITIAL_MARKETPLACE_LISTINGS.findIndex((item) => item.id === id);
-  if (index !== -1) {
-    INITIAL_MARKETPLACE_LISTINGS.splice(index, 1);
-  }
-
+  const { error: deleteError } = await supabase.from('marketplace_listings').delete().eq('id', id);
+  if (deleteError) return apiError('listing_delete_failed', 'This listing could not be deleted.', 500);
   return apiSuccess({ deleted: true });
 }

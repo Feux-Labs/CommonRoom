@@ -340,6 +340,41 @@ let cachedStories: RoomStory[] = [...INITIAL_STORIES];
 let cachedComments: Record<string, RoomComment[]> = { ...INITIAL_COMMENTS };
 let cachedProfiles: Record<string, RoomProfile> = { ...INITIAL_PROFILES };
 const hiddenPostIds = new Set<string>();
+const blockedUsers = new Set<string>();
+const warnedUsers = new Set<string>();
+
+export type FlaggedReportItem = {
+  id: string;
+  targetType: 'post' | 'comment' | 'listing';
+  author: string;
+  authorId?: string;
+  postId?: string;
+  reason: string;
+  contentSnippet: string;
+  time: string;
+  status?: 'pending' | 'warned' | 'blocked' | 'resolved';
+};
+
+let flaggedReports: FlaggedReportItem[] = [
+  {
+    id: 'r1',
+    targetType: 'listing',
+    author: 'anonymous_seller_99',
+    reason: 'Suspiciously low price / suspected scam',
+    contentSnippet: 'Selling brand new iPhone 15 Pro for ₦50,000 pay upfront only.',
+    time: '15m ago',
+    status: 'pending',
+  },
+  {
+    id: 'r2',
+    targetType: 'post',
+    author: 'spammer_user',
+    reason: 'Spam link repetition',
+    contentSnippet: 'Join this WhatsApp group for exam leak answers: http://bit.ly/fakeexam',
+    time: '1h ago',
+    status: 'pending',
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Background API Sync Helpers (Fire and Forget / Non-blocking)
@@ -400,6 +435,17 @@ async function triggerApiFollow(userId: string): Promise<void> {
 async function triggerApiDelete(postId: string): Promise<void> {
   try {
     await apiRequest(`/posts/${postId}`, { method: 'DELETE' });
+  } catch {
+    // Ignore offline error
+  }
+}
+
+async function triggerApiEdit(postId: string, caption: string, location?: string): Promise<void> {
+  try {
+    await apiRequest(`/posts/${postId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ caption, location }),
+    });
   } catch {
     // Ignore offline error
   }
@@ -577,6 +623,75 @@ export const roomService = {
     cachedPosts = cachedPosts.filter((p) => p.id !== postId);
     triggerApiDelete(postId);
     return true;
+  },
+
+  // ──── Edit Post ───────────────────────────────────────────────────────────
+  editPost(postId: string, caption: string, location?: string): RoomPost | null {
+    let updated: RoomPost | null = null;
+    cachedPosts = cachedPosts.map((p) => {
+      if (p.id === postId) {
+        updated = { ...p, caption, location: location ?? p.location };
+        return updated;
+      }
+      return p;
+    });
+    if (updated) {
+      triggerApiEdit(postId, caption, location);
+    }
+    return updated;
+  },
+
+  // ──── Reports & Moderation ─────────────────────────────────────────────────
+  reportPost(postId: string, reason: string): void {
+    const post = cachedPosts.find((p) => p.id === postId);
+    flaggedReports.unshift({
+      id: `report-${Date.now()}`,
+      targetType: 'post',
+      author: post?.authorUsername || 'unknown_student',
+      authorId: post?.authorId,
+      postId,
+      reason,
+      contentSnippet: post?.caption || 'Image/Video post',
+      time: 'Just now',
+      status: 'pending',
+    });
+  },
+
+  getReports() {
+    return flaggedReports;
+  },
+
+  warnUser(authorIdOrUsername: string, _warningReason?: string): void {
+    warnedUsers.add(authorIdOrUsername);
+    flaggedReports = flaggedReports.map((r) =>
+      r.author === authorIdOrUsername || r.authorId === authorIdOrUsername
+        ? { ...r, status: 'warned' }
+        : r
+    );
+  },
+
+  blockUser(authorIdOrUsername: string): void {
+    blockedUsers.add(authorIdOrUsername);
+    cachedPosts = cachedPosts.filter(
+      (p) => p.authorId !== authorIdOrUsername && p.authorUsername !== authorIdOrUsername
+    );
+    flaggedReports = flaggedReports.map((r) =>
+      r.author === authorIdOrUsername || r.authorId === authorIdOrUsername
+        ? { ...r, status: 'blocked' }
+        : r
+    );
+  },
+
+  dismissReport(reportId: string): void {
+    flaggedReports = flaggedReports.filter((r) => r.id !== reportId);
+  },
+
+  isUserBlocked(authorIdOrUsername: string): boolean {
+    return blockedUsers.has(authorIdOrUsername);
+  },
+
+  isUserWarned(authorIdOrUsername: string): boolean {
+    return warnedUsers.has(authorIdOrUsername);
   },
 
   // ──── Add local post (submitted from Create modal) ────────────────────────

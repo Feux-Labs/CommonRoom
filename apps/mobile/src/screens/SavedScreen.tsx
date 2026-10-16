@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ArrowLeft, Bookmark, Heart, MapPin, ShoppingBag, Trash2 } from 'lucide-react-native/icons';
+import { ArrowLeft, Bookmark, Heart, MapPin, ShoppingBag, Trash } from 'lucide-react-native/icons';
 import { useAppTheme } from '../theme/ThemeContext';
 import { AppColors, radius } from '../theme/tokens';
 
@@ -101,7 +101,7 @@ export function SavedScreen({ onBack }: SavedScreenProps) {
                   onPress={() => handleRemove(item.id)}
                   style={styles.trashBtn}
                 >
-                  <Trash2 size={14} color="#8e95a5" />
+                  <Trash size={14} color="#8e95a5" />
                 </Pressable>
               </View>
               <Text style={styles.cardTitle}>{item.title}</Text>

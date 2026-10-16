@@ -1,8 +1,10 @@
-import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, isRecord, parseJson } from '@/lib/supabase-server';
+import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, isRecord, parseJson, requireRegisteredUser } from '@/lib/supabase-server';
 
 export async function POST(request: Request) {
   const auth = await authenticateRequest(request);
   if (!isAuthenticatedRequest(auth)) return auth;
+  const accountError = requireRegisteredUser(auth);
+  if (accountError) return accountError;
   const body = await parseJson(request);
   if (!isRecord(body) || typeof body.userId !== 'string' || body.userId === auth.user.id) {
     return apiError('invalid_user', 'Choose a different account to follow.', 422);
@@ -19,6 +21,8 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const auth = await authenticateRequest(request);
   if (!isAuthenticatedRequest(auth)) return auth;
+  const accountError = requireRegisteredUser(auth);
+  if (accountError) return accountError;
   const body = await parseJson(request);
   if (!isRecord(body) || typeof body.userId !== 'string') {
     return apiError('invalid_user', 'Choose an account to unfollow.', 422);

@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, parseJson } from '@/lib/supabase-server';
+import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, parseJson, requireRegisteredUser } from '@/lib/supabase-server';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -12,28 +11,20 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const authResult = await authenticateRequest(request);
+  if (!isAuthenticatedRequest(authResult)) return authResult;
+  const accountError = requireRegisteredUser(authResult);
+  if (accountError) return accountError;
 
-  if (isAuthenticatedRequest(authResult)) {
-    const { supabase, user } = authResult;
-    try {
-      const { data, error } = await supabase
-        .from('marketplace_reports')
-        .insert({
-          reporter_id: user.id,
-          listing_id: id,
-          reason: body.reason.trim(),
-          details: body.details?.trim() || null,
-        })
-        .select()
-        .single();
-
-      if (!error) {
-        return apiSuccess({ reported: true, reportId: data?.id });
-      }
-    } catch {
-      // Fallback
-    }
-  }
-
-  return apiSuccess({ reported: true, reportId: `rep-${Date.now()}` });
+  const { data, error } = await authResult.supabase
+    .from('marketplace_reports')
+    .insert({
+      reporter_id: authResult.user.id,
+      listing_id: id,
+      reason: body.reason.trim(),
+      details: body.details?.trim() || null,
+    })
+    .select()
+    .single();
+  if (error) return apiError('marketplace_report_failed', 'This listing could not be reported.', 500);
+  return apiSuccess({ reported: true, reportId: data?.id });
 }

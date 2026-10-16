@@ -1,4 +1,4 @@
-import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, isRecord, parseJson } from '@/lib/supabase-server';
+import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, isRecord, parseJson, requireRegisteredUser } from '@/lib/supabase-server';
 import type { Audience, MediaItem, MediaType } from '@/lib/contracts';
 import type { RoomScope } from '@/lib/room-contracts';
 import { attachRoomViewerFields, decodeRoomCursor, encodeRoomCursor, mapRoomPost } from '@/lib/room-map';
@@ -81,6 +81,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const auth = await authenticateRequest(request);
   if (!isAuthenticatedRequest(auth)) return auth;
+  const accountError = requireRegisteredUser(auth);
+  if (accountError) return accountError;
 
   const body = await parseJson(request);
   if (!isRecord(body)) return apiError('invalid_body', 'Send a valid post object.', 400);

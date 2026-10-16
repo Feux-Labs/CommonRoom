@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { ArrowLeft, CheckCheck, MessageSquarePlus, Search, Send, ShieldCheck, Smile } from 'lucide-react-native/icons';
+import { ArrowLeft, CheckCheck, MessageSquarePlus, Search, Send, ShieldCheck, Sticker } from 'lucide-react-native/icons';
 import { TopBar } from '../components/TopBar';
 import { useAppTheme } from '../theme/ThemeContext';
 import { AppColors, radius } from '../theme/tokens';

@@ -10,7 +10,7 @@ type BottomTabsProps = {
 
 const tabs: TabItem[] = [
   { key: 'home', label: 'Room', icon: 'Home' },
-  { key: 'meet', label: 'Meet', icon: 'Meet' },
+  { key: 'meet', label: 'Connect', icon: 'Meet' },
   { key: 'create', label: '', icon: 'Create' },
   { key: 'anonymous', label: 'Anonymous', icon: 'Message' },
   { key: 'marketplace', label: 'Market', icon: 'ShoppingCart' },

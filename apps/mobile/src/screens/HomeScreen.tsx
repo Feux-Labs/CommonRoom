@@ -11,6 +11,7 @@ import {
   SlidersHorizontal,
   Wifi,
   WifiOff,
+  X,
 } from 'lucide-react-native/icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -25,6 +26,7 @@ import {
   Share,
   StyleSheet,
   Text,
+  TextInput,
   View,
   ViewStyle,
 } from 'react-native';
@@ -80,6 +82,9 @@ export function HomeScreen({
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [commentsPostId, setCommentsPostId] = useState<string | null>(null);
   const [optionsPost, setOptionsPost] = useState<RoomPost | null>(null);
+  const [editingPost, setEditingPost] = useState<RoomPost | null>(null);
+  const [editCaption, setEditCaption] = useState('');
+  const [editLocation, setEditLocation] = useState('');
   const [selectedProfile, setSelectedProfile] = useState<RoomProfile | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -250,7 +255,24 @@ export function HomeScreen({
   };
 
   const handleReportPost = (postId: string, reason: string) => {
+    roomService.reportPost(postId, reason);
     showToast('Thank you for reporting. Our campus safety team has been notified.');
+  };
+
+  const handleStartEdit = (post: RoomPost) => {
+    setEditingPost(post);
+    setEditCaption(post.caption);
+    setEditLocation(post.location || '');
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingPost) return;
+    const updated = roomService.editPost(editingPost.id, editCaption, editLocation);
+    if (updated) {
+      setPosts((current) => current.map((p) => p.id === updated.id ? updated : p));
+    }
+    setEditingPost(null);
+    showToast('Post updated');
   };
 
   const handleDeletePost = (postId: string) => {
@@ -550,6 +572,7 @@ export function HomeScreen({
         }
         onClose={() => setOptionsPost(null)}
         onDeletePost={handleDeletePost}
+        onEditPost={handleStartEdit}
         onHidePost={handleHidePost}
         onReportPost={handleReportPost}
         onShareLink={() => {
@@ -561,6 +584,52 @@ export function HomeScreen({
         post={optionsPost}
         visible={optionsPost !== null}
       />
+
+      {/* Edit Post Modal */}
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setEditingPost(null)}
+        transparent
+        visible={editingPost !== null}
+      >
+        <View style={styles.editModalBackdrop}>
+          <View style={styles.editModalCard}>
+            <View style={styles.editModalHeader}>
+              <Text style={styles.editModalTitle}>Edit Post</Text>
+              <Pressable onPress={() => setEditingPost(null)}>
+                <X color={colors.text} size={18} />
+              </Pressable>
+            </View>
+            <Text style={styles.editInputLabel}>Caption</Text>
+            <TextInput
+              multiline
+              maxLength={500}
+              onChangeText={setEditCaption}
+              placeholder="Write a caption…"
+              placeholderTextColor="#8e95a5"
+              style={styles.editCaptionInput}
+              value={editCaption}
+            />
+            <Text style={styles.editInputLabel}>Location</Text>
+            <TextInput
+              maxLength={100}
+              onChangeText={setEditLocation}
+              placeholder="e.g. Main Library, Campus quad…"
+              placeholderTextColor="#8e95a5"
+              style={styles.editLocationInput}
+              value={editLocation}
+            />
+            <View style={styles.editModalActions}>
+              <Pressable onPress={() => setEditingPost(null)} style={styles.cancelEditBtn}>
+                <Text style={styles.cancelEditBtnText}>Cancel</Text>
+              </Pressable>
+              <Pressable onPress={handleSaveEdit} style={styles.saveEditBtn}>
+                <Text style={styles.saveEditBtnText}>Save Changes</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Selected Post Preview Modal */}
       <Modal
@@ -1039,6 +1108,89 @@ const createStyles = (colors: AppColors) =>
     syncBtnText: {
       color: '#f59e0b',
       fontSize: 11,
+      fontWeight: '700',
+    },
+    editModalBackdrop: {
+      alignItems: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      flex: 1,
+      justifyContent: 'center',
+      padding: 20,
+    },
+    editModalCard: {
+      backgroundColor: colors.surface,
+      borderColor: 'rgba(255, 255, 255, 0.1)',
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      gap: 12,
+      maxWidth: 400,
+      padding: 18,
+      width: '100%',
+    },
+    editModalHeader: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 4,
+    },
+    editModalTitle: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    editInputLabel: {
+      color: '#8e95a5',
+      fontSize: 11,
+      fontWeight: '600',
+      marginBottom: -4,
+    },
+    editCaptionInput: {
+      backgroundColor: colors.background,
+      borderColor: 'rgba(255, 255, 255, 0.08)',
+      borderRadius: radius.md,
+      borderWidth: 1,
+      color: colors.text,
+      fontSize: 13,
+      minHeight: 80,
+      padding: 10,
+      textAlignVertical: 'top',
+    },
+    editLocationInput: {
+      backgroundColor: colors.background,
+      borderColor: 'rgba(255, 255, 255, 0.08)',
+      borderRadius: radius.md,
+      borderWidth: 1,
+      color: colors.text,
+      fontSize: 13,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+    },
+    editModalActions: {
+      flexDirection: 'row',
+      gap: 10,
+      justifyContent: 'flex-end',
+      marginTop: 8,
+    },
+    cancelEditBtn: {
+      backgroundColor: 'rgba(255, 255, 255, 0.06)',
+      borderRadius: radius.pill,
+      paddingHorizontal: 16,
+      paddingVertical: 9,
+    },
+    cancelEditBtnText: {
+      color: colors.text,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    saveEditBtn: {
+      backgroundColor: '#ffffff',
+      borderRadius: radius.pill,
+      paddingHorizontal: 16,
+      paddingVertical: 9,
+    },
+    saveEditBtnText: {
+      color: '#000000',
+      fontSize: 12,
       fontWeight: '700',
     },
   });

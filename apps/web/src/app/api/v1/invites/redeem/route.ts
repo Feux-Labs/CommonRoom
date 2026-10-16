@@ -1,8 +1,10 @@
-import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, isRecord, parseJson } from '@/lib/supabase-server';
+import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, isRecord, parseJson, requireRegisteredUser } from '@/lib/supabase-server';
 
 export async function POST(request: Request) {
   const auth = await authenticateRequest(request);
   if (!isAuthenticatedRequest(auth)) return auth;
+  const accountError = requireRegisteredUser(auth);
+  if (accountError) return accountError;
   const body = await parseJson(request);
   const code = isRecord(body) && typeof body.code === 'string' ? body.code.trim().toLowerCase() : '';
   if (!code) return apiError('invalid_invite', 'Paste an invite code.', 422);

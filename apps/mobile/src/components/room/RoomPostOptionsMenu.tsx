@@ -1,6 +1,7 @@
 import {
   EyeOff,
   Flag,
+  Pencil,
   Share2,
   Trash,
   UserCheck,
@@ -28,6 +29,7 @@ type RoomPostOptionsMenuProps = {
   onHidePost: (postId: string) => void;
   onReportPost: (postId: string, reason: string) => void;
   onDeletePost?: (postId: string) => void;
+  onEditPost?: (post: RoomPost) => void;
   onShareLink?: (postId: string) => void;
 };
 
@@ -48,6 +50,7 @@ export function RoomPostOptionsMenu({
   onHidePost,
   onReportPost,
   onDeletePost,
+  onEditPost,
   onShareLink,
 }: RoomPostOptionsMenuProps) {
   const { colors } = useAppTheme();
@@ -165,16 +168,29 @@ export function RoomPostOptionsMenu({
               ) : null}
 
               {isOwnPost ? (
-                <Pressable
-                  onPress={() => {
-                    onDeletePost?.(post.id);
-                    handleClose();
-                  }}
-                  style={[styles.menuItem, styles.destructiveItem]}
-                >
-                  <Trash color="#FF4D4F" size={20} />
-                  <Text style={styles.destructiveText}>Delete post</Text>
-                </Pressable>
+                <>
+                  <Pressable
+                    onPress={() => {
+                      onEditPost?.(post);
+                      handleClose();
+                    }}
+                    style={styles.menuItem}
+                  >
+                    <Pencil color={colors.text} size={20} />
+                    <Text style={styles.menuItemText}>Edit post</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => {
+                      onDeletePost?.(post.id);
+                      handleClose();
+                    }}
+                    style={[styles.menuItem, styles.destructiveItem]}
+                  >
+                    <Trash color="#FF4D4F" size={20} />
+                    <Text style={styles.destructiveText}>Delete post</Text>
+                  </Pressable>
+                </>
               ) : null}
             </View>
           )}

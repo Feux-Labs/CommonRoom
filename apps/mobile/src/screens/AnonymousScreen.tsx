@@ -546,12 +546,10 @@ export function AnonymousScreen({ onBack }: AnonymousScreenProps) {
         {view === 'feed' ? (
               <>
                 <View style={styles.discoveryRow}>
-                  <ScrollView horizontal contentContainerStyle={styles.discoveryTabs} showsHorizontalScrollIndicator={false}>
-                    <TabButton label="For You" active={feedTab === 'for_you'} onPress={() => setFeedTab('for_you')} compact />
-                    <TabButton label="General" active={feedTab === 'general'} onPress={() => setFeedTab('general')} compact />
-                    <TabButton label="Hot" active={feedTab === 'hot'} onPress={() => setFeedTab('hot')} compact />
-                    <TabButton label="Trending" active={feedTab === 'trending'} onPress={() => setFeedTab('trending')} compact />
-                  </ScrollView>
+                  <TabButton label="For You" active={feedTab === 'for_you'} onPress={() => setFeedTab('for_you')} expanded />
+                  <TabButton label="General" active={feedTab === 'general'} onPress={() => setFeedTab('general')} expanded />
+                  <TabButton label="Hot" active={feedTab === 'hot'} onPress={() => setFeedTab('hot')} expanded />
+                  <TabButton label="Trending" active={feedTab === 'trending'} onPress={() => setFeedTab('trending')} expanded />
                   {identity ? <Pressable accessibilityRole="button" onPress={() => setComposerOpen((open) => !open)} style={styles.writeButton}><Text style={styles.writeButtonText}>{composerOpen ? 'Close' : '+ Write'}</Text></Pressable> : null}
                 </View>
                 {identity && composerOpen ? (
@@ -954,9 +952,9 @@ const buttonStyles = StyleSheet.create({
   text: { color: '#fff', fontSize: 11, fontWeight: '500' },
 });
 
-function TabButton({ label, active, onPress, compact = false, icon }: { label: string; active: boolean; onPress: () => void; compact?: boolean; icon?: React.ReactNode }) {
+function TabButton({ label, active, onPress, compact = false, expanded = false, icon }: { label: string; active: boolean; onPress: () => void; compact?: boolean; expanded?: boolean; icon?: React.ReactNode }) {
   return (
-    <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={onPress} style={[tabStyles.tab, compact && tabStyles.compact, active && tabStyles.active]}>
+    <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={onPress} style={[tabStyles.tab, compact && tabStyles.compact, expanded && tabStyles.expanded, active && tabStyles.active]}>
       <View style={tabStyles.content}>
         {icon}
         <Text style={[tabStyles.label, active && tabStyles.activeLabel]}>{label}</Text>
@@ -967,7 +965,8 @@ function TabButton({ label, active, onPress, compact = false, icon }: { label: s
 
 const tabStyles = StyleSheet.create({
   tab: { alignItems: 'center', backgroundColor: 'transparent', borderColor: 'transparent', borderBottomColor: 'transparent', borderBottomWidth: 2, borderRadius: 0, borderWidth: 0, flex: 1, justifyContent: 'center', minHeight: 40, paddingHorizontal: 12 },
-  compact: { flex: 0, minHeight: 38, paddingHorizontal: 9 },
+  compact: { flex: 1, minHeight: 38, paddingHorizontal: 0 },
+  expanded: { flex: 1, minWidth: 0, paddingHorizontal: 1 },
   active: { borderBottomColor: '#fff' },
   content: { alignItems: 'center', flexDirection: 'row', gap: 6, justifyContent: 'center' },
   label: { color: '#8a8d91', fontSize: 11, fontWeight: '500', textAlign: 'center' },
@@ -1021,8 +1020,7 @@ const createStyles = () => StyleSheet.create({
   templateEditor: { backgroundColor: '#101522', borderColor: '#343e58', borderRadius: 12, borderWidth: 1, color: '#f4f5f8', fontSize: 12, minHeight: 50, paddingHorizontal: 10, paddingVertical: 9, textAlign: 'center' },
   inboxHeading: { color: '#f4f5f8', fontSize: 16, fontWeight: '600', paddingVertical: 3 },
   scopeRow: { flexDirection: 'row', gap: 0, marginHorizontal: 12, marginTop: 4 },
-  discoveryRow: { alignItems: 'center', borderBottomColor: '#26282a', borderBottomWidth: 1, flexDirection: 'row', gap: 5, marginHorizontal: 14, marginTop: 3 },
-  discoveryTabs: { alignItems: 'center', flexDirection: 'row', flexGrow: 1, justifyContent: 'space-between' },
+  discoveryRow: { alignItems: 'center', borderBottomColor: '#26282a', borderBottomWidth: 1, flexDirection: 'row', gap: 3, marginHorizontal: 14, marginTop: 3 },
   writeButton: { alignItems: 'center', backgroundColor: '#1d9bf0', borderRadius: 20, justifyContent: 'center', marginLeft: 4, minHeight: 30, minWidth: 52, paddingHorizontal: 10 },
   writeButtonText: { color: '#fff', fontSize: 10, fontWeight: '500' },
   composer: { backgroundColor: '#080808', borderColor: '#2f3336', borderRadius: 14, borderWidth: 1, gap: 9, marginHorizontal: 14, marginTop: 10, padding: 12 },

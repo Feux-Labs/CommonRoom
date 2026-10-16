@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ArrowLeft, Award, CheckCircle2, ChevronRight, Crown, Flame, Shield, Sparkles, Star, Trophy, Users, Zap } from 'lucide-react-native/icons';
+import { ArrowLeft, Award, CircleCheck, ChevronRight, Crown, Flame, Shield, Sparkles, Star, Trophy, Users, Zap } from 'lucide-react-native/icons';
 import { useAppTheme } from '../theme/ThemeContext';
 import { AppColors, radius } from '../theme/tokens';
 import type { UserProfile } from '../types/domain';

@@ -171,6 +171,9 @@ function AppContent() {
           {activeTab === 'meet' ? (
             <MeetScreen
               onMenuPress={openMenu}
+              currentUserProfile={profile}
+              onUpdateProfile={(updated) => setProfile((p) => p ? { ...p, ...updated } : p)}
+              onLogin={(newProfile) => setProfile(newProfile)}
               onOpenMessages={(userId, userName) =>
                 setScreen({ kind: 'messages', initialChatUserId: userId, initialChatUserName: userName })
               }
@@ -185,7 +188,7 @@ function AppContent() {
               }}
             />
           ) : null}
-          {activeTab === 'anonymous' ? <AnonymousScreen onMenuPress={openMenu} /> : null}
+          {activeTab === 'anonymous' ? <AnonymousScreen onBack={() => setActiveTab('home')} /> : null}
           {activeTab === 'marketplace' ? <MarketplaceScreen onMenuPress={openMenu} /> : null}
 
           {activeTab !== 'create' ? <BottomTabs activeTab={activeTab} onChange={setActiveTab} /> : null}

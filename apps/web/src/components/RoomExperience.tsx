@@ -73,6 +73,8 @@ export function RoomExperience({
   onError,
   refreshToken,
   focusPostId = null,
+  isGuest = false,
+  onRequireAccount,
 }: {
   accessToken: string;
   profile: { id: string; displayName: string; username: string | null; school: string | null };
@@ -81,6 +83,8 @@ export function RoomExperience({
   onError: (message: string) => void;
   refreshToken: number;
   focusPostId?: string | null;
+  isGuest?: boolean;
+  onRequireAccount?: () => void;
 }) {
   const [scope, setScope] = useState<RoomScope>('for_you');
   const [posts, setPosts] = useState<RoomPost[]>([]);
@@ -260,6 +264,10 @@ export function RoomExperience({
   );
 
   const toggleLike = async (post: RoomPost) => {
+    if (isGuest) {
+      onRequireAccount?.();
+      return;
+    }
     try {
       const result = await roomRequest<{ liked: boolean }>(`/api/v1/posts/${post.id}/like`, accessToken, 'POST');
       patchPost(post.id, (item) => ({
@@ -273,6 +281,10 @@ export function RoomExperience({
   };
 
   const toggleSave = async (post: RoomPost) => {
+    if (isGuest) {
+      onRequireAccount?.();
+      return;
+    }
     try {
       const result = await roomRequest<{ saved: boolean }>(`/api/v1/posts/${post.id}/save`, accessToken, 'POST');
       patchPost(post.id, (item) => ({
@@ -365,6 +377,10 @@ export function RoomExperience({
 
   const submitComment = async (event: FormEvent<HTMLFormElement>, postId: string) => {
     event.preventDefault();
+    if (isGuest) {
+      onRequireAccount?.();
+      return;
+    }
     const draft = (commentDrafts[postId] ?? '').trim();
     if (!draft) return;
     try {
@@ -384,6 +400,10 @@ export function RoomExperience({
   };
 
   const followPerson = async (person: Pick<RoomPerson, 'id' | 'display_name' | 'following'>) => {
+    if (isGuest) {
+      onRequireAccount?.();
+      return;
+    }
     try {
       if (person.following) {
         await roomRequest('/api/v1/follows', accessToken, 'DELETE', { userId: person.id });
@@ -617,7 +637,7 @@ export function RoomExperience({
     <div className="home-layout">
       <section className="feed-column">
         <div className="stories-rail" aria-label="Stories">
-          <button className="story-chip add-story" onClick={() => (ownStoryIndex >= 0 ? openStory(ownStoryIndex) : onCreate())} type="button">
+          <button className="story-chip add-story" onClick={() => (isGuest ? onRequireAccount?.() : ownStoryIndex >= 0 ? openStory(ownStoryIndex) : onCreate())} type="button">
             <span className="story-avatar">{initials(profile.displayName)}<i><Plus size={11} /></i></span>
             <span>Your story</span>
           </button>
@@ -665,10 +685,12 @@ export function RoomExperience({
 
       <aside className="right-rail">
         <section className="rail-card welcome-card">
-          <span className="eyebrow">WELCOME TO YOUR SPACE</span>
-          <h2>Good to have you here, {profile.displayName.split(' ')[0]}.</h2>
-          <p>Follow classmates, share a story, and keep Room moving.</p>
-          <button className="text-link" onClick={onCreate} type="button">Share something <span>→</span></button>
+          <span className="eyebrow">WELCOME TO COMMONROOM</span>
+          <h2>Good to have you here{profile?.displayName && profile.displayName !== 'Guest' ? `, ${profile.displayName.split(' ')[0]}` : ''}.</h2>
+          <p>{isGuest ? 'Browse campus moments, explore student marketplace, and discover what’s happening.' : 'Follow classmates, share a story, and keep Room moving.'}</p>
+          <button className="text-link" onClick={isGuest ? onRequireAccount : onCreate} type="button">
+            {isGuest ? 'Join your community' : 'Share something'} <span>→</span>
+          </button>
         </section>
         <section className="rail-card">
           <div className="rail-title"><h2>Add people</h2><UserPlus size={17} /></div>

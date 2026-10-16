@@ -20,6 +20,12 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Guest browsing and account setup
+
+The web app starts a Supabase anonymous session for visitors so they can browse Room, Anonymous, Meet, Marketplace, and Games. Enable **Anonymous Sign-Ins** in the Supabase project's Auth settings and apply the project's SQL migrations, including `supabase/migrations/0002_anonymous_feed_inbox.sql`.
+
+Guests can set a Ghost ID and use Anonymous features. Identity-based actions such as Room posts, reactions, comments, follows, Marketplace changes, and Meet require a registered account. Creating an email account from the guest session or linking an OAuth identity keeps the same Supabase user ID, so that session's Ghost ID and inbox remain attached and can be accessed after signing in on another device. Signing into an existing account does not merge guest data; the app warns before that flow.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

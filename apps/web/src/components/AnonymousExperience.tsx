@@ -684,6 +684,16 @@ export function AnonymousExperience({
           >
             <ArrowLeft size={20} />
           </button>
+          <div className="anon-brand">
+            <Image
+              alt="Commonroom Anonymous"
+              className="anon-brand-logo"
+              height={26}
+              priority
+              src="/common-room-full-logo-white.png"
+              width={120}
+            />
+          </div>
         </header>
 
         {error && !error.toLowerCase().includes('sign in') ? <div className="anon-feedback anon-error" role="alert">{error}<button onClick={() => setError('')} aria-label="Dismiss error">×</button></div> : null}

@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { ArrowLeft, ChevronDown, ChevronUp, HelpCircle, Mail, MessageSquare, Send, ShieldCheck } from 'lucide-react-native/icons';
+import { ArrowLeft, ChevronDown, ChevronUp, CircleQuestionMark, Mail, MessageSquare, Send, ShieldCheck } from 'lucide-react-native/icons';
 import { useAppTheme } from '../theme/ThemeContext';
 import { AppColors, radius } from '../theme/tokens';
 

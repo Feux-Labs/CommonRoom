@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ArrowLeft, Bell, ChevronRight, Eye, Moon, Shield, Trash2, User } from 'lucide-react-native/icons';
+import { ArrowLeft, Bell, ChevronRight, Eye, Moon, Shield, Trash, User } from 'lucide-react-native/icons';
 import { useAppTheme } from '../theme/ThemeContext';
 import { AppColors, radius } from '../theme/tokens';
 import type { UserProfile } from '../types/domain';

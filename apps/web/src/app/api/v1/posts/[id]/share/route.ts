@@ -1,10 +1,12 @@
-import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest } from '@/lib/supabase-server';
+import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, requireRegisteredUser } from '@/lib/supabase-server';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, { params }: RouteContext) {
   const auth = await authenticateRequest(request);
   if (!isAuthenticatedRequest(auth)) return auth;
+  const accountError = requireRegisteredUser(auth);
+  if (accountError) return accountError;
   const { id } = await params;
 
   const { error } = await auth.supabase.from('post_shares').insert({ post_id: id, user_id: auth.user.id });

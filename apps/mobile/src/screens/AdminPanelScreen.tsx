@@ -8,9 +8,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { AlertTriangle, ArrowLeft, Check, Megaphone, Send, ShieldAlert, Trash2, Users } from 'lucide-react-native/icons';
+import { ArrowLeft, Check, Megaphone, Send, ShieldAlert, Trash, TriangleAlert, Users } from 'lucide-react-native/icons';
 import { useAppTheme } from '../theme/ThemeContext';
 import { AppColors, radius } from '../theme/tokens';
+
+import { roomService } from '../services/roomService';
 
 type AdminPanelScreenProps = {
   onBack: () => void;
@@ -20,9 +22,12 @@ type FlaggedReport = {
   id: string;
   targetType: 'post' | 'comment' | 'listing';
   author: string;
+  authorId?: string;
+  postId?: string;
   reason: string;
   contentSnippet: string;
   time: string;
+  status?: 'pending' | 'warned' | 'blocked' | 'resolved';
 };
 
 const initialReports: FlaggedReport[] = [
@@ -33,6 +38,7 @@ const initialReports: FlaggedReport[] = [
     reason: 'Suspiciously low price / suspected scam',
     contentSnippet: 'Selling brand new iPhone 15 Pro for ₦50,000 pay upfront only.',
     time: '15m ago',
+    status: 'pending',
   },
   {
     id: 'r2',
@@ -41,6 +47,7 @@ const initialReports: FlaggedReport[] = [
     reason: 'Spam link repetition',
     contentSnippet: 'Join this WhatsApp group for exam leak answers: http://bit.ly/fakeexam',
     time: '1h ago',
+    status: 'pending',
   },
 ];
 
@@ -48,16 +55,47 @@ export function AdminPanelScreen({ onBack }: AdminPanelScreenProps) {
   const { colors } = useAppTheme();
   const styles = createStyles(colors);
 
-  const [reports, setReports] = useState<FlaggedReport[]>(initialReports);
+  const [reports, setReports] = useState<FlaggedReport[]>(() => {
+    const serviceReports = roomService.getReports();
+    return serviceReports.length > 0 ? (serviceReports as FlaggedReport[]) : initialReports;
+  });
   const [broadcastText, setBroadcastText] = useState('');
   const [activeBroadcast, setActiveBroadcast] = useState<string | null>(
     'Reminder: Final semester exam timetable is out on the portal. Study hard!'
   );
   const [notice, setNotice] = useState<string | null>(null);
 
-  const handleResolve = (id: string, action: 'keep' | 'delete') => {
+  const handleWarnUser = (report: FlaggedReport) => {
+    roomService.warnUser(report.author);
+    setReports((prev) =>
+      prev.map((r) => r.author === report.author ? { ...r, status: 'warned' } : r)
+    );
+    setNotice(`Official warning sent to @${report.author}. Their account was flagged.`);
+    setTimeout(() => setNotice(null), 3500);
+  };
+
+  const handleBlockUser = (report: FlaggedReport) => {
+    roomService.blockUser(report.author);
+    setReports((prev) =>
+      prev.map((r) => r.author === report.author ? { ...r, status: 'blocked' } : r)
+    );
+    setNotice(`@${report.author} has been blocked and restricted from posting.`);
+    setTimeout(() => setNotice(null), 3500);
+  };
+
+  const handleDeletePost = (report: FlaggedReport) => {
+    if (report.postId) {
+      roomService.deletePost(report.postId);
+    }
+    setReports((prev) => prev.filter((r) => r.id !== report.id));
+    setNotice(`Content deleted from Commonroom.`);
+    setTimeout(() => setNotice(null), 3500);
+  };
+
+  const handleDismiss = (id: string) => {
+    roomService.dismissReport(id);
     setReports((prev) => prev.filter((r) => r.id !== id));
-    setNotice(action === 'delete' ? 'Content removed by moderator.' : 'Report dismissed.');
+    setNotice('Report dismissed as safe.');
     setTimeout(() => setNotice(null), 3000);
   };
 
@@ -140,29 +178,56 @@ export function AdminPanelScreen({ onBack }: AdminPanelScreenProps) {
             <View key={report.id} style={styles.reportItem}>
               <View style={styles.reportTop}>
                 <View style={styles.reportBadge}>
-                  <AlertTriangle size={12} color="#ef4444" />
+                  <TriangleAlert size={12} color="#ef4444" />
                   <Text style={styles.reportBadgeText}>{report.reason}</Text>
                 </View>
-                <Text style={styles.reportTime}>{report.time}</Text>
+                {report.status === 'warned' ? (
+                  <View style={[styles.reportBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                    <Text style={[styles.reportBadgeText, { color: '#f59e0b' }]}>Status: Warned</Text>
+                  </View>
+                ) : report.status === 'blocked' ? (
+                  <View style={[styles.reportBadge, { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]}>
+                    <Text style={[styles.reportBadgeText, { color: '#ef4444' }]}>Status: Blocked / Banned</Text>
+                  </View>
+                ) : null}
               </View>
               <Text style={styles.reportSnippet}>“{report.contentSnippet}”</Text>
-              <Text style={styles.reportAuthor}>Reported user: @{report.author}</Text>
-              <View style={styles.actionRow}>
+              <Text style={styles.reportAuthor}>Reported student: @{report.author}</Text>
+              <View style={styles.actionRowGrid}>
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => handleResolve(report.id, 'keep')}
-                  style={styles.keepBtn}
+                  onPress={() => handleWarnUser(report)}
+                  style={styles.warnBtn}
                 >
-                  <Check size={14} color="#10b981" />
-                  <Text style={styles.keepText}>Dismiss Report</Text>
+                  <Megaphone size={13} color="#f59e0b" />
+                  <Text style={styles.warnBtnText}>Warn User</Text>
                 </Pressable>
+
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => handleResolve(report.id, 'delete')}
+                  onPress={() => handleBlockUser(report)}
+                  style={styles.blockBtn}
+                >
+                  <ShieldAlert size={13} color="#ef4444" />
+                  <Text style={styles.blockBtnText}>Block User</Text>
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => handleDeletePost(report)}
                   style={styles.deleteBtn}
                 >
-                  <Trash2 size={14} color="#ef4444" />
-                  <Text style={styles.deleteText}>Delete & Warn</Text>
+                  <Trash size={13} color="#ef4444" />
+                  <Text style={styles.deleteText}>Delete Post</Text>
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => handleDismiss(report.id)}
+                  style={styles.keepBtn}
+                >
+                  <Check size={13} color="#10b981" />
+                  <Text style={styles.keepText}>Dismiss</Text>
                 </Pressable>
               </View>
             </View>
@@ -354,9 +419,44 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: 11,
     marginBottom: 12,
   },
-  actionRow: {
+  actionRowGrid: {
     flexDirection: 'row',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  warnBtn: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  warnBtnText: {
+    color: '#f59e0b',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  blockBtn: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  blockBtnText: {
+    color: '#ef4444',
+    fontSize: 11,
+    fontWeight: '700',
   },
   keepBtn: {
     alignItems: 'center',

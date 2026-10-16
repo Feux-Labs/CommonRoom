@@ -35,6 +35,7 @@ import type { FormEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { getBrowserSupabase, isSupabaseConfigured } from '@/lib/supabase-browser';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
   MARKETPLACE_CATEGORIES,
@@ -85,7 +86,16 @@ function getCategoryIcon(cat: MarketplaceCategory | 'all') {
   }
 }
 
-export function MarketplaceExperience({ initialListingId }: { initialListingId?: string }) {
+export function MarketplaceExperience({
+  initialListingId,
+  canInteract,
+  onRequireAccount,
+}: {
+  initialListingId?: string;
+  canInteract?: boolean;
+  onRequireAccount?: () => void;
+}) {
+  const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
   const [tab, setTab] = useState<MarketplaceTab>('explore');
   const [selectedCategory, setSelectedCategory] = useState<MarketplaceCategory | 'all'>('all');
@@ -133,6 +143,14 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
 
   // Seller Profile Modal
   const [sellerProfileListing, setSellerProfileListing] = useState<MarketplaceListing | null>(null);
+
+  const canPerformActions = canInteract ?? Boolean(session && !session.user.is_anonymous);
+  const requireInteraction = () => {
+    if (canPerformActions) return true;
+    if (onRequireAccount) onRequireAccount();
+    else router.push('/?account=required');
+    return false;
+  };
 
   // Check Supabase session
   useEffect(() => {
@@ -208,29 +226,20 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
   // Save / Toggle Favorite
   const toggleSave = async (listing: MarketplaceListing, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    if (!requireInteraction()) return;
     const nextSaved = !listing.is_saved;
 
     setListings((current) =>
       current.map((item) =>
         item.id === listing.id
-          ? {
-              ...item,
-              is_saved: nextSaved,
-              likes_count: Math.max(0, item.likes_count + (nextSaved ? 1 : -1)),
-            }
+          ? { ...item, is_saved: nextSaved }
           : item
       )
     );
 
     if (selectedListing?.id === listing.id) {
       setSelectedListing((curr) =>
-        curr
-          ? {
-              ...curr,
-              is_saved: nextSaved,
-              likes_count: Math.max(0, curr.likes_count + (nextSaved ? 1 : -1)),
-            }
-          : null
+        curr ? { ...curr, is_saved: nextSaved } : null
       );
     }
 
@@ -239,18 +248,27 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
       if (session?.access_token) {
         headers.Authorization = `Bearer ${session.access_token}`;
       }
-      await fetch(`/api/v1/marketplace/listings/${listing.id}/save`, {
+      const response = await fetch(`/api/v1/marketplace/listings/${listing.id}/save`, {
         method: 'POST',
         headers,
       });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.error?.message || 'This listing could not be saved.');
       setNotice(nextSaved ? 'Saved to your wishlist.' : 'Removed from your wishlist.');
-    } catch {
-      // Local optimistic update stays
+    } catch (saveError) {
+      setListings((current) =>
+        current.map((item) => item.id === listing.id ? { ...item, is_saved: listing.is_saved } : item)
+      );
+      setSelectedListing((current) => current?.id === listing.id
+        ? { ...current, is_saved: listing.is_saved }
+        : current);
+      setError(saveError instanceof Error ? saveError.message : 'This listing could not be saved.');
     }
   };
 
   // Open Create Composer
   const openCreateComposer = () => {
+    if (!requireInteraction()) return;
     setEditingListing(null);
     setFormTitle('');
     setFormDescription('');
@@ -268,6 +286,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
 
   // Open Edit Composer
   const openEditComposer = (listing: MarketplaceListing) => {
+    if (!requireInteraction()) return;
     setEditingListing(listing);
     setFormTitle(listing.title);
     setFormDescription(listing.description);
@@ -300,6 +319,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
   // Submit Listing (Create or Update)
   const handleSubmitListing = async (event: FormEvent) => {
     event.preventDefault();
+    if (!requireInteraction()) return;
     setError('');
     setNotice('');
 
@@ -378,6 +398,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
 
   // Toggle Sold Status
   const toggleSoldStatus = async (listing: MarketplaceListing) => {
+    if (!requireInteraction()) return;
     const nextStatus = listing.status === 'sold' ? 'available' : 'sold';
     try {
       const headers: Record<string, string> = {
@@ -388,11 +409,13 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
         headers.Authorization = `Bearer ${session.access_token}`;
       }
 
-      await fetch(`/api/v1/marketplace/listings/${listing.id}`, {
+      const response = await fetch(`/api/v1/marketplace/listings/${listing.id}`, {
         method: 'PUT',
         headers,
         body: JSON.stringify({ status: nextStatus }),
       });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.error?.message || 'Could not update listing status.');
 
       setListings((current) =>
         current.map((item) => (item.id === listing.id ? { ...item, status: nextStatus } : item))
@@ -401,13 +424,14 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
         setSelectedListing((curr) => (curr ? { ...curr, status: nextStatus } : null));
       }
       setNotice(nextStatus === 'sold' ? 'Item marked as Sold!' : 'Item marked as Available!');
-    } catch {
-      setError('Could not update listing status.');
+    } catch (statusError) {
+      setError(statusError instanceof Error ? statusError.message : 'Could not update listing status.');
     }
   };
 
   // Delete Listing
   const deleteListing = async (listing: MarketplaceListing) => {
+    if (!requireInteraction()) return;
     if (!window.confirm(`Are you sure you want to delete "${listing.title}"?`)) return;
 
     try {
@@ -415,24 +439,27 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
       if (session?.access_token) {
         headers.Authorization = `Bearer ${session.access_token}`;
       }
-      await fetch(`/api/v1/marketplace/listings/${listing.id}`, {
+      const response = await fetch(`/api/v1/marketplace/listings/${listing.id}`, {
         method: 'DELETE',
         headers,
       });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.error?.message || 'Could not delete listing.');
 
       setListings((current) => current.filter((item) => item.id !== listing.id));
       if (selectedListing?.id === listing.id) {
         setSelectedListing(null);
       }
       setNotice('Listing deleted.');
-    } catch {
-      setError('Could not delete listing.');
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Could not delete listing.');
     }
   };
 
   // Submit Report
   const handleSubmitReport = async (e: FormEvent) => {
     e.preventDefault();
+    if (!requireInteraction()) return;
     if (!reportingListingId) return;
 
     try {
@@ -444,17 +471,19 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
         headers.Authorization = `Bearer ${session.access_token}`;
       }
 
-      await fetch(`/api/v1/marketplace/listings/${reportingListingId}/report`, {
+      const response = await fetch(`/api/v1/marketplace/listings/${reportingListingId}/report`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ reason: reportReason, details: reportDetails }),
       });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.error?.message || 'Could not submit report.');
 
       setReportModalOpen(false);
       setReportingListingId(null);
       setNotice('Thank you. Commonroom moderators will review this listing to keep students safe.');
-    } catch {
-      setError('Could not submit report. Please try again.');
+    } catch (reportError) {
+      setError(reportError instanceof Error ? reportError.message : 'Could not submit report. Please try again.');
     }
   };
 
@@ -467,6 +496,11 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
     } else {
       window.prompt('Copy this listing link:', url);
     }
+  };
+
+  const selectTab = (nextTab: MarketplaceTab) => {
+    if (nextTab !== 'explore' && !requireInteraction()) return;
+    setTab(nextTab);
   };
 
   return (
@@ -590,21 +624,21 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
           <button
             aria-current={tab === 'explore' ? 'page' : undefined}
             className={tab === 'explore' ? 'market-tab market-tab-active' : 'market-tab'}
-            onClick={() => setTab('explore')}
+            onClick={() => selectTab('explore')}
           >
             <Compass size={13} /> <span>Explore</span>
           </button>
           <button
             aria-current={tab === 'saved' ? 'page' : undefined}
             className={tab === 'saved' ? 'market-tab market-tab-active' : 'market-tab'}
-            onClick={() => setTab('saved')}
+            onClick={() => selectTab('saved')}
           >
             <Bookmark size={13} /> <span>Saved</span>
           </button>
           <button
             aria-current={tab === 'my_listings' ? 'page' : undefined}
             className={tab === 'my_listings' ? 'market-tab market-tab-active' : 'market-tab'}
-            onClick={() => setTab('my_listings')}
+            onClick={() => selectTab('my_listings')}
           >
             <Tag size={13} /> <span>My Listings</span>
           </button>
@@ -858,7 +892,9 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
                   <button
                     type="button"
                     className="market-contact-btn"
-                    onClick={() => setContactModalOpen(true)}
+                    onClick={() => {
+                      if (requireInteraction()) setContactModalOpen(true);
+                    }}
                     disabled={selectedListing.status === 'sold'}
                   >
                     <Phone size={15} /> Contact
@@ -881,8 +917,10 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
                 <button
                   className="market-btn-report"
                   onClick={() => {
-                    setReportingListingId(selectedListing.id);
-                    setReportModalOpen(true);
+                    if (requireInteraction()) {
+                      setReportingListingId(selectedListing.id);
+                      setReportModalOpen(true);
+                    }
                   }}
                 >
                   <AlertTriangle size={16} /> Report
@@ -1253,7 +1291,7 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
                   onClick={() => {
                     setSelectedListing(sellerProfileListing);
                     setSellerProfileListing(null);
-                    setContactModalOpen(true);
+                    if (requireInteraction()) setContactModalOpen(true);
                   }}
                 >
                   <Phone size={15} /> Contact Seller
@@ -1263,16 +1301,6 @@ export function MarketplaceExperience({ initialListingId }: { initialListingId?:
           </div>
         ) : null}
 
-        {/* Mobile Floating Action Button for selling */}
-        <button
-          className="market-floating-sell-fab"
-          onClick={openCreateComposer}
-          aria-label="Sell an item"
-          type="button"
-        >
-          <Plus size={16} strokeWidth={3} />
-          <span>Sell</span>
-        </button>
       </div>
     </main>
   );

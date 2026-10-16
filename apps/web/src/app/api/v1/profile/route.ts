@@ -1,4 +1,4 @@
-import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, isRecord, parseJson } from '@/lib/supabase-server';
+import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, isRecord, parseJson, requireRegisteredUser } from '@/lib/supabase-server';
 import type { EducationStatus } from '@/lib/contracts';
 import { readProfileCache, writeProfileCache, type CachedProfile } from '@/lib/profile-cache';
 
@@ -56,6 +56,8 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   const auth = await authenticateRequest(request);
   if (!isAuthenticatedRequest(auth)) return auth;
+  const accountError = requireRegisteredUser(auth);
+  if (accountError) return accountError;
 
   const body = await parseJson(request);
   if (!isRecord(body)) return apiError('invalid_body', 'Send a valid profile object.', 400);

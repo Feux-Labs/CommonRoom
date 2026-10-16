@@ -10,6 +10,7 @@ import {
   Heart,
   Home as HomeIcon,
   ImagePlus,
+  LogIn,
   LogOut,
   Menu,
   MessageCircle,
@@ -124,6 +125,7 @@ export default function Home() {
   }, []);
   const [roomRefresh, setRoomRefresh] = useState(0);
   const [authRoute, setAuthRoute] = useState<'welcome' | 'sign-in' | 'sign-up' | 'forgot-password'>('welcome');
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [loginMethod, setLoginMethod] = useState<'email' | 'apple'>('email');
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(false);
@@ -234,9 +236,19 @@ export default function Home() {
     void supabase.auth.getSession().then(async ({ data, error: sessionError }) => {
       if (!active) return;
       if (sessionError) setError(sessionError.message);
-      const activeSession = data.session;
+      let activeSession = data.session;
+      if (!activeSession) {
+        try {
+          const guest = await supabase.auth.signInAnonymously();
+          if (!guest.error && guest.data.session) {
+            activeSession = guest.data.session;
+          }
+        } catch {
+          // If anonymous sign in is disabled, proceed as guest
+        }
+      }
       setSession(activeSession);
-      if (activeSession) {
+      if (activeSession && !activeSession.user.is_anonymous) {
         try {
           await loadProfile(activeSession);
         } catch (loadError) {
@@ -249,7 +261,8 @@ export default function Home() {
       if (!active) return;
       setSession(nextSession);
       setError('');
-      if (nextSession) {
+      if (nextSession && !nextSession.user.is_anonymous) {
+        setAuthModalOpen(false);
         queueMicrotask(() => {
           void loadProfile(nextSession).catch((loadError: unknown) => {
             if (active) setError(loadError instanceof Error ? loadError.message : 'Your profile could not be loaded.');
@@ -295,6 +308,7 @@ export default function Home() {
         if (authError) throw authError;
         if (data.session) {
           setSession(data.session);
+          setAuthModalOpen(false);
           await loadProfile(data.session);
         } else {
           setNotice('Check your email to confirm your account, then return here to sign in.');
@@ -308,6 +322,7 @@ export default function Home() {
         if (authError) throw authError;
         if (data.session) {
           setSession(data.session);
+          setAuthModalOpen(false);
           await loadProfile(data.session);
         }
       }
@@ -507,9 +522,23 @@ export default function Home() {
   };
 
   const signOut = async () => {
+    setMenuOpen(false);
     const { error: signOutError } = await getBrowserSupabase().auth.signOut();
-    if (signOutError) setError(signOutError.message);
-    else setAuthRoute('welcome');
+    if (signOutError) {
+      setError(signOutError.message);
+    } else {
+      try {
+        const guest = await getBrowserSupabase().auth.signInAnonymously();
+        if (guest.data.session) {
+          setSession(guest.data.session);
+        }
+      } catch {
+        setSession(null);
+      }
+      setProfile(null);
+      setTab('home');
+      setNotice('Signed out. You are now browsing as a guest.');
+    }
   };
 
   const toggleInterest = (interest: string) => {
@@ -523,15 +552,21 @@ export default function Home() {
     { id: 'create', label: 'Create', icon: Plus },
     { id: 'anonymous', label: 'Anonymous', icon: MessageCircle },
     { id: 'marketplace', label: 'Marketplace', icon: ShoppingCart },
-    { id: 'games', label: 'Games', icon: Dices },
     { id: 'dating', label: 'Meet', icon: Sparkles },
+  ];
+  const mobileTabs: { id: AppTab; label: string; icon: LucideIcon }[] = [
+    { id: 'home', label: 'Room', icon: HomeIcon },
+    { id: 'create', label: 'Create', icon: Plus },
+    { id: 'anonymous', label: 'Anonymous', icon: MessageCircle },
+    { id: 'marketplace', label: 'Marketplace', icon: ShoppingCart },
+    { id: 'dating', label: 'Connect', icon: Users },
   ];
 
   if (loading) {
     return <main className="boot-screen"><div className="loader" /><span>Loading your space…</span></main>;
   }
 
-  const needsProfile = Boolean(session && !profile && configured);
+  const needsProfile = Boolean(session && !session.user.is_anonymous && !profile && configured);
   if (needsProfile) {
     return (
       <main className="onboarding-shell">
@@ -544,101 +579,120 @@ export default function Home() {
     );
   }
 
-  if (!session || !profile) {
-    const goToAuthRoute = (route: typeof authRoute) => {
-      setAuthRoute(route);
-      setError('');
-      setNotice('');
-    };
+  const isGuest = Boolean(!session || session.user.is_anonymous || !profile);
+  const currentProfile = profile ?? {
+    id: session?.user?.id ?? 'guest',
+    displayName: 'Guest',
+    username: null,
+    school: null,
+  };
+
+  const goToAuthRoute = (route: typeof authRoute) => {
+    setAuthRoute(route);
+    setError('');
+    setNotice('');
+  };
+
+  const renderAuthModal = () => {
+    if (!authModalOpen) return null;
     return (
-      <main className="native-auth-shell" data-theme={darkMode ? 'dark' : 'light'}>
-        <div className="native-auth-content">
-          <header className="native-auth-navigation">
-            {authRoute !== 'welcome'
-              ? <button aria-label="Go back" className="native-auth-back" onClick={() => goToAuthRoute(authRoute === 'forgot-password' ? 'sign-in' : 'welcome')} type="button">‹</button>
-              : <span className="native-auth-back" />}
-            <button aria-label="Close" className="native-auth-close" onClick={() => goToAuthRoute('welcome')} type="button">×</button>
-          </header>
-          <span className="brand-wordmark auth-brand-wordmark">Commonroom</span>
-          <h1 className="native-auth-title">
-            {authRoute === 'welcome' ? 'Your vibe, your people.' : authRoute === 'sign-up' ? 'Create your account' : authRoute === 'forgot-password' ? 'Reset your password' : 'Log in'}
-          </h1>
-          <p className="native-auth-subtitle">
-            {authRoute === 'welcome' ? 'A shared space for your community.' : 'Connect with your community.'}
-          </p>
-          {!configured ? (
-            <div className="native-auth-setup">
-              <ShieldCheck size={19} />
-              <span>Connect Supabase to enable real accounts and saved community data. Add the public project URL and publishable key to your Vercel environment variables.</span>
-            </div>
-          ) : null}
-          <section className="native-auth-panel">
-            {authRoute === 'welcome' ? (
-              <div className="native-auth-actions">
-                <button className="native-auth-primary" disabled={!configured} onClick={() => goToAuthRoute('sign-up')} type="button">Create account with email</button>
-                <button className="native-auth-secondary" disabled={!configured} onClick={() => goToAuthRoute('sign-in')} type="button">Sign in with email</button>
-                <button className="native-auth-secondary" disabled={!configured} onClick={signInWithApple} type="button">Continue with Apple</button>
-                <button className="native-auth-secondary" disabled={!configured} onClick={signInWithGoogle} type="button">Continue with Google</button>
+      <div className="native-auth-overlay" role="dialog" aria-modal="true" onClick={() => setAuthModalOpen(false)}>
+        <main className="native-auth-shell" data-theme={darkMode ? 'dark' : 'light'} onClick={(e) => e.stopPropagation()}>
+          <div className="native-auth-content">
+            <header className="native-auth-navigation">
+              {authRoute !== 'welcome'
+                ? <button aria-label="Go back" className="native-auth-back" onClick={() => goToAuthRoute(authRoute === 'forgot-password' ? 'sign-in' : 'welcome')} type="button">‹</button>
+                : <span className="native-auth-back" />}
+              <button aria-label="Close" className="native-auth-close" onClick={() => setAuthModalOpen(false)} type="button">×</button>
+            </header>
+            <Image
+              alt="Commonroom"
+              className="native-auth-logo"
+              height={32}
+              priority
+              src={darkMode ? '/common-room-full-logo-white.png' : '/common-room-full-logo.png'}
+              width={140}
+            />
+            <h1 className="native-auth-title">
+              {authRoute === 'welcome' ? 'Your vibe, your people.' : authRoute === 'sign-up' ? 'Create your account' : authRoute === 'forgot-password' ? 'Reset your password' : 'Log in'}
+            </h1>
+            <p className="native-auth-subtitle">
+              {authRoute === 'welcome' ? 'A shared space for your community.' : 'Connect with your community.'}
+            </p>
+            {!configured ? (
+              <div className="native-auth-setup">
+                <ShieldCheck size={19} />
+                <span>Connect Supabase to enable real accounts and saved community data. Add the public project URL and publishable key to your Vercel environment variables.</span>
               </div>
             ) : null}
-            {authRoute === 'sign-up' ? (
-              <form className="native-auth-form" onSubmit={submitAuth}>
-                <label>Full name<input required value={signupName} onChange={(event) => setSignupName(event.target.value)} autoComplete="name" placeholder="Full name" /></label>
-                <label>Email address<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="Email address" /></label>
-                <label>Create password<div className="native-auth-password"><input required minLength={8} type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" placeholder="Create password" /><button aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)} type="button">{showPassword ? <EyeOff aria-hidden="true" size={17} /> : <Eye aria-hidden="true" size={17} />}</button></div></label>
-                {error ? <p className="form-error" role="alert">{error}</p> : null}
-                {notice ? <p className="form-success" role="status">{notice}</p> : null}
-                <button className="native-auth-primary" disabled={!configured} type="submit">Create account</button>
-                <button className="native-auth-text-button" onClick={() => goToAuthRoute('sign-in')} type="button">Already have an account? Sign in</button>
-              </form>
-            ) : null}
-            {authRoute === 'sign-in' ? (
-              <div className="native-auth-form">
-                <div aria-label="Sign-in method" className="native-auth-method-toggle" role="group">
-                  <button aria-pressed={loginMethod === 'email'} className={loginMethod === 'email' ? 'selected' : ''} onClick={() => setLoginMethod('email')} type="button">Email</button>
-                  <button aria-pressed={loginMethod === 'apple'} className={loginMethod === 'apple' ? 'selected' : ''} onClick={() => setLoginMethod('apple')} type="button">Apple</button>
+            <section className="native-auth-panel">
+              {authRoute === 'welcome' ? (
+                <div className="native-auth-actions">
+                  <button className="native-auth-primary" disabled={!configured} onClick={() => goToAuthRoute('sign-up')} type="button">Create account with email</button>
+                  <button className="native-auth-secondary" disabled={!configured} onClick={() => goToAuthRoute('sign-in')} type="button">Sign in with email</button>
+                  <button className="native-auth-secondary" disabled={!configured} onClick={signInWithApple} type="button">Continue with Apple</button>
+                  <button className="native-auth-secondary" disabled={!configured} onClick={signInWithGoogle} type="button">Continue with Google</button>
                 </div>
-                {loginMethod === 'email' ? (
-                  <form className="native-auth-form" onSubmit={submitAuth}>
-                    <label>Email address<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="Email address" /></label>
-                    <label>Password<div className="native-auth-password"><input required type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" placeholder="Password" /><button aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)} type="button">{showPassword ? <EyeOff aria-hidden="true" size={17} /> : <Eye aria-hidden="true" size={17} />}</button></div></label>
-                    {error ? <p className="form-error" role="alert">{error}</p> : null}
-                    {notice ? <p className="form-success" role="status">{notice}</p> : null}
-                    <button className="native-auth-primary" disabled={!configured} type="submit">Continue</button>
-                  </form>
-                ) : (
-                  <>
-                    <p className="native-auth-subtitle">Continue securely with your Apple account.</p>
-                    {error ? <p className="form-error" role="alert">{error}</p> : null}
-                    <button className="native-auth-primary" disabled={!configured} onClick={signInWithApple} type="button">Continue with Apple</button>
-                  </>
-                )}
-                <button className="native-auth-secondary" disabled={!configured} onClick={signInWithGoogle} type="button">Continue with Google</button>
-                {loginMethod === 'email' ? <button className="native-auth-text-button" onClick={() => goToAuthRoute('forgot-password')} type="button">Forgot password?</button> : null}
-                <button className="native-auth-text-button" onClick={() => goToAuthRoute('sign-up')} type="button">Create an account</button>
-              </div>
-            ) : null}
-            {authRoute === 'forgot-password' ? (
-              <form className="native-auth-form" onSubmit={requestPasswordReset}>
-                <label>Email address<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="Email address" /></label>
-                {error ? <p className="form-error" role="alert">{error}</p> : null}
-                {notice ? <p className="form-success" role="status">{notice}</p> : null}
-                <button className="native-auth-primary" disabled={!configured} type="submit">Request password reset</button>
-              </form>
-            ) : null}
-          </section>
-        </div>
-      </main>
+              ) : null}
+              {authRoute === 'sign-up' ? (
+                <form className="native-auth-form" onSubmit={submitAuth}>
+                  <label>Full name<input required value={signupName} onChange={(event) => setSignupName(event.target.value)} autoComplete="name" placeholder="Full name" /></label>
+                  <label>Email address<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="Email address" /></label>
+                  <label>Create password<div className="native-auth-password"><input required minLength={8} type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" placeholder="Create password" /><button aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)} type="button">{showPassword ? <EyeOff aria-hidden="true" size={17} /> : <Eye aria-hidden="true" size={17} />}</button></div></label>
+                  {error ? <p className="form-error" role="alert">{error}</p> : null}
+                  {notice ? <p className="form-success" role="status">{notice}</p> : null}
+                  <button className="native-auth-primary" disabled={!configured} type="submit">Create account</button>
+                  <button className="native-auth-text-button" onClick={() => goToAuthRoute('sign-in')} type="button">Already have an account? Sign in</button>
+                </form>
+              ) : null}
+              {authRoute === 'sign-in' ? (
+                <div className="native-auth-form">
+                  <div aria-label="Sign-in method" className="native-auth-method-toggle" role="group">
+                    <button aria-pressed={loginMethod === 'email'} className={loginMethod === 'email' ? 'selected' : ''} onClick={() => setLoginMethod('email')} type="button">Email</button>
+                    <button aria-pressed={loginMethod === 'apple'} className={loginMethod === 'apple' ? 'selected' : ''} onClick={() => setLoginMethod('apple')} type="button">Apple</button>
+                  </div>
+                  {loginMethod === 'email' ? (
+                    <form className="native-auth-form" onSubmit={submitAuth}>
+                      <label>Email address<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="Email address" /></label>
+                      <label>Password<div className="native-auth-password"><input required type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" placeholder="Password" /><button aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)} type="button">{showPassword ? <EyeOff aria-hidden="true" size={17} /> : <Eye aria-hidden="true" size={17} />}</button></div></label>
+                      {error ? <p className="form-error" role="alert">{error}</p> : null}
+                      {notice ? <p className="form-success" role="status">{notice}</p> : null}
+                      <button className="native-auth-primary" disabled={!configured} type="submit">Continue</button>
+                    </form>
+                  ) : (
+                    <>
+                      <p className="native-auth-subtitle">Continue securely with your Apple account.</p>
+                      {error ? <p className="form-error" role="alert">{error}</p> : null}
+                      <button className="native-auth-primary" disabled={!configured} onClick={signInWithApple} type="button">Continue with Apple</button>
+                    </>
+                  )}
+                  <button className="native-auth-secondary" disabled={!configured} onClick={signInWithGoogle} type="button">Continue with Google</button>
+                  {loginMethod === 'email' ? <button className="native-auth-text-button" onClick={() => goToAuthRoute('forgot-password')} type="button">Forgot password?</button> : null}
+                  <button className="native-auth-text-button" onClick={() => goToAuthRoute('sign-up')} type="button">Create an account</button>
+                </div>
+              ) : null}
+              {authRoute === 'forgot-password' ? (
+                <form className="native-auth-form" onSubmit={requestPasswordReset}>
+                  <label>Email address<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="Email address" /></label>
+                  {error ? <p className="form-error" role="alert">{error}</p> : null}
+                  {notice ? <p className="form-success" role="status">{notice}</p> : null}
+                  <button className="native-auth-primary" disabled={!configured} type="submit">Request password reset</button>
+                </form>
+              ) : null}
+            </section>
+          </div>
+        </main>
+      </div>
     );
-  }
+  };
 
   return (
     <main className={tab === 'games' ? 'app-shell games-app-shell' : 'app-shell'} data-theme={darkMode ? 'dark' : 'light'}>
       <aside className="sidebar">
         <Brand darkMode={darkMode} />
         <div className="school-switcher">
-          <div className="school-avatar">{profile.school?.slice(0, 1) ?? 'S'}</div>
-          <div><strong>{profile.school ?? 'All communities'}</strong><span>Your community</span></div>
+          <div className="school-avatar">{currentProfile.school?.slice(0, 1) ?? 'C'}</div>
+          <div><strong>{currentProfile.school ?? 'All communities'}</strong><span>{isGuest ? 'Browsing as Guest' : 'Your community'}</span></div>
           <ChevronDown size={15} />
         </div>
         <nav className="primary-nav" aria-label="Main navigation">
@@ -647,8 +701,8 @@ export default function Home() {
               <Icon size={19} strokeWidth={2.2} /><span>{label}</span>
             </button>
           ))}
-          <button className={tab === 'profile' ? 'nav-link selected' : 'nav-link'} onClick={() => setTab('profile')}>
-            <Users size={19} /><span>My profile</span>
+          <button className={tab === 'profile' ? 'nav-link selected' : 'nav-link'} onClick={() => { if (isGuest) { setAuthRoute('sign-in'); setAuthModalOpen(true); } else { setTab('profile'); } }}>
+            <Users size={19} /><span>{isGuest ? 'Sign in / Profile' : 'My profile'}</span>
           </button>
         </nav>
         <div className="sidebar-spacer" />
@@ -657,28 +711,43 @@ export default function Home() {
           <strong>Everything, in one place</strong>
           <p>Catch moments, ask questions, and share what matters.</p>
         </div>
-        <button className="account-row" onClick={() => setMenuOpen((open) => !open)}>
-          <span className="profile-avatar">{profile.displayName.slice(0, 1).toUpperCase()}</span>
-          <span><strong>{profile.displayName}</strong><small>@{profile.username ?? 'student'}</small></span>
-          <MoreHorizontal size={19} />
-        </button>
+        {isGuest ? (
+          <div className="guest-sidebar-action">
+            <div className="guest-sidebar-actions">
+              <button
+                className="primary-button guest-signin-btn"
+                onClick={() => { setAuthRoute('sign-in'); setAuthModalOpen(true); }}
+                type="button"
+              >
+                <LogIn size={15} />
+                <span>Log in / Sign up</span>
+              </button>
+              <button
+                aria-label="Open menu"
+                className="guest-menu-button"
+                onClick={() => setMenuOpen((open) => !open)}
+                type="button"
+              >
+                <Menu size={18} />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="account-row" onClick={() => setMenuOpen((open) => !open)}>
+            <span className="profile-avatar">{currentProfile.displayName.slice(0, 1).toUpperCase()}</span>
+            <span><strong>{currentProfile.displayName}</strong><small>@{currentProfile.username ?? 'student'}</small></span>
+            <MoreHorizontal size={19} />
+          </button>
+        )}
       </aside>
 
       <section className="workspace">
         {tab === 'home' ? (
           <header className="mobile-topbar">
-            <Brand darkMode={darkMode} />
-            <div className="mobile-topbar-actions">
+            <RoomMobileBrand />
+            <div className="mobile-topbar-actions room-topbar-actions">
               <button
-                className="icon-button mobile-topbar-btn"
-                aria-label="Search"
-                onClick={() => setSearchModalOpen(true)}
-                type="button"
-              >
-                <Search size={19} />
-              </button>
-              <button
-                className="icon-button mobile-topbar-btn"
+                className="icon-button room-topbar-icon room-notifications-button"
                 aria-label="Notifications"
                 onClick={() => {
                   setNotificationsOpen((prev) => !prev);
@@ -686,23 +755,53 @@ export default function Home() {
                 }}
                 type="button"
               >
-                <Bell size={19} />
+                <Bell size={20} strokeWidth={1.8} />
                 {notifications.some((n) => !n.read) ? (
                   <span className="notification-dot" />
                 ) : null}
               </button>
+              <span aria-hidden="true" className="room-topbar-divider" />
               <button
-                className="mobile-avatar-btn"
-                aria-label="Account menu"
+                className="icon-button room-topbar-icon"
+                aria-label="Search"
+                onClick={() => setSearchModalOpen(true)}
+                type="button"
+              >
+                <Search size={22} strokeWidth={1.8} />
+              </button>
+              {isGuest ? (
+                <button
+                  className="guest-login-pill room-login-button"
+                  onClick={() => { setAuthRoute('sign-in'); setAuthModalOpen(true); }}
+                  type="button"
+                >
+                  Log in
+                </button>
+              ) : (
+                <button
+                  className="mobile-avatar-btn room-account-button"
+                  aria-label="Account menu"
+                  onClick={() => {
+                    setMenuOpen((prev) => !prev);
+                    setNotificationsOpen(false);
+                  }}
+                  type="button"
+                >
+                  <span className="profile-avatar-circle">
+                    {currentProfile.displayName.slice(0, 1).toUpperCase()}
+                  </span>
+                </button>
+              )}
+              <button
+                className="icon-button room-topbar-icon room-menu-button"
+                aria-label="Open menu"
                 onClick={() => {
                   setMenuOpen((prev) => !prev);
                   setNotificationsOpen(false);
                 }}
                 type="button"
               >
-                <span className="profile-avatar-circle">
-                  {profile.displayName.slice(0, 1).toUpperCase()}
-                </span>
+                <Menu size={24} strokeWidth={2} />
               </button>
             </div>
           </header>
@@ -710,7 +809,7 @@ export default function Home() {
 
         <header className="workspace-topbar">
           <div className="workspace-heading">
-            <h2>{tabs.find((item) => item.id === tab)?.label ?? (tab === 'profile' ? 'My profile' : 'Dating')}</h2>
+            <h2>{tabs.find((item) => item.id === tab)?.label ?? (tab === 'games' ? 'Games' : tab === 'profile' ? 'My profile' : 'Dating')}</h2>
           </div>
           <div className="topbar-actions">
             <button className="search-button" onClick={() => setSearchModalOpen(true)} type="button">
@@ -738,12 +837,24 @@ export default function Home() {
 
           {tab === 'home' ? (
             <RoomExperience
-              accessToken={session.access_token}
+              accessToken={session?.access_token ?? ''}
               focusPostId={focusPostId}
-              onCreate={() => setTab('create')}
+              isGuest={isGuest}
+              onCreate={() => {
+                if (isGuest) {
+                  setAuthRoute('sign-up');
+                  setAuthModalOpen(true);
+                } else {
+                  setTab('create');
+                }
+              }}
               onError={setError}
               onNotice={setNotice}
-              profile={profile}
+              onRequireAccount={() => {
+                setAuthRoute('sign-in');
+                setAuthModalOpen(true);
+              }}
+              profile={currentProfile}
               refreshToken={roomRefresh}
             />
           ) : null}
@@ -751,7 +862,30 @@ export default function Home() {
           {tab === 'create' ? (
             <section className="standalone-column">
               <div className="page-heading"><div><span className="eyebrow">SHARE WITH YOUR COMMUNITY</span><h1>Create a post</h1></div></div>
-              <form className="panel form-panel" onSubmit={(event) => void publishPost(event)}>
+              {isGuest ? (
+                <div className="panel guest-prompt-panel">
+                  <Sparkles size={36} className="guest-prompt-icon" />
+                  <h2>Join your campus community</h2>
+                  <p>Sign in or create an account to post photos, videos, questions, and polls to Commonroom.</p>
+                  <div className="guest-prompt-buttons">
+                    <button
+                      className="primary-button"
+                      onClick={() => { setAuthRoute('sign-up'); setAuthModalOpen(true); }}
+                      type="button"
+                    >
+                      Create an account
+                    </button>
+                    <button
+                      className="secondary-button"
+                      onClick={() => { setAuthRoute('sign-in'); setAuthModalOpen(true); }}
+                      type="button"
+                    >
+                      Sign in
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <form className="panel form-panel" onSubmit={(event) => void publishPost(event)}>
                 <div className="segmented-control">
                   {(['photo', 'video', 'text', 'question', 'poll'] as MediaType[]).map((type) => (
                     <button key={type} type="button" className={createType === type ? 'segment selected' : 'segment'} onClick={() => { setCreateType(type); setCreateFiles([]); }}>
@@ -867,8 +1001,9 @@ export default function Home() {
                 <div className="form-footnote"><ShieldCheck size={16} /><span>Audience permissions are enforced by the API and database policies.</span></div>
                 <button className="primary-button" type="submit">Publish to Commonroom</button>
               </form>
-            </section>
-          ) : null}
+            )}
+          </section>
+        ) : null}
 
           {previewFile ? (
             <div
@@ -937,9 +1072,9 @@ export default function Home() {
 
           {tab === 'games' ? (
             <GamesExperience
-              accessToken={session.access_token}
-              playerId={profile.id}
-              playerName={profile.displayName}
+              accessToken={session?.access_token ?? ''}
+              playerId={currentProfile.id}
+              playerName={currentProfile.displayName}
             />
           ) : null}
 
@@ -970,32 +1105,68 @@ export default function Home() {
 
           {tab === 'profile' ? (
             <section className="standalone-column">
-              <div className="page-heading"><div><span className="eyebrow">YOUR ACCOUNT</span><h1>My profile</h1></div></div>
-              <ProfileForm
-                ageConfirmed={ageConfirmed}
-                course={course}
-                displayName={displayName}
-                educationStatus={educationStatus}
-                filteredInstitutions={filteredInstitutions}
-                interests={interests}
-                school={school}
-                schoolSearch={schoolSearch}
-                showSchool={showSchool}
-                year={year}
-                onAgeConfirmed={setAgeConfirmed}
-                onCourse={setCourse}
-                onDisplayName={setDisplayName}
-                onEducationStatus={setEducationStatus}
-                onInterest={toggleInterest}
-                onSchool={setSchool}
-                onSchoolSearch={setSchoolSearch}
-                onShowSchool={setShowSchool}
-                onSubmit={saveProfile}
-                onYear={setYear}
-                error={error}
-                disabled={!configured}
-              />
-              <button className="secondary-button signout-button" onClick={() => void signOut()}><LogOut size={16} /> Sign out</button>
+              <div className="page-heading">
+                <div><span className="eyebrow">YOUR ACCOUNT</span><h1>{isGuest ? 'Join Commonroom' : 'My profile'}</h1></div>
+                <button
+                  aria-label="Close profile"
+                  className="icon-button profile-close-button"
+                  onClick={() => { setError(''); setTab('home'); }}
+                  type="button"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              {isGuest ? (
+                <div className="panel guest-prompt-panel">
+                  <Sparkles size={36} className="guest-prompt-icon" />
+                  <h2>Create your student profile</h2>
+                  <p>Sign up to connect with your school community, bookmark posts, sell items, and build your profile.</p>
+                  <div className="guest-prompt-buttons">
+                    <button
+                      className="primary-button"
+                      onClick={() => { setAuthRoute('sign-up'); setAuthModalOpen(true); }}
+                      type="button"
+                    >
+                      Create an account
+                    </button>
+                    <button
+                      className="secondary-button"
+                      onClick={() => { setAuthRoute('sign-in'); setAuthModalOpen(true); }}
+                      type="button"
+                    >
+                      Sign in
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <ProfileForm
+                    ageConfirmed={ageConfirmed}
+                    course={course}
+                    displayName={displayName}
+                    educationStatus={educationStatus}
+                    filteredInstitutions={filteredInstitutions}
+                    interests={interests}
+                    school={school}
+                    schoolSearch={schoolSearch}
+                    showSchool={showSchool}
+                    year={year}
+                    onAgeConfirmed={setAgeConfirmed}
+                    onCourse={setCourse}
+                    onDisplayName={setDisplayName}
+                    onEducationStatus={setEducationStatus}
+                    onInterest={toggleInterest}
+                    onSchool={setSchool}
+                    onSchoolSearch={setSchoolSearch}
+                    onShowSchool={setShowSchool}
+                    onSubmit={saveProfile}
+                    onYear={setYear}
+                    error={error}
+                    disabled={!configured}
+                  />
+                  <button className="secondary-button signout-button" onClick={() => void signOut()}><LogOut size={16} /> Sign out</button>
+                </>
+              )}
             </section>
           ) : null}
         </div>
@@ -1005,10 +1176,10 @@ export default function Home() {
             <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
             <div className="account-menu">
               <div className="account-menu-header">
-                <span className="profile-avatar">{profile.displayName.slice(0, 1).toUpperCase()}</span>
+                <span className="profile-avatar">{currentProfile.displayName.slice(0, 1).toUpperCase()}</span>
                 <div className="account-menu-user">
-                  <strong>{profile.displayName}</strong>
-                  <small>{profile.school ?? 'Commonroom'}</small>
+                  <strong>{currentProfile.displayName}</strong>
+                  <small>{currentProfile.school ?? 'Commonroom'}</small>
                 </div>
                 <button className="icon-button" onClick={() => setMenuOpen(false)} aria-label="Close menu" type="button">
                   <X size={16} />
@@ -1023,6 +1194,9 @@ export default function Home() {
                 </button>
                 <button onClick={() => { setTab('create'); setMenuOpen(false); }} type="button">
                   <Plus size={16} /> Create post
+                </button>
+                <button onClick={() => { setTab('games'); setMenuOpen(false); }} type="button">
+                  <Dices size={16} /> Games
                 </button>
                 <div className="account-menu-divider" />
                 <button className="account-menu-signout" onClick={() => void signOut()} type="button">
@@ -1156,17 +1330,47 @@ export default function Home() {
       </section>
 
       <nav className="mobile-nav" aria-label="Mobile navigation">
-        {tabs.map(({ id, label, icon: Icon }) => (
+        {mobileTabs.map(({ id, label, icon: Icon }) => (
           <button
-            className={tab === id ? 'mobile-nav-item active' : 'mobile-nav-item'}
+            aria-current={tab === id ? 'page' : undefined}
+            aria-label={label}
+            className={`mobile-nav-item${tab === id ? ' active' : ''}${id === 'anonymous' ? ' mobile-nav-anonymous' : ''}`}
             key={id}
             onClick={() => setTab(id)}
+            type="button"
           >
-            <span className="mobile-nav-icon-wrap"><Icon size={19} /></span>
-            <span>{label}</span>
+            {id === 'anonymous' ? (
+              <div className="mobile-nav-anonymous-wrap">
+                <Image
+                  alt=""
+                  aria-hidden="true"
+                  className="mobile-nav-mask"
+                  height={62}
+                  priority
+                  src="/anonymous-shushing-mask.png"
+                  width={62}
+                />
+                <svg className="mobile-nav-curved-text" viewBox="0 0 100 100" aria-hidden="true">
+                  <path id="mobile-nav-anon-arc" d="M 13 63 A 44 44 0 0 0 87 63" fill="none" />
+                  <text>
+                    <textPath href="#mobile-nav-anon-arc" startOffset="50%" textAnchor="middle">
+                      ANONYMOUS
+                    </textPath>
+                  </text>
+                </svg>
+              </div>
+            ) : (
+              <>
+                <span className="mobile-nav-icon-wrap">
+                  <Icon size={id === 'create' ? 25 : 27} strokeWidth={1.8} />
+                </span>
+                <span>{label}</span>
+              </>
+            )}
           </button>
         ))}
       </nav>
+      {renderAuthModal()}
     </main>
   );
 }
@@ -1174,7 +1378,22 @@ export default function Home() {
 function Brand({ darkMode = true }: { darkMode?: boolean }) {
   return (
     <a href="/" className="brand-link" aria-label="Commonroom home">
-      <span className="brand-wordmark">Commonroom</span>
+      <Image
+        alt="Commonroom"
+        className="brand-logo"
+        height={28}
+        priority
+        src={darkMode ? '/common-room-full-logo-white.png' : '/common-room-full-logo.png'}
+        width={132}
+      />
+    </a>
+  );
+}
+
+function RoomMobileBrand() {
+  return (
+    <a aria-label="Commonroom home" className="room-mobile-brand" href="/">
+      CommonRoom
     </a>
   );
 }

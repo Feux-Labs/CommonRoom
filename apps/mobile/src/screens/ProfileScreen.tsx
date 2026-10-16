@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { ArrowLeft, Check, Edit3, Grid, Heart, MapPin, Share2, Sparkles, Trophy, UserCheck, UserPlus, X } from 'lucide-react-native/icons';
+import { ArrowLeft, Check, Heart, LayoutGrid, MapPin, Pencil, Share2, Sparkles, Trophy, UserCheck, UserPlus, X } from 'lucide-react-native/icons';
 import { useAppTheme } from '../theme/ThemeContext';
 import { AppColors, radius } from '../theme/tokens';
 import type { UserProfile } from '../types/domain';
@@ -59,7 +59,7 @@ export function ProfileScreen({ onBack, profile, onUpdateProfile }: ProfileScree
         </Pressable>
         <Text style={styles.title}>Student Profile</Text>
         <Pressable accessibilityRole="button" onPress={() => setEditModalOpen(true)} style={styles.editIconBtn}>
-          <Edit3 size={15} color="#8e95a5" />
+          <Pencil size={15} color="#8e95a5" />
         </Pressable>
       </View>
 
@@ -135,7 +135,7 @@ export function ProfileScreen({ onBack, profile, onUpdateProfile }: ProfileScree
             onPress={() => setActiveTab('posts')}
             style={[styles.tabBtn, activeTab === 'posts' && styles.tabBtnActive]}
           >
-            <Grid size={14} color={activeTab === 'posts' ? '#ffffff' : '#8e95a5'} />
+            <LayoutGrid size={14} color={activeTab === 'posts' ? '#ffffff' : '#8e95a5'} />
             <Text style={[styles.tabBtnText, activeTab === 'posts' && styles.tabBtnTextActive]}>Posts (24)</Text>
           </Pressable>
           <Pressable

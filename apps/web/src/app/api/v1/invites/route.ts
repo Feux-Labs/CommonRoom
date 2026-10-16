@@ -1,4 +1,4 @@
-import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest } from '@/lib/supabase-server';
+import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, requireRegisteredUser } from '@/lib/supabase-server';
 
 function inviteCode(userId: string) {
   return `cr${userId.replace(/-/g, '').slice(0, 8)}`;
@@ -7,6 +7,8 @@ function inviteCode(userId: string) {
 export async function GET(request: Request) {
   const auth = await authenticateRequest(request);
   if (!isAuthenticatedRequest(auth)) return auth;
+  const accountError = requireRegisteredUser(auth);
+  if (accountError) return accountError;
 
   const { data: existing } = await auth.supabase
     .from('invites')

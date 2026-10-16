@@ -69,7 +69,7 @@ export function CreateFlowScreen({ onClose, onPost }: CreateFlowScreenProps) {
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Audience Dropdown State
   const [showAudienceDropdown, setShowAudienceDropdown] = useState(false);

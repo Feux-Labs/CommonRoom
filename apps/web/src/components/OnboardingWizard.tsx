@@ -45,6 +45,7 @@ export function OnboardingWizard({
   const [step, setStep] = useState<Step>('school');
   const [educationStatus, setEducationStatus] = useState<EducationStatus | null>(null);
   const [school, setSchool] = useState('');
+  const [schoolListOpen, setSchoolListOpen] = useState(true);
   const [manualSchoolName, setManualSchoolName] = useState('');
   const [manualSchoolEntry, setManualSchoolEntry] = useState(false);
   const [schoolSearch, setSchoolSearch] = useState('');
@@ -170,43 +171,48 @@ export function OnboardingWizard({
                 <input
                   autoComplete="off"
                   id="onboarding-school-search"
-                  onChange={(event) => { setSchoolSearch(event.target.value); setSchool(''); setManualSchoolName(''); }}
+                  onChange={(event) => { setSchoolSearch(event.target.value); setSchool(''); setManualSchoolName(''); setSchoolListOpen(true); }}
+                  onFocus={() => setSchoolListOpen(true)}
                   placeholder="Search for your school"
                   value={schoolSearch}
                 />
-                {schoolSearch ? <button aria-label="Clear search" onClick={() => setSchoolSearch('')} type="button">×</button> : null}
+                {schoolSearch ? <button aria-label="Clear search" onClick={() => { setSchoolSearch(''); setSchoolListOpen(true); }} type="button">×</button> : null}
               </div>
-              <div aria-label="Filter institutions by type" className="onboarding-school-filters">
-                {institutionFilters.map((filter) => (
-                  <button
-                    aria-pressed={institutionFilter === filter.value}
-                    className={institutionFilter === filter.value ? 'selected' : ''}
-                    key={filter.value}
-                    onClick={() => setInstitutionFilter(filter.value)}
-                    type="button"
-                  >
-                    {filter.label} <span>{filter.count}</span>
-                  </button>
-                ))}
-              </div>
-              <p className="onboarding-result-count">{filteredInstitutions.length} {filteredInstitutions.length === 1 ? 'institution' : 'institutions'}</p>
-              <div aria-label="Nigerian institutions" className="onboarding-institution-list" role="radiogroup">
-                {filteredInstitutions.length ? filteredInstitutions.map((institution) => (
-                  <button
-                    aria-checked={school === institution.name}
-                    className={school === institution.name ? 'onboarding-institution selected' : 'onboarding-institution'}
-                    key={institution.id}
-                    onClick={() => { setSchool(institution.name); setManualSchoolName(''); setManualSchoolEntry(false); }}
-                    role="radio"
-                    type="button"
-                  >
-                    <span aria-hidden="true" className="onboarding-institution-monogram">{institution.name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}</span>
-                    <span className="onboarding-institution-copy"><strong>{institution.name}</strong><small>{institution.location} · {institution.category}</small></span>
-                    <span aria-hidden="true" className={school === institution.name ? 'onboarding-radio selected' : 'onboarding-radio'} />
-                  </button>
-                )) : <p className="onboarding-no-results">No schools found. Try another name, location, or school type.</p>}
-              </div>
-              <button className="onboarding-manual-toggle" onClick={() => { setManualSchoolEntry((current) => !current); setManualSchoolName(''); setSchool(''); }} type="button">
+              {schoolListOpen ? (
+                <>
+                  <div aria-label="Filter institutions by type" className="onboarding-school-filters">
+                    {institutionFilters.map((filter) => (
+                      <button
+                        aria-pressed={institutionFilter === filter.value}
+                        className={institutionFilter === filter.value ? 'selected' : ''}
+                        key={filter.value}
+                        onClick={() => setInstitutionFilter(filter.value)}
+                        type="button"
+                      >
+                        {filter.label} <span>{filter.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="onboarding-result-count">{filteredInstitutions.length} {filteredInstitutions.length === 1 ? 'institution' : 'institutions'}</p>
+                  <div aria-label="Nigerian institutions" className="onboarding-institution-list" role="radiogroup">
+                    {filteredInstitutions.length ? filteredInstitutions.map((institution) => (
+                      <button
+                        aria-checked={school === institution.name}
+                        className={school === institution.name ? 'onboarding-institution selected' : 'onboarding-institution'}
+                        key={institution.id}
+                        onClick={() => { setSchool(institution.name); setManualSchoolName(''); setManualSchoolEntry(false); setSchoolListOpen(false); }}
+                        role="radio"
+                        type="button"
+                      >
+                        <span aria-hidden="true" className="onboarding-institution-monogram">{institution.name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}</span>
+                        <span className="onboarding-institution-copy"><strong>{institution.name}</strong><small>{institution.location} · {institution.category}</small></span>
+                        <span aria-hidden="true" className={school === institution.name ? 'onboarding-radio selected' : 'onboarding-radio'} />
+                      </button>
+                    )) : <p className="onboarding-no-results">No schools found. Try another name, location, or school type.</p>}
+                  </div>
+                </>
+              ) : null}
+              <button className="onboarding-manual-toggle" onClick={() => { setManualSchoolEntry((current) => !current); setManualSchoolName(''); setSchool(''); setSchoolListOpen(false); }} type="button">
                 {manualSchoolEntry ? 'Choose from the list instead' : "Can’t find your school? Type it in"}
               </button>
               {manualSchoolEntry ? (

@@ -1,7 +1,25 @@
-import { NextResponse } from 'next/server';
-import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, parseJson } from '@/lib/supabase-server';
+import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, parseJson, requireRegisteredUser } from '@/lib/supabase-server';
 import { INITIAL_MARKETPLACE_LISTINGS } from '@/lib/marketplace-seed';
 import type { CreateListingInput, MarketplaceCategory, MarketplaceListing } from '@/lib/marketplace-contracts';
+
+type MarketplaceListingRow = {
+  id: string;
+  seller_id: string;
+  seller: { display_name: string | null; username: string | null; school: string | null } | null;
+  contact_phone: string | null;
+  title: string;
+  description: string;
+  price: number | string;
+  category: MarketplaceCategory;
+  condition: MarketplaceListing['condition'];
+  location: string;
+  school: string | null;
+  images: unknown;
+  status: MarketplaceListing['status'];
+  views_count: number | null;
+  created_at: string;
+  updated_at: string;
+};
 
 // In-memory runtime store for development & mock fallback
 const memoryListings: MarketplaceListing[] = [...INITIAL_MARKETPLACE_LISTINGS];
@@ -16,14 +34,18 @@ export async function GET(request: Request) {
   const maxPrice = searchParams.get('maxPrice') ? parseFloat(searchParams.get('maxPrice')!) : undefined;
   const sort = searchParams.get('sort') || 'newest';
   const tab = searchParams.get('tab') || 'explore'; // 'explore' | 'saved' | 'my_listings'
-  const cursor = searchParams.get('cursor');
   const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '12', 10)));
 
   // Check auth if available
   let userId: string | null = null;
+  let canContactSeller = false;
   const authResult = await authenticateRequest(request);
   if (isAuthenticatedRequest(authResult)) {
     userId = authResult.user.id;
+    canContactSeller = !authResult.user.is_anonymous;
+    if (authResult.user.is_anonymous && tab !== 'explore') {
+      return apiError('account_required', 'Create an account to view saved or personal listings.', 403);
+    }
   }
 
   // If Supabase is connected and tables exist, attempt Supabase query
@@ -85,14 +107,14 @@ export async function GET(request: Request) {
           }
         }
 
-        const mapped: MarketplaceListing[] = dbListings.map((row: any) => ({
+        const mapped: MarketplaceListing[] = (dbListings as unknown as MarketplaceListingRow[]).map((row) => ({
           id: row.id,
           seller_id: row.seller_id,
           seller_name: row.seller?.display_name || 'Campus Student',
           seller_username: row.seller?.username || null,
           seller_avatar: null,
           seller_school: row.seller?.school || row.school || null,
-          seller_phone: row.contact_phone || null,
+          seller_phone: canContactSeller ? row.contact_phone || null : null,
           title: row.title,
           description: row.description,
           price: Number(row.price),
@@ -177,6 +199,7 @@ export async function GET(request: Request) {
 
   const result = filtered.map((item) => ({
     ...item,
+    seller_phone: canContactSeller ? item.seller_phone : null,
     is_saved: item.is_saved || userSaved.has(item.id),
     is_mine: item.is_mine || (userId !== null && item.seller_id === userId),
   }));
@@ -206,98 +229,67 @@ export async function POST(request: Request) {
     return apiError('invalid_location', 'Please specify a campus location (e.g. hostel, faculty, gate).', 422);
   }
 
-  // Authenticate user
-  let sellerId = 'anonymous-student';
-  let sellerName = 'Campus Student';
-  let sellerUsername: string | null = null;
-  let sellerSchool: string | null = school;
-
   const authResult = await authenticateRequest(request);
-  if (isAuthenticatedRequest(authResult)) {
-    sellerId = authResult.user.id;
-    sellerName = (authResult.user.user_metadata?.display_name as string) || 'Campus Student';
-    sellerUsername = (authResult.user.user_metadata?.username as string) || null;
+  if (!isAuthenticatedRequest(authResult)) return authResult;
+  const accountError = requireRegisteredUser(authResult);
+  if (accountError) return accountError;
 
-    try {
-      const { supabase } = authResult;
-      const { data: dbItem, error: insertError } = await supabase
-        .from('marketplace_listings')
-        .insert({
-          seller_id: sellerId,
-          title: title.trim(),
-          description: description.trim(),
-          price,
-          category,
-          condition,
-          location: location.trim(),
-          school: sellerSchool,
-          images: images.slice(0, 8),
-          contact_phone: contact_phone?.trim() || null,
-          status: 'available',
-        })
-        .select()
-        .single();
+  const sellerId = authResult.user.id;
+  const sellerName = (authResult.user.user_metadata?.display_name as string) || 'Campus Student';
+  const sellerUsername = (authResult.user.user_metadata?.username as string) || null;
+  const sellerSchool = school;
 
-      if (!insertError && dbItem) {
-        const created: MarketplaceListing = {
-          id: dbItem.id,
-          seller_id: sellerId,
-          seller_name: sellerName,
-          seller_username: sellerUsername,
-          seller_avatar: null,
-          seller_school: sellerSchool,
-          seller_phone: contact_phone?.trim() || null,
-          title: dbItem.title,
-          description: dbItem.description,
-          price: Number(dbItem.price),
-          category: dbItem.category,
-          condition: dbItem.condition,
-          location: dbItem.location,
-          school: dbItem.school,
-          images: Array.isArray(dbItem.images) ? dbItem.images : [],
-          status: 'available',
-          likes_count: 0,
-          views_count: 0,
-          is_saved: false,
-          is_mine: true,
-          created_at: dbItem.created_at,
-          updated_at: dbItem.updated_at,
-        };
-        return apiSuccess(created, 201);
-      }
-    } catch {
-      // Continue to in-memory creation fallback
+  try {
+    const { data: dbItem, error: insertError } = await authResult.supabase
+      .from('marketplace_listings')
+      .insert({
+        seller_id: sellerId,
+        title: title.trim(),
+        description: description.trim(),
+        price,
+        category,
+        condition,
+        location: location.trim(),
+        school: sellerSchool,
+        images: images.slice(0, 8),
+        contact_phone: contact_phone?.trim() || null,
+        status: 'available',
+      })
+      .select()
+      .single();
+
+    if (insertError || !dbItem) {
+      console.error('[marketplace] listing creation failed:', insertError?.message);
+      return apiError('listing_create_failed', 'Your listing could not be published.', 500);
     }
+
+    const created: MarketplaceListing = {
+      id: dbItem.id,
+      seller_id: sellerId,
+      seller_name: sellerName,
+      seller_username: sellerUsername,
+      seller_avatar: null,
+      seller_school: sellerSchool,
+      seller_phone: contact_phone?.trim() || null,
+      title: dbItem.title,
+      description: dbItem.description,
+      price: Number(dbItem.price),
+      category: dbItem.category,
+      condition: dbItem.condition,
+      location: dbItem.location,
+      school: dbItem.school,
+      images: Array.isArray(dbItem.images) ? dbItem.images : [],
+      status: 'available',
+      likes_count: 0,
+      views_count: 0,
+      is_saved: false,
+      is_mine: true,
+      created_at: dbItem.created_at,
+      updated_at: dbItem.updated_at,
+    };
+    return apiSuccess(created, 201);
+  } catch (error) {
+    console.error('[marketplace] listing creation failed:', error);
+    return apiError('listing_create_failed', 'Your listing could not be published.', 500);
   }
-
-  // In-memory creation
-  const newListing: MarketplaceListing = {
-    id: `market-listing-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    seller_id: sellerId,
-    seller_name: sellerName,
-    seller_username: sellerUsername,
-    seller_avatar: null,
-    seller_school: sellerSchool,
-    seller_phone: contact_phone?.trim() || null,
-    title: title.trim(),
-    description: description.trim(),
-    price: Number(price),
-    category,
-    condition,
-    location: location.trim(),
-    school: sellerSchool,
-    images: images.length > 0 ? images : [
-      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1000&q=80'
-    ],
-    status: 'available',
-    likes_count: 0,
-    views_count: 1,
-    is_saved: false,
-    is_mine: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-
-  memoryListings.unshift(newListing);
-  return apiSuccess(newListing, 201);
 }
