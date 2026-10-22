@@ -27,6 +27,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { RoomComment, RoomFeedPage, RoomPerson, RoomPost, RoomProfile, RoomScope, RoomStory } from '@/lib/room-contracts';
+import { demoRoomPosts } from '@/lib/demo-content';
 
 type ApiEnvelope<T> = { data: T };
 type ApiFailure = { error?: { message?: string } };
@@ -39,7 +40,7 @@ async function roomRequest<T>(path: string, token: string, method = 'GET', body?
     method,
     headers: {
       Accept: 'application/json',
-      Authorization: `Bearer ${token}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -104,6 +105,7 @@ export function RoomExperience({
   const [menuPostId, setMenuPostId] = useState<string | null>(null);
   const [reportModalPost, setReportModalPost] = useState<RoomPost | null>(null);
   const [viewer, setViewer] = useState<ViewerState | null>(null);
+  const [swipeTutorialOpen, setSwipeTutorialOpen] = useState(false);
   const [openProfile, setOpenProfile] = useState<RoomProfile | null>(null);
   const [mediaIndex, setMediaIndex] = useState<Record<string, number>>({});
   const [followingById, setFollowingById] = useState<Record<string, boolean>>({});
@@ -134,12 +136,13 @@ export function RoomExperience({
           onError('That shared post is unavailable.');
         }
       }
-      setPosts(nextPosts);
+      setPosts(nextPosts.length || process.env.NODE_ENV !== 'development' ? nextPosts : demoRoomPosts);
       setHasMore(result.hasMore && result.nextCursor !== null);
       setNextCursor(result.nextCursor);
       if (focusPostId) setViewer({ kind: 'post', postId: focusPostId });
     } catch (error) {
       if (generation === generationRef.current) {
+        if (process.env.NODE_ENV === 'development') setPosts(demoRoomPosts);
         setFeedError(error instanceof Error ? error.message : 'Your feed could not be loaded.');
       }
     } finally {
@@ -176,6 +179,10 @@ export function RoomExperience({
   }, [accessToken, hasMore, nextCursor, scope]);
 
   const loadStories = useCallback(async () => {
+    if (!accessToken) {
+      setStories([]);
+      return;
+    }
     try {
       const result = await roomRequest<RoomStory[]>('/api/v1/room/stories', accessToken);
       setStories(result.map((story) => ({
@@ -188,6 +195,10 @@ export function RoomExperience({
   }, [accessToken]);
 
   const loadPeople = useCallback(async (query = '') => {
+    if (!accessToken) {
+      setPeople([]);
+      return;
+    }
     try {
       const path = query.trim() ? `/api/v1/people?q=${encodeURIComponent(query.trim())}` : '/api/v1/people';
       const loaded = await roomRequest<RoomPerson[]>(path, accessToken);
@@ -203,6 +214,10 @@ export function RoomExperience({
   }, [accessToken, onError]);
 
   const loadInvite = useCallback(async () => {
+    if (!accessToken) {
+      setInviteUrl('');
+      return;
+    }
     try {
       const result = await roomRequest<{ url: string }>('/api/v1/invites', accessToken);
       setInviteUrl(result.url);
@@ -237,6 +252,7 @@ export function RoomExperience({
   }, [feedError, hasMore, loadMore, loadingMore]);
 
   const recordEvent = useCallback((eventType: string, postId?: string) => {
+    if (!accessToken) return;
     void roomRequest('/api/v1/room/events', accessToken, 'POST', { eventType, postId }).catch(() => undefined);
   }, [accessToken]);
 
@@ -333,6 +349,10 @@ export function RoomExperience({
   };
 
   const handleConfirmReport = async (post: RoomPost, reason: string) => {
+    if (isGuest) {
+      onRequireAccount?.();
+      return;
+    }
     try {
       await roomRequest(`/api/v1/posts/${post.id}/report`, accessToken, 'POST', { reason });
       setReportModalPost(null);
@@ -364,6 +384,10 @@ export function RoomExperience({
   };
 
   const openComments = async (postId: string) => {
+    if (isGuest) {
+      onRequireAccount?.();
+      return;
+    }
     const next = commentsOpen === postId ? null : postId;
     setCommentsOpen(next);
     if (!next || comments[postId]) return;
@@ -432,6 +456,10 @@ export function RoomExperience({
   };
 
   const showProfile = async (userId: string) => {
+    if (isGuest) {
+      onRequireAccount?.();
+      return;
+    }
     try {
       setViewer(null);
       const loaded = await roomRequest<RoomProfile>(`/api/v1/people/${userId}`, accessToken);
@@ -457,12 +485,14 @@ export function RoomExperience({
     seenStoriesRef.current.add(story.authorId);
     setStories((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, seen: true } : item));
     setViewer({ kind: 'story', storyIndex: index, itemIndex: 0 });
+    if (window.localStorage.getItem('room_swipe_tutorial_seen') !== 'true') setSwipeTutorialOpen(true);
     const first = story.items[0];
     if (first) recordEvent('open', first.id);
   };
 
   const openMedia = (post: RoomPost) => {
     setViewer({ kind: 'post', postId: post.id });
+    if (window.localStorage.getItem('room_swipe_tutorial_seen') !== 'true') setSwipeTutorialOpen(true);
     recordEvent('open', post.id);
   };
 
@@ -533,6 +563,7 @@ export function RoomExperience({
   }, [advancePost, advanceStory, viewer]);
 
   const ownStoryIndex = stories.findIndex((story) => story.authorId === profile.id);
+  const showingDemoPosts = posts.some((post) => post.id.startsWith('demo-room-'));
 
   const renderComments = (post: RoomPost) => {
     const thread = comments[post.id] ?? [];
@@ -574,27 +605,28 @@ export function RoomExperience({
   };
 
   const renderPost = (post: RoomPost) => {
+    const isDemoPost = post.id.startsWith('demo-room-');
     const items = postMedia(post);
     const index = Math.min(mediaIndex[post.id] ?? 0, Math.max(0, items.length - 1));
     const media = items[index];
     return (
       <article className="feed-card" key={post.id} onMouseEnter={() => recordEvent('impression', post.id)}>
         <div className="post-header">
-          <button className="profile-avatar" onClick={() => void showProfile(post.authorId)} type="button">
+          <button className="profile-avatar" disabled={isDemoPost} onClick={() => void showProfile(post.authorId)} type="button">
             {post.authorAvatar ? <img alt="" src={post.authorAvatar} /> : initials(post.authorName)}
           </button>
-          <button className="post-author" onClick={() => void showProfile(post.authorId)} type="button">
+          <button className="post-author" disabled={isDemoPost} onClick={() => void showProfile(post.authorId)} type="button">
             <strong>{post.authorName}</strong>
-            <span>@{post.authorUsername} · {post.time}</span>
+            <span>@{post.authorUsername} · {post.time}{isDemoPost ? ' · Sample' : ''}</span>
           </button>
-          <button
+          {!isDemoPost ? <button
             className="icon-button subtle post-options-trigger"
             aria-label="Post options"
             onClick={() => setMenuPostId(menuPostId === post.id ? null : post.id)}
             type="button"
           >
             <SlidersHorizontal size={18} />
-          </button>
+          </button> : null}
         </div>
         {post.school ? <div className="post-school">{post.school}</div> : null}
         {post.caption ? <p className="post-caption">{post.caption}</p> : null}
@@ -623,11 +655,12 @@ export function RoomExperience({
         ) : null}
         {post.tags.length ? <div className="post-tags">{post.tags.map((tag) => <span key={tag}>{tag}</span>)}</div> : null}
         <div className="post-actions">
-          <button className={post.liked ? 'post-action liked' : 'post-action'} onClick={() => void toggleLike(post)} type="button"><Heart size={17} fill={post.liked ? 'currentColor' : 'none'} />{post.likes}</button>
-          <button className="post-action" onClick={() => void openComments(post.id)} type="button"><MessageCircle size={17} />{post.comments}</button>
-          <button className={post.saved ? 'post-action liked' : 'post-action'} onClick={() => void toggleSave(post)} type="button"><Bookmark size={17} fill={post.saved ? 'currentColor' : 'none'} />Save</button>
-          <button className="post-action" onClick={() => void sharePost(post)} type="button"><Share2 size={17} />Share</button>
+          <button className={post.liked ? 'post-action liked' : 'post-action'} disabled={isDemoPost} onClick={() => void toggleLike(post)} type="button"><Heart size={17} fill={post.liked ? 'currentColor' : 'none'} />{post.likes}</button>
+          <button className="post-action" disabled={isDemoPost} onClick={() => void openComments(post.id)} type="button"><MessageCircle size={17} />{post.comments}</button>
+          <button className={post.saved ? 'post-action liked' : 'post-action'} disabled={isDemoPost} onClick={() => void toggleSave(post)} type="button"><Bookmark size={17} fill={post.saved ? 'currentColor' : 'none'} />Save</button>
+          <button className="post-action" disabled={isDemoPost} onClick={() => void sharePost(post)} type="button"><Share2 size={17} />Share</button>
         </div>
+        {isDemoPost ? <p className="feed-status">Sample preview · real feed posts will appear when available.</p> : null}
         {commentsOpen === post.id ? renderComments(post) : null}
       </article>
     );
@@ -655,7 +688,7 @@ export function RoomExperience({
         </div>
 
         <div className="feed-tabs" role="tablist" aria-label="Feed">
-          {([['for_you', 'For You'], ['following', 'Following'], ['general', 'General']] as [RoomScope, string][]).map(([id, label]) => (
+          {([['for_you', 'For You'], ['following', 'Following'], ['general', 'General']] as [RoomScope, string][]).filter(([id]) => accessToken || id !== 'following').map(([id, label]) => (
             <button key={id} role="tab" aria-selected={scope === id} className={scope === id ? 'feed-tab active' : 'feed-tab'} onClick={() => setScope(id)} type="button">{label}</button>
           ))}
         </div>
@@ -664,17 +697,17 @@ export function RoomExperience({
         {!loading && posts.length === 0 && !feedError ? (
           <div className="empty-state">
             <span className="empty-icon"><Users size={24} /></span>
-            <h2>Your feed is ready for its first post</h2>
-            <p>Follow people or share a photo so Room has something to show.</p>
-            <button className="secondary-button" onClick={onCreate} type="button">Create a post</button>
+            <h2>{isGuest ? 'Nothing here just yet' : 'Your feed is ready for its first post'}</h2>
+            <p>{isGuest ? 'Sign in to follow classmates and share a photo in Room.' : 'Follow people or share a photo so Room has something to show.'}</p>
+            <button className="secondary-button" onClick={onCreate} type="button">{isGuest ? 'Sign in to post' : 'Create a post'}</button>
           </div>
         ) : null}
 
         {posts.map((post) => renderPost(post))}
 
         {feedError ? (
-          <div className="feed-status retry" role="alert">
-            <span>{feedError}</span>
+          <div className="feed-status retry" role={showingDemoPosts ? 'status' : 'alert'}>
+            <span>{showingDemoPosts ? 'Live Room feed unavailable; showing local sample posts.' : feedError}</span>
             <button className="secondary-button" onClick={() => void (nextCursor ? loadMore() : loadFeed())} type="button">Retry</button>
           </div>
         ) : null}
@@ -948,6 +981,17 @@ export function RoomExperience({
               ))}
             </div>
           </div>
+        </div>
+      ) : null}
+      {swipeTutorialOpen ? (
+        <div className="room-swipe-tutorial-backdrop">
+          <section aria-labelledby="room-swipe-tutorial-title" aria-modal="true" className="room-swipe-tutorial" role="dialog">
+            <button aria-label="Dismiss Room swipe tutorial" className="room-swipe-tutorial-close" onClick={() => { setSwipeTutorialOpen(false); window.localStorage.setItem('room_swipe_tutorial_seen', 'true'); }} type="button"><X size={16} /></button>
+            <span className="eyebrow">ROOM VIEWER</span>
+            <h2 id="room-swipe-tutorial-title">Move through Room</h2>
+            <p>Swipe up or down to move between posts. In Stories, swipe left or right to move between people. The on-screen arrows and keyboard arrow keys work too.</p>
+            <button className="primary-button" onClick={() => { setSwipeTutorialOpen(false); window.localStorage.setItem('room_swipe_tutorial_seen', 'true'); }} type="button">Got it</button>
+          </section>
         </div>
       ) : null}
     </div>

@@ -9,6 +9,7 @@ export type MediaType = 'photo' | 'video' | 'text' | 'question' | 'poll';
 export type MediaItem = {
   uri: string;
   mediaType: 'photo' | 'video';
+  poster?: string;
 };
 
 export type FeedPost = {

@@ -248,10 +248,20 @@ model DatingProfile {
   school       String?
   bio          String   @default("")
   interests    String[] @default([])
+  photoUrls    String[] @default([]) @map("photo_urls")
   discoverable Boolean  @default(false)
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   user         Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("dating_profiles")
+}
+
+model AdminBroadcast {
+  key       String   @id @default("global") @db.Text
+  message   String   @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("admin_broadcasts")
 }

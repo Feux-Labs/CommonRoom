@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ArrowLeft, Bell, Check, Heart, MessageCircle, ShoppingBag, Sparkles, Trophy, UserPlus } from 'lucide-react-native/icons';
+import { ArrowLeft, Bell, Check, Heart, MessageCircle, ShoppingBag, Trophy, UserPlus } from 'lucide-react-native/icons';
 import { useAppTheme } from '../theme/ThemeContext';
 import { AppColors, radius } from '../theme/tokens';
 
@@ -29,8 +29,8 @@ const initialNotifications: NotificationItem[] = [
   {
     id: 'n1',
     type: 'connection',
-    title: 'New Meet Connection!',
-    subtitle: 'Aisha Bello connected with you. Say hello in Messages!',
+    title: 'New Connection!',
+    subtitle: 'Aisha Bello is also interested. Say hello in Messages!',
     time: '5m ago',
     read: false,
     avatarInitial: 'A',
@@ -114,7 +114,7 @@ export function NotificationsScreen({ onBack }: NotificationsScreenProps) {
   const getIcon = (type: NotificationItem['type']) => {
     switch (type) {
       case 'connection':
-        return <Sparkles size={13} color="#ffffff" />;
+        return <UserPlus size={13} color="#ffffff" />;
       case 'status':
         return <Trophy size={13} color="#ffffff" />;
       case 'like':

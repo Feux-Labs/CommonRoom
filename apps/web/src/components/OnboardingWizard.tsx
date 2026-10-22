@@ -213,7 +213,7 @@ export function OnboardingWizard({
                 </>
               ) : null}
               <button className="onboarding-manual-toggle" onClick={() => { setManualSchoolEntry((current) => !current); setManualSchoolName(''); setSchool(''); setSchoolListOpen(false); }} type="button">
-                {manualSchoolEntry ? 'Choose from the list instead' : "Can’t find your school? Type it in"}
+                {manualSchoolEntry ? 'Choose from the list instead' : 'Other school? Enter it manually'}
               </button>
               {manualSchoolEntry ? (
                 <label className="onboarding-manual-field">
@@ -221,6 +221,9 @@ export function OnboardingWizard({
                   <input maxLength={160} onChange={(event) => { setManualSchoolName(event.target.value); setSchool(''); }} placeholder="Type your school name" value={manualSchoolName} />
                 </label>
               ) : null}
+              <button className="onboarding-manual-toggle" onClick={() => chooseEducationStatus('not_in_school_yet')} type="button">
+                I don’t have a school
+              </button>
             </div>
           ) : null}
 

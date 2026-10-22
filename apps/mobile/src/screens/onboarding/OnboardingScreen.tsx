@@ -387,7 +387,7 @@ function SchoolSelector({
           style={styles.manualSchoolToggle}
         >
           <Text style={styles.manualSchoolToggleText}>
-            {showManualSchoolEntry ? 'Choose from the list instead' : "Can't find your school? Type it in"}
+            {showManualSchoolEntry ? 'Choose from the list instead' : 'Other school? Enter it manually'}
           </Text>
         </Pressable>
         {showManualSchoolEntry ? (
@@ -400,6 +400,13 @@ function SchoolSelector({
             value={manualSchoolName}
           />
         ) : null}
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => onEducationStatusChange('not_in_school_yet')}
+          style={styles.manualSchoolToggle}
+        >
+          <Text style={styles.manualSchoolToggleText}>I don’t have a school</Text>
+        </Pressable>
           </>
         ) : null}
         <View style={styles.selectorFooter}>

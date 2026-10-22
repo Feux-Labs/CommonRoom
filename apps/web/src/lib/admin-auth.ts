@@ -13,13 +13,10 @@ export async function authenticateAdmin(request: Request): Promise<AdminAuth | N
     return auth;
   }
 
-  const adminEmails = (process.env.ADMIN_EMAILS || 'admin@commonroom.app,ibitoyrgideon79@gmail.com')
-    .split(',')
-    .map((e) => e.trim().toLowerCase());
-  const userEmail = auth.user.email?.toLowerCase();
-  const isAdminClaim = Boolean(auth.user.app_metadata?.claims_admin || auth.user.user_metadata?.is_admin);
+  const userEmail = auth.user.email?.trim().toLowerCase();
+  const emailIsVerified = Boolean(auth.user.email_confirmed_at);
 
-  if (process.env.NODE_ENV === 'development' || isAdminClaim || (userEmail && adminEmails.includes(userEmail))) {
+  if (emailIsVerified && userEmail === 'ibitoyrgideon79@gmail.com') {
     return { supabase: auth.supabase, user: auth.user };
   }
 

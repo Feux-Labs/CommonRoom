@@ -10,7 +10,6 @@ import {
   Send,
   ShieldCheck,
   Smile,
-  Sparkles,
   Video,
   X,
   Zap,

@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "../../../.."
+		},
+		{
+			"path": "../../../../../Downloads/Codebase"
+		}
+	],
+	"settings": {
+		"chat.tools.terminal.autoApprove": {
+			"/^npm run mobile:export:web$/": {
+				"approve": true,
+				"matchCommandLine": true
+			}
+		}
+	}
+}

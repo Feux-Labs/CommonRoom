@@ -18,8 +18,8 @@ type HelpSupportScreenProps = {
 
 const faqs = [
   {
-    q: 'How does the "Meet" feature work?',
-    a: 'Meet connects students from the same and neighboring campuses based on study interests and vibes. Mutual connections allow you to send direct messages without sharing personal phone numbers.',
+    q: 'How does Connect work?',
+    a: 'Connect helps students from the same and neighboring campuses find people with shared study interests and vibes. Mutual connections can send direct messages without sharing personal phone numbers.',
   },
   {
     q: 'How is my privacy protected in Anonymous posts?',

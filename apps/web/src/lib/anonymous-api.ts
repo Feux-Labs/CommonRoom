@@ -27,7 +27,7 @@ export function anonymousRpcError(error: { code?: string; message?: string }, fa
     invalid_anonymous_cursor: ['The feed continuation token is invalid. Refresh the feed to continue.', 400],
     invalid_anonymous_title: ['Add a title of up to 120 characters.', 422],
     invalid_anonymous_body: ['Add a post of up to 3,000 characters.', 422],
-    invalid_anonymous_media: ['Choose up to 10 supported photos or one supported video.', 422],
+    invalid_anonymous_media: ['Choose supported photos or videos.', 422],
     invalid_anonymous_comment: ['Add a comment of up to 2,000 characters.', 422],
     invalid_anonymous_comment_parent: ['Replies can only be added to a top-level comment on this post.', 422],
     invalid_anonymous_message: ['Add a message of up to 2,000 characters.', 422],

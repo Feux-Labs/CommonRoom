@@ -1,14 +1,15 @@
 'use client';
 
-import { ArrowLeft, CircleHelp, Copy, Heart, ImagePlus, Link2, MessageCircle, MessagesSquare, Pencil, Quote, Send, Share2, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowLeft, CircleHelp, Copy, Heart, Link2, MessageCircle, MessagesSquare, Pencil, Quote, Send, Share2, ShieldCheck } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { getBrowserSupabase } from '@/lib/supabase-browser';
 import Image from 'next/image';
+import { demoAnonymousPosts } from '@/lib/demo-content';
 
 type Scope = 'school' | 'all_nigerian_schools';
-type FeedSort = 'new' | 'hot' | 'trending';
+type FeedSort = 'new' | 'hot' | 'trending' | 'for_you';
 type FeedTab = 'for_you' | 'general' | 'hot' | 'trending';
 type MeTab = 'try_these' | 'inbox';
 const inboxTemplates = [
@@ -23,7 +24,7 @@ const templateIllustrations = {
   confession: MessageCircle,
   crush: Heart,
   'three-words': Quote,
-  'never-have': Sparkles,
+  'never-have': CircleHelp,
   tbh: MessagesSquare,
   custom: CircleHelp,
 };
@@ -42,6 +43,7 @@ type Post = {
   is_mine: boolean;
   created_at: string;
   media_items?: MediaItem[];
+  card_theme?: string;
 };
 type PostPage = { posts: Post[]; hasMore: boolean; nextCursor: string | null };
 type Comment = { id: string; parent_comment_id: string | null; author_handle: string; body: string; created_at: string };
@@ -64,51 +66,6 @@ function rankPosts(posts: Post[], sort: FeedSort) {
   });
 }
 
-const FALLBACK_ANONYMOUS_POSTS: Post[] = [
-  {
-    id: 'anon-seed-1',
-    scope: 'all_nigerian_schools',
-    school: null,
-    title: 'Honestly, whoever invented 8 AM lecture sessions needs to explain themselves 😭',
-    body: 'Waking up by 6 AM, fighting for transit in the rain, only for the lecturer to show up by 10 AM with a quiz. How are we surviving this semester?',
-    author_handle: 'Ghost_8291',
-    likes_count: 84,
-    comments_count: 19,
-    liked_by_me: false,
-    is_mine: false,
-    created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    media_items: [],
-  },
-  {
-    id: 'anon-seed-2',
-    scope: 'all_nigerian_schools',
-    school: null,
-    title: 'To whoever returned my lost AirPods at the faculty quad: THANK YOU ❤️',
-    body: 'I had already accepted my fate. Faith in humanity completely restored. May your GPA never drop below 4.5!',
-    author_handle: 'Shadow_3042',
-    likes_count: 142,
-    comments_count: 27,
-    liked_by_me: true,
-    is_mine: false,
-    created_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-    media_items: [],
-  },
-  {
-    id: 'anon-seed-3',
-    scope: 'all_nigerian_schools',
-    school: null,
-    title: 'Drop your most controversial food combo below 👇',
-    body: 'Mine is Indomie noodles with fried plantain and ketchup. My roommates looked at me like I committed a crime.',
-    author_handle: 'Specter_9114',
-    likes_count: 67,
-    comments_count: 48,
-    liked_by_me: false,
-    is_mine: false,
-    created_at: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
-    media_items: [],
-  },
-];
-
 function apiPath(path: string) {
   return `/api/v1/anonymous${path}`;
 }
@@ -121,16 +78,32 @@ function relativeTime(value: string) {
   return `${Math.floor(minutes / 1440)}d ago`;
 }
 
+function textCardTheme(id: string, theme?: string) {
+  const themeClasses: Record<string, string> = {
+    'blue-hour': 'anon-text-card-blue',
+    'soft-sky': 'anon-text-card-sky',
+    'warm-glow': 'anon-text-card-warm',
+    'rose-note': 'anon-text-card-rose',
+  };
+  if (theme && themeClasses[theme]) return themeClasses[theme];
+  const hash = Array.from(id).reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 7);
+  return `anon-text-card-${hash % 4}`;
+}
+
 export function AnonymousExperience({
   initialInboxToken,
   initialPostId,
   initialSession,
   onBack,
+  onCreateAnonymous,
+  onRequireAccount,
 }: {
   initialInboxToken?: string;
   initialPostId?: string;
   initialSession?: Session | null;
   onBack?: () => void;
+  onCreateAnonymous?: () => void;
+  onRequireAccount?: () => void;
 }) {
   const [session, setSession] = useState<Session | null>(initialSession ?? null);
   const [identity, setIdentity] = useState<Identity | null>(null);
@@ -145,7 +118,6 @@ export function AnonymousExperience({
   const [editingTemplateTitleId, setEditingTemplateTitleId] = useState<string | null>(null);
   const templateTitleEditorRef = useRef<HTMLSpanElement | null>(null);
   const [feedTab, setFeedTab] = useState<FeedTab>('for_you');
-  const [composerOpen, setComposerOpen] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMorePosts, setHasMorePosts] = useState(false);
@@ -154,9 +126,6 @@ export function AnonymousExperience({
   const [feedLoadError, setFeedLoadError] = useState('');
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [openComments, setOpenComments] = useState<string | null>(null);
-  const [postTitle, setPostTitle] = useState('');
-  const [postBody, setPostBody] = useState('');
-  const [postMediaFiles, setPostMediaFiles] = useState<File[]>([]);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [replyTargets, setReplyTargets] = useState<Record<string, Comment | null>>({});
   const [link, setLink] = useState<InboxLink | null>(null);
@@ -167,6 +136,10 @@ export function AnonymousExperience({
   const [messageDraft, setMessageDraft] = useState('');
   const [inboxPromptEnabled, setInboxPromptEnabled] = useState<boolean | null>(null);
   const [previewMessage, setPreviewMessage] = useState<InboxMessage | null>(null);
+  const [imagePreview, setImagePreview] = useState<{ url: string; alt: string } | null>(null);
+  const [videoViewer, setVideoViewer] = useState<{ posts: Post[]; index: number } | null>(null);
+  const [pendingVideoViewer, setPendingVideoViewer] = useState<{ posts: Post[]; index: number } | null>(null);
+  const [swipeTutorialOpen, setSwipeTutorialOpen] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -174,15 +147,34 @@ export function AnonymousExperience({
   const feedSentinelRef = useRef<HTMLDivElement | null>(null);
   const feedGenerationRef = useRef(0);
   const loadingMoreRef = useRef(false);
-  const scope: Scope = feedTab === 'for_you' ? 'school' : 'all_nigerian_schools';
-  const feedSort: FeedSort = feedTab === 'hot' || feedTab === 'trending' ? feedTab : 'new';
+  const viewerTouchStartRef = useRef<number | null>(null);
+  const hasAccount = Boolean(session && !session.user.is_anonymous);
+  const scope: Scope = 'all_nigerian_schools';
+  const feedSort: FeedSort = feedTab === 'for_you' ? 'for_you' : feedTab === 'hot' || feedTab === 'trending' ? feedTab : 'new';
+  const demoPostIds = new Set(demoAnonymousPosts.map((post) => post.id));
 
   useEffect(() => {
     if (editingTemplateTitleId) templateTitleEditorRef.current?.focus();
   }, [editingTemplateTitleId]);
 
   const request = useCallback(async <T,>(path: string, method = 'GET', payload?: unknown): Promise<T> => {
-    if (!session) throw new Error('Anonymous access is still starting. Please try again.');
+    if (!session && method !== 'GET') {
+      onRequireAccount?.();
+      throw new Error('Sign in to interact with Anonymous posts.');
+    }
+    if (!session) {
+      const response = await fetch(apiPath(path), {
+        method,
+        headers: { Accept: 'application/json' },
+      });
+      const result = await response.json().catch(() => null) as ApiEnvelope<T> | ApiFailure | null;
+      if (!response.ok) {
+        const failure = result as ApiFailure | null;
+        throw new Error(failure?.error?.message ?? `Request failed with status ${response.status}.`);
+      }
+      if (!result || !('data' in result)) throw new Error('The Anonymous service returned an invalid response.');
+      return result.data;
+    }
     const response = await fetch(apiPath(path), {
       method,
       headers: {
@@ -199,9 +191,15 @@ export function AnonymousExperience({
     }
     if (!result || !('data' in result)) throw new Error('The Anonymous service returned an invalid response.');
     return result.data;
-  }, [session]);
+  }, [onRequireAccount, session]);
 
   const loadIdentity = useCallback(async () => {
+    if (!hasAccount) {
+      setIdentity(null);
+      setIdentityPromptOpen(false);
+      setHandleDraft((current) => current || `Ghost ${Math.floor(1000 + Math.random() * 9000)}`);
+      return null;
+    }
     try {
       const result = await request<Identity | null>('/identity');
       if (result) {
@@ -212,19 +210,16 @@ export function AnonymousExperience({
         }
         return result;
       }
-    } catch {
-      // Graceful local fallback: never block user or show sign-in error
+    } catch (identityError) {
+      setIdentity(null);
+      setError(identityError instanceof Error ? identityError.message : 'Your Anonymous identity could not be loaded.');
     }
     const stored = typeof window !== 'undefined' ? localStorage.getItem('anonymous_handle') : null;
     const fallbackHandle = stored || `Ghost ${Math.floor(1000 + Math.random() * 9000)}`;
-    const fallbackIdentity: Identity = {
-      handle: fallbackHandle,
-      created_at: new Date().toISOString(),
-    };
-    setIdentity(fallbackIdentity);
     setHandleDraft(fallbackHandle);
-    return fallbackIdentity;
-  }, [request]);
+    setIdentityPromptOpen(true);
+    return null;
+  }, [hasAccount, request]);
 
   const loadPosts = useCallback(async () => {
     const generation = ++feedGenerationRef.current;
@@ -238,11 +233,8 @@ export function AnonymousExperience({
     setPosts([]);
     if (initialPostId) {
       try {
-        const [schoolPosts, widePosts] = await Promise.all([
-          request<Post[]>(`/posts?scope=school&id=${initialPostId}`),
-          request<Post[]>(`/posts?scope=all_nigerian_schools&id=${initialPostId}`),
-        ]);
-        if (generation === feedGenerationRef.current) setPosts([...schoolPosts, ...widePosts]);
+        const posts = await request<Post[]>(`/posts?scope=all_nigerian_schools&id=${initialPostId}`);
+        if (generation === feedGenerationRef.current) setPosts(posts);
       } catch (loadError) {
         if (generation === feedGenerationRef.current) {
           setFeedLoadError(loadError instanceof Error ? loadError.message : 'The Anonymous Feed could not be loaded.');
@@ -255,14 +247,16 @@ export function AnonymousExperience({
     try {
       const result = await request<PostPage>(`/posts?scope=${scope}&page=1`);
       if (generation === feedGenerationRef.current) {
-        setPosts(result.posts.length > 0 ? result.posts : FALLBACK_ANONYMOUS_POSTS);
+        setPosts(result.posts.length || process.env.NODE_ENV !== 'development'
+          ? result.posts
+          : demoAnonymousPosts);
         setHasMorePosts(result.hasMore && result.nextCursor !== null);
         setNextCursor(result.nextCursor);
       }
-    } catch {
+    } catch (loadError) {
       if (generation === feedGenerationRef.current) {
-        setPosts(FALLBACK_ANONYMOUS_POSTS);
-        setFeedLoadError('');
+        if (process.env.NODE_ENV === 'development') setPosts(demoAnonymousPosts);
+        setFeedLoadError(loadError instanceof Error ? loadError.message : 'The Anonymous Feed could not be loaded.');
       }
     } finally {
       if (generation === feedGenerationRef.current) setIsLoadingPosts(false);
@@ -336,7 +330,6 @@ export function AnonymousExperience({
       } catch {
         if (active) {
           setHandleDraft((current) => current || `Ghost ${Math.floor(1000 + Math.random() * 9000)}`);
-          setIdentityPromptOpen(true);
           setReady(true);
         }
       }
@@ -345,15 +338,15 @@ export function AnonymousExperience({
   }, [initialSession]);
 
   useEffect(() => {
+    if (!hasAccount) return;
     void loadIdentity().catch(() => {
       // Handled inside loadIdentity with local fallback
     });
-  }, [loadIdentity]);
+  }, [hasAccount, loadIdentity]);
 
   useEffect(() => {
-    if (!session) return;
     void loadPosts();
-  }, [loadPosts, session]);
+  }, [loadPosts]);
 
   useEffect(() => {
     const sentinel = feedSentinelRef.current;
@@ -366,25 +359,82 @@ export function AnonymousExperience({
   }, [feedLoadError, hasMorePosts, initialPostId, isLoadingMorePosts, loadMorePosts]);
 
   useEffect(() => {
-    if (!session || view !== 'me' || initialInboxToken) return;
+    if (!hasAccount || view !== 'me' || initialInboxToken) return;
     void loadInbox().catch((loadError: unknown) => setError(loadError instanceof Error ? loadError.message : 'Your Inbox could not be loaded.'));
-  }, [initialInboxToken, loadInbox, session, view]);
+  }, [hasAccount, initialInboxToken, loadInbox, view]);
 
   useEffect(() => {
-    if (!session || !initialInboxToken) return;
+    if (!hasAccount || !initialInboxToken) return;
     void request<{ enabled: boolean }>(`/inbox/links/${initialInboxToken}`)
       .then((prompt) => setInboxPromptEnabled(prompt.enabled))
       .catch((promptError: unknown) => {
         setInboxPromptEnabled(false);
         setError(promptError instanceof Error ? promptError.message : 'This anonymous link could not be opened.');
       });
-  }, [initialInboxToken, request, session]);
+  }, [hasAccount, initialInboxToken, request]);
 
-  const scopeLabel = useMemo(() => scope === 'school' ? 'For You' : 'General', [scope]);
+  const scopeLabel = 'General';
   const rankedPosts = useMemo(() => rankPosts(posts, feedSort), [feedSort, posts]);
+  const showingDemoPosts = rankedPosts.some((post) => demoPostIds.has(post.id));
+  const videoPosts = useMemo(() => rankedPosts.filter((post) => post.media_items?.some((item) => item.mediaType === 'video')), [rankedPosts]);
+
+  const openVideoViewer = (post: Post) => {
+    const index = videoPosts.findIndex((videoPost) => videoPost.id === post.id);
+    if (index < 0) return;
+    const next = { posts: videoPosts, index };
+    if (window.localStorage.getItem('anonymous_video_swipe_tutorial_seen') !== 'true') {
+      setPendingVideoViewer(next);
+      setSwipeTutorialOpen(true);
+      return;
+    }
+    setVideoViewer(next);
+  };
+
+  const showVideoViewer = () => {
+    window.localStorage.setItem('anonymous_video_swipe_tutorial_seen', 'true');
+    setVideoViewer(pendingVideoViewer);
+    setPendingVideoViewer(null);
+    setSwipeTutorialOpen(false);
+  };
+
+  const stepVideoViewer = (direction: -1 | 1) => {
+    setVideoViewer((current) => current
+      ? { ...current, index: Math.max(0, Math.min(current.posts.length - 1, current.index + direction)) }
+      : current);
+  };
+
+  useEffect(() => {
+    if (!imagePreview && !videoViewer && !swipeTutorialOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setImagePreview(null);
+        setVideoViewer(null);
+        setSwipeTutorialOpen(false);
+      } else if (event.key === 'ArrowDown') {
+        setVideoViewer((current) => current
+          ? { ...current, index: Math.min(current.posts.length - 1, current.index + 1) }
+          : current);
+      } else if (event.key === 'ArrowUp') {
+        setVideoViewer((current) => current
+          ? { ...current, index: Math.max(0, current.index - 1) }
+          : current);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [imagePreview, swipeTutorialOpen, videoViewer]);
 
   async function createIdentity(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!hasAccount) {
+      onRequireAccount?.();
+      return;
+    }
     setBusy(true);
     setError('');
     const chosenHandle = handleDraft.trim() || `Ghost ${Math.floor(1000 + Math.random() * 9000)}`;
@@ -412,54 +462,11 @@ export function AnonymousExperience({
     }
   }
 
-  async function publishPost(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!session) {
-      setError('Anonymous access is still starting. Please try again.');
-      return;
-    }
-    if (!identity) {
-      setNotice('Choose your Anonymous name to publish.');
-      return;
-    }
-    setBusy(true);
-    setError('');
-    const uploadedPaths: string[] = [];
-    try {
-      const storage = getBrowserSupabase().storage.from('post-media');
-      const mediaItems: MediaItem[] = [];
-      for (const file of postMediaFiles) {
-        const path = `${session.user.id}/anonymous/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, '_')}`;
-        const { data, error: uploadError } = await storage.upload(path, file, {
-          contentType: file.type,
-          upsert: false,
-        });
-        if (uploadError) throw uploadError;
-        uploadedPaths.push(data.path);
-        mediaItems.push({ path: data.path, mediaType: file.type.startsWith('video/') ? 'video' : 'photo' });
-      }
-      const created = await request<Post>('/posts', 'POST', { title: postTitle, body: postBody, scope, mediaItems });
-      setPosts((current) => [created, ...current]);
-      setPostTitle('');
-      setPostBody('');
-      setPostMediaFiles([]);
-      setNotice('Your post is live in the Anonymous Feed.');
-    } catch (publishError) {
-      const errorMessage = publishError instanceof Error ? publishError.message : 'Your post could not be published.';
-      if (uploadedPaths.length) {
-        const { error: cleanupError } = await getBrowserSupabase().storage.from('post-media').remove(uploadedPaths);
-        setError(cleanupError
-          ? `${errorMessage} Uploaded media could not be cleaned up: ${cleanupError.message}`
-          : errorMessage);
-      } else {
-        setError(errorMessage);
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function toggleLike(post: Post) {
+    if (!hasAccount) {
+      onRequireAccount?.();
+      return;
+    }
     if (!identity) {
       setNotice('Choose your Anonymous name to react.');
       return;
@@ -475,6 +482,10 @@ export function AnonymousExperience({
   }
 
   async function toggleComments(postId: string) {
+    if (!hasAccount) {
+      onRequireAccount?.();
+      return;
+    }
     if (openComments === postId) {
       setOpenComments(null);
       return;
@@ -490,6 +501,10 @@ export function AnonymousExperience({
 
   async function submitComment(event: FormEvent<HTMLFormElement>, postId: string) {
     event.preventDefault();
+    if (!hasAccount) {
+      onRequireAccount?.();
+      return;
+    }
     const value = commentDrafts[postId]?.trim();
     if (!value || !identity) {
       if (!identity) setNotice('Choose your Anonymous name to comment.');
@@ -508,6 +523,10 @@ export function AnonymousExperience({
   }
 
   async function report(targetKind: 'post' | 'comment' | 'message', targetId: string) {
+    if (!hasAccount) {
+      onRequireAccount?.();
+      return;
+    }
     const reason = window.prompt('Tell us why you are reporting this content:');
     if (!reason?.trim()) return;
     try {
@@ -519,6 +538,10 @@ export function AnonymousExperience({
   }
 
   async function createLink() {
+    if (!hasAccount) {
+      onRequireAccount?.();
+      return null;
+    }
     if (!identity) {
       setIdentityPromptOpen(true);
       return null;
@@ -575,6 +598,10 @@ export function AnonymousExperience({
   }
 
   async function openThread(id: string) {
+    if (!hasAccount) {
+      onRequireAccount?.();
+      return;
+    }
     setThreadId(id);
     setThreadOwner(true);
     setPreviewMessage(null);
@@ -587,6 +614,10 @@ export function AnonymousExperience({
 
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!hasAccount) {
+      onRequireAccount?.();
+      return;
+    }
     if (!messageDraft.trim()) return;
     if (!identity) {
       setNotice('Choose your Anonymous name before sending.');
@@ -615,6 +646,10 @@ export function AnonymousExperience({
   }
 
   async function blockThread() {
+    if (!hasAccount) {
+      onRequireAccount?.();
+      return;
+    }
     if (!threadId || !window.confirm('Block this anonymous conversation?')) return;
     try {
       await request(`/inbox/threads/${threadId}/block`, 'POST');
@@ -628,6 +663,10 @@ export function AnonymousExperience({
   }
 
   async function confirmShare() {
+    if (!hasAccount) {
+      onRequireAccount?.();
+      return;
+    }
     if (!threadId || !previewMessage) return;
     try {
       const created = await request<Post>(`/inbox/threads/${threadId}/share`, 'POST', {
@@ -643,6 +682,10 @@ export function AnonymousExperience({
   }
 
   async function sharePost(post: Post) {
+    if (!hasAccount) {
+      onRequireAccount?.();
+      return;
+    }
     const url = `${window.location.origin}/anonymous/posts/${post.id}`;
     try {
       await navigator.clipboard.writeText(`${post.title}\n${url}`);
@@ -700,7 +743,13 @@ export function AnonymousExperience({
         {notice ? <div className="anon-feedback anon-notice" role="status">{notice}<button onClick={() => setNotice('')} aria-label="Dismiss notice">×</button></div> : null}
 
         {initialInboxToken ? (
-          <section className="anon-panel anon-prompt-panel">
+          !hasAccount ? (
+            <section className="anon-panel anon-prompt-panel">
+              <a className="anon-back-link" href="/anonymous">← Back to Anonymous Feed</a>
+              <h2>Sign in to open this private inbox.</h2>
+              <button className="anon-button" onClick={onRequireAccount} type="button">Sign in</button>
+            </section>
+          ) : <section className="anon-panel anon-prompt-panel">
             <a className="anon-back-link" href="/anonymous">← Back to Anonymous Feed</a>
             <span className="anon-eyebrow">PRIVATE MESSAGE · ONLY THE RECIPIENT SEES THIS</span>
             <h2>Send an honest note.</h2>
@@ -724,80 +773,62 @@ export function AnonymousExperience({
           <>
             <nav aria-label="Anonymous views" className="anon-tabs">
               <button aria-current={view === 'feed' ? 'page' : undefined} className={view === 'feed' ? 'anon-tab anon-tab-active' : 'anon-tab'} onClick={() => setView('feed')}><MessageCircle size={16} /> Feed</button>
-              <button aria-current={view === 'me' ? 'page' : undefined} className={view === 'me' ? 'anon-tab anon-tab-active' : 'anon-tab'} onClick={() => { setView('me'); setMeTab('try_these'); setThreadId(null); }}><ShieldCheck size={16} /> ME</button>
+              <button aria-current={view === 'me' ? 'page' : undefined} className={view === 'me' ? 'anon-tab anon-tab-active' : 'anon-tab'} onClick={() => { if (!hasAccount) { onRequireAccount?.(); return; } setView('me'); setMeTab('try_these'); setThreadId(null); }}><ShieldCheck size={16} /> ME</button>
             </nav>
 
             {view === 'feed' ? (
               <div className="anon-content">
                 <div className="anon-discovery-row">
                   <div className="anon-feed-tabs" role="tablist" aria-label="Anonymous Feed">
-                    <button aria-selected={feedTab === 'for_you'} className={feedTab === 'for_you' ? 'anon-scope anon-feed-tab anon-scope-active' : 'anon-scope anon-feed-tab'} onClick={() => setFeedTab('for_you')} role="tab">For You</button>
-                    <button aria-selected={feedTab === 'general'} className={feedTab === 'general' ? 'anon-scope anon-feed-tab anon-scope-active' : 'anon-scope anon-feed-tab'} onClick={() => setFeedTab('general')} role="tab">General</button>
+                    <button aria-selected={feedTab === 'for_you'} className={feedTab === 'for_you' ? 'anon-scope anon-feed-tab anon-scope-active' : 'anon-scope anon-feed-tab'} onClick={() => setFeedTab('for_you')} role="tab" title="Ranked using recent community activity">For You</button>
+                    <button aria-selected={feedTab === 'general'} className={feedTab === 'general' ? 'anon-scope anon-feed-tab anon-scope-active' : 'anon-scope anon-feed-tab'} onClick={() => setFeedTab('general')} role="tab" title="All public anonymous posts in chronological order">General</button>
                     <button aria-selected={feedTab === 'hot'} className={feedTab === 'hot' ? 'anon-scope anon-feed-tab anon-scope-active' : 'anon-scope anon-feed-tab'} onClick={() => setFeedTab('hot')} role="tab">Hot</button>
                     <button aria-selected={feedTab === 'trending'} className={feedTab === 'trending' ? 'anon-scope anon-feed-tab anon-scope-active' : 'anon-scope anon-feed-tab'} onClick={() => setFeedTab('trending')} role="tab">Trending</button>
                   </div>
-                  <button className="anon-write-toggle" onClick={() => setComposerOpen((open) => !open)}>{composerOpen ? 'Close' : '+ Write'}</button>
                 </div>
-                {composerOpen ? <section className="anon-panel anon-composer">
-                  <div className="anon-panel-heading"><span className="anon-composer-icon"><Send size={16} /></span><div><strong>Start a conversation</strong><small>Your profile is never attached to a public post.</small></div></div>
-                  <form className="anon-post-form" onSubmit={(event) => void publishPost(event)}>
-                    <input aria-label="Post title" maxLength={120} onChange={(event) => setPostTitle(event.target.value)} placeholder="Give it a short title" required value={postTitle} />
-                    <textarea aria-label="Anonymous post" maxLength={3000} onChange={(event) => setPostBody(event.target.value)} placeholder="What would you like to say?" required rows={3} value={postBody} />
-                    <label className="anon-media-picker">
-                      <ImagePlus size={16} />
-                      <span>Add up to 10 photos or one video</span>
-                      <input
-                        accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
-                        aria-label="Attach photos or a video"
-                        multiple
-                        onChange={(event) => {
-                          const files = Array.from(event.target.files ?? []);
-                          const hasVideo = files.some((file) => file.type.startsWith('video/'));
-                          const isValid = files.length <= 10
-                            && (!hasVideo || (files.length === 1 && files[0].size <= 100 * 1024 * 1024))
-                            && files.every((file) => file.type.startsWith('video/')
-                              ? ['video/mp4', 'video/quicktime'].includes(file.type)
-                              : ['image/jpeg', 'image/png', 'image/webp'].includes(file.type) && file.size <= 10 * 1024 * 1024);
-                          if (!isValid) {
-                            setError('Choose up to 10 JPG, PNG, or WebP photos (10 MB each), or one MP4/MOV video (100 MB max).');
-                            event.target.value = '';
-                            return;
-                          }
-                          setError('');
-                          setPostMediaFiles(files);
-                        }}
-                        type="file"
-                      />
-                    </label>
-                    {postMediaFiles.length ? <ul className="anon-media-file-list">
-                      {postMediaFiles.map((file, index) => <li key={`${file.name}-${index}`}>
-                        <span>{file.name}</span>
-                        <button onClick={() => setPostMediaFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))} type="button">Remove</button>
-                      </li>)}
-                    </ul> : null}
-                    <div className="anon-form-foot"><span>Visible to {scopeLabel}</span><button className="anon-button" disabled={busy || !identity} type="submit">{busy ? 'Posting…' : 'Post anonymously'}</button></div>
-                  </form>
-                </section> : null}
-
+                <button className="anon-general-compose-entry" onClick={() => (hasAccount ? onCreateAnonymous?.() : onRequireAccount?.())} type="button">
+                  <span className="anon-general-compose-avatar"><ShieldCheck size={16} /></span>
+                  <span>Say what’s on your mind?</span>
+                  <strong>Write anonymously</strong>
+                </button>
                 <div className="anon-feed">
-                  {rankedPosts.length ? rankedPosts.map((post) => (
+                  {rankedPosts.length ? rankedPosts.map((post) => {
+                    const isDemoPost = demoPostIds.has(post.id);
+                    return (
                     <article className="anon-post" key={post.id}>
-                      <div className="anon-post-top"><span className="anon-avatar"><ShieldCheck size={17} /></span><div><strong>{post.author_handle}</strong><small>{post.scope === 'school' ? 'For You' : 'General'} · {relativeTime(post.created_at)}</small></div><button aria-label="Report post" className="anon-more" onClick={() => void report('post', post.id)}>•••</button></div>
-                      <h2>{post.title}</h2><p className="anon-post-body">{post.body}</p>
+                      <div className="anon-post-top"><span className="anon-avatar"><ShieldCheck size={17} /></span><div><strong>{post.author_handle}</strong><small>General · {relativeTime(post.created_at)}{isDemoPost ? ' · Sample' : ''}</small></div>{hasAccount && !isDemoPost ? <button aria-label="Report post" className="anon-more" onClick={() => void report('post', post.id)}>•••</button> : null}</div>
+                      {post.media_items?.length ? (
+                        <><h2>{post.title}</h2><p className="anon-post-body">{post.body}</p></>
+                      ) : (
+                        <div className={`anon-text-card ${textCardTheme(post.id, post.card_theme)}`}>
+                          <h2>{post.title}</h2>
+                          <p>{post.body}</p>
+                        </div>
+                      )}
                       {post.media_items?.length ? <div className="anon-post-media">
                         {post.media_items.map((item) => {
                           const { data } = getBrowserSupabase().storage.from('post-media').getPublicUrl(item.path);
                           return item.mediaType === 'video'
-                            ? <video controls key={item.path} preload="metadata" src={data.publicUrl}>Your browser does not support video playback.</video>
-                            : <img alt="Anonymous post attachment" key={item.path} loading="lazy" src={data.publicUrl} />;
+                            ? <div className="anon-inline-video" key={item.path}>
+                              <video controls preload="metadata" src={data.publicUrl}>Your browser does not support video playback.</video>
+                              <button className="anon-open-video-viewer" onClick={() => openVideoViewer(post)} type="button">Open vertical video viewer</button>
+                            </div>
+                            : <button
+                              aria-label="View anonymous post image"
+                              className="anon-image-preview-trigger"
+                              key={item.path}
+                              onClick={() => setImagePreview({ url: data.publicUrl, alt: 'Anonymous post attachment' })}
+                              type="button"
+                            ><img alt="Anonymous post attachment" loading="lazy" src={data.publicUrl} /></button>;
                         })}
                       </div> : null}
                       <div className="anon-post-actions">
-                        <button aria-pressed={post.liked_by_me} onClick={() => void toggleLike(post)}><Heart size={16} fill={post.liked_by_me ? 'currentColor' : 'none'} /> {post.likes_count}</button>
-                        <button onClick={() => void toggleComments(post.id)}><MessageCircle size={16} /> {post.comments_count}</button>
-                        <button onClick={() => void sharePost(post)}><Share2 size={16} /> Share</button>
-                        {post.is_mine ? <button onClick={() => void deletePost(post)}>Delete</button> : null}
+                        <button aria-pressed={post.liked_by_me} disabled={isDemoPost} onClick={() => void toggleLike(post)}><Heart size={16} fill={post.liked_by_me ? 'currentColor' : 'none'} /> {post.likes_count}</button>
+                        <button disabled={isDemoPost} onClick={() => void toggleComments(post.id)}><MessageCircle size={16} /> {post.comments_count}</button>
+                        <button disabled={isDemoPost} onClick={() => void sharePost(post)}><Share2 size={16} /> Share</button>
+                        {post.is_mine && !isDemoPost ? <button onClick={() => void deletePost(post)}>Delete</button> : null}
                       </div>
+                      {isDemoPost ? <p className="anon-feed-status">Sample preview · sign in to interact with real posts.</p> : null}
                       {openComments === post.id ? (
                         <div className="anon-comments">
                           {(comments[post.id] ?? []).filter((comment) => !comment.parent_comment_id).map((comment) => (
@@ -822,12 +853,13 @@ export function AnonymousExperience({
                         </div>
                       ) : null}
                     </article>
-                  )) : isLoadingPosts ? <p aria-live="polite" className="anon-feed-status">Loading conversations…</p>
+                    );
+                  }) : isLoadingPosts ? <p aria-live="polite" className="anon-feed-status">Loading conversations…</p>
                     : feedLoadError ? null
                       : <div className="anon-empty"><span>✦</span><h2>No conversations yet</h2><p>Start a conversation in {scopeLabel}.</p></div>}
                   {!initialPostId ? <div aria-hidden="true" className="anon-feed-sentinel" ref={feedSentinelRef} /> : null}
                   {isLoadingMorePosts ? <p aria-live="polite" className="anon-feed-status">Loading more conversations…</p> : null}
-                  {feedLoadError ? <div className="anon-feed-status anon-feed-retry" role="alert"><span>{feedLoadError}</span><button className="anon-outline-button" onClick={() => void (nextCursor ? loadMorePosts() : loadPosts())} type="button">Retry</button></div> : null}
+                  {feedLoadError ? <div className="anon-feed-status anon-feed-retry" role={showingDemoPosts ? 'status' : 'alert'}><span>{showingDemoPosts ? 'Live Anonymous feed unavailable; showing local sample posts.' : feedLoadError}</span><button className="anon-outline-button" onClick={() => void (nextCursor ? loadMorePosts() : loadPosts())} type="button">Retry</button></div> : null}
                   {!initialPostId && rankedPosts.length > 0 && !hasMorePosts && !isLoadingPosts
                     ? <p aria-live="polite" className="anon-feed-status">You’re all caught up.</p>
                     : null}
@@ -975,6 +1007,54 @@ export function AnonymousExperience({
             {error && !error.toLowerCase().includes('sign in') ? <p className="anon-identity-modal-error" role="alert">{error}</p> : null}
             <IdentityForm busy={busy} value={handleDraft} onChange={setHandleDraft} onSubmit={createIdentity} />
           </section>
+        </div>
+      ) : null}
+      {imagePreview ? (
+        <div className="anon-media-viewer-backdrop" onClick={() => setImagePreview(null)} role="dialog" aria-modal="true" aria-label="Image preview">
+          <button aria-label="Close image preview" className="anon-media-viewer-close" onClick={() => setImagePreview(null)} type="button">×</button>
+          <img alt={imagePreview.alt} className="anon-image-viewer-image" onClick={(event) => event.stopPropagation()} src={imagePreview.url} />
+        </div>
+      ) : null}
+      {swipeTutorialOpen ? (
+        <div className="anon-swipe-tutorial-backdrop">
+          <section aria-labelledby="anon-swipe-tutorial-title" aria-modal="true" className="anon-swipe-tutorial" role="dialog">
+            <button aria-label="Dismiss video viewer tutorial" className="anon-media-viewer-close" onClick={() => { setSwipeTutorialOpen(false); setPendingVideoViewer(null); }} type="button">×</button>
+            <span className="anon-eyebrow">VIDEO VIEWER</span>
+            <h2 id="anon-swipe-tutorial-title">Move through videos</h2>
+            <p>Swipe up for the next video or down for the previous one. You can also use the on-screen arrows or keyboard arrow keys.</p>
+            <button className="anon-button" onClick={showVideoViewer} type="button">Got it</button>
+          </section>
+        </div>
+      ) : null}
+      {videoViewer ? (
+        <div
+          className="anon-video-viewer-backdrop"
+          onTouchStart={(event) => { viewerTouchStartRef.current = event.touches[0]?.clientY ?? null; }}
+          onTouchEnd={(event) => {
+            const start = viewerTouchStartRef.current;
+            viewerTouchStartRef.current = null;
+            const end = event.changedTouches[0]?.clientY;
+            if (start !== null && end !== undefined && Math.abs(start - end) > 45) stepVideoViewer(start > end ? 1 : -1);
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Anonymous videos"
+        >
+          <button aria-label="Close video viewer" className="anon-media-viewer-close" onClick={() => setVideoViewer(null)} type="button">×</button>
+          {(() => {
+            const post = videoViewer.posts[videoViewer.index];
+            const item = post?.media_items?.find((media) => media.mediaType === 'video');
+            if (!post || !item) return <p className="anon-video-viewer-error" role="alert">This video is unavailable.</p>;
+            const { data } = getBrowserSupabase().storage.from('post-media').getPublicUrl(item.path);
+            return (
+              <div className="anon-video-viewer-content">
+                <button aria-label="Previous video" className="anon-video-viewer-nav previous" disabled={videoViewer.index === 0} onClick={() => stepVideoViewer(-1)} type="button">↑</button>
+                <video autoPlay controls key={post.id} playsInline src={data.publicUrl}>Your browser does not support video playback.</video>
+                <button aria-label="Next video" className="anon-video-viewer-nav next" disabled={videoViewer.index === videoViewer.posts.length - 1} onClick={() => stepVideoViewer(1)} type="button">↓</button>
+                <div className="anon-video-viewer-caption"><span>{post.author_handle} · {videoViewer.index + 1} of {videoViewer.posts.length}</span><strong>{post.title}</strong><p>{post.body}</p></div>
+              </div>
+            );
+          })()}
         </div>
       ) : null}
     </main>

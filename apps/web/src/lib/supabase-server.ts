@@ -34,6 +34,19 @@ export function createUserSupabase(accessToken: string) {
   );
 }
 
+export function createPublicSupabase() {
+  return createClient(
+    requiredEnvironment('NEXT_PUBLIC_SUPABASE_URL'),
+    requiredEnvironment('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    },
+  );
+}
+
 export async function authenticateRequest(request: Request): Promise<AuthenticatedRequest | NextResponse> {
   const authorization = request.headers.get('authorization');
   const accessToken = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];

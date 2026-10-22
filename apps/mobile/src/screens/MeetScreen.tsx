@@ -29,7 +29,6 @@ import {
   MessageCircle,
   Plus,
   ShieldCheck,
-  Sparkles,
   Star,
   Trash,
   Users,
@@ -324,13 +323,13 @@ export function MeetScreen({
     if (totalPhotos < 2) {
       Alert.alert(
         'At least 2 photos required',
-        'Please upload Photo 1 and at least 1 more photo so other students can see who they are connecting with!'
+        'Please upload Photo 1 and at least 1 more photo so other students can recognize your profile.'
       );
       return;
     }
     setIsOptedIn(true);
     setShowPhotoSetup(false);
-    Alert.alert('Connect Profile Active!', 'Your profile is now visible to students looking to connect on campus.');
+    Alert.alert('Connect profile active', 'Your profile is now visible to other students.');
   };
 
   return (
@@ -344,7 +343,7 @@ export function MeetScreen({
           onPress={() => setActiveTab('discover')}
           style={[styles.segmentBtn, activeTab === 'discover' && styles.segmentBtnActive]}
         >
-          <Sparkles size={14} color={activeTab === 'discover' ? '#000000' : '#8e95a5'} />
+          <Users size={14} color={activeTab === 'discover' ? '#000000' : '#8e95a5'} />
           <Text style={[styles.segmentText, activeTab === 'discover' && styles.segmentTextActive]}>
             Discover
           </Text>
@@ -493,10 +492,10 @@ export function MeetScreen({
             </View>
           ) : (
             <View style={styles.emptyContainer}>
-              <Sparkles size={48} color="#6366f1" />
+              <Users size={48} color="#6366f1" />
               <Text style={styles.emptyTitle}>You’re All Caught Up!</Text>
               <Text style={styles.emptySubtitle}>
-                You’ve seen all students nearby. Check your Connections tab to chat with your mutual matches!
+                You’ve seen everyone nearby. Check your Connections tab to chat with people who are also interested.
               </Text>
               <Pressable onPress={() => setCurrentIndex(0)} style={styles.resetBtn}>
                 <Text style={styles.resetBtnText}>Start Over</Text>
@@ -510,9 +509,9 @@ export function MeetScreen({
       {activeTab === 'connections' ? (
         <ScrollView contentContainerStyle={styles.connectionsScroll} showsVerticalScrollIndicator={false}>
           <View style={styles.connectionsHeader}>
-            <Text style={styles.connectionsHeading}>Your Mutual Connections</Text>
+            <Text style={styles.connectionsHeading}>Connections</Text>
             <Text style={styles.connectionsSubheading}>
-              You can only chat with students who also connected with you. Privacy is always protected.
+              You can chat with students who are also interested. Your privacy is protected.
             </Text>
           </View>
 
@@ -551,7 +550,7 @@ export function MeetScreen({
               <Users size={48} color="#8e95a5" />
               <Text style={styles.emptyTitle}>No Connections Yet</Text>
               <Text style={styles.emptySubtitle}>
-                When you connect with someone and they connect back, they’ll appear here so you can chat!
+                When you and another student show mutual interest, they’ll appear here so you can say hello.
               </Text>
               <Pressable onPress={() => setActiveTab('discover')} style={styles.resetBtn}>
                 <Text style={styles.resetBtnText}>Explore Students</Text>
@@ -566,11 +565,11 @@ export function MeetScreen({
         <View style={styles.modalOverlay}>
           <View style={styles.optInCard}>
             <View style={styles.optInIconWrap}>
-              <Sparkles size={28} color="#6366f1" />
+              <Users size={28} color="#6366f1" />
             </View>
             <Text style={styles.optInTitle}>Join Connect</Text>
             <Text style={styles.optInSubtitle}>
-              Would you like to make your profile visible to other students looking to connect on campus?
+              Would you like to make your profile visible to other students on campus?
             </Text>
             <View style={styles.optInBenefits}>
               <View style={styles.benefitRow}>
@@ -783,7 +782,7 @@ export function MeetScreen({
                 onPress={() => handleConfirmProfilePicDecision(false)}
                 style={styles.confirmNoBtn}
               >
-                <Text style={styles.confirmNoText}>No, only for Connect</Text>
+                <Text style={styles.confirmNoText}>No, keep it private</Text>
               </Pressable>
             </View>
           </View>
@@ -794,10 +793,10 @@ export function MeetScreen({
       <Modal animationType="slide" transparent visible={matchedProfile !== null}>
         <View style={styles.matchModalOverlay}>
           <View style={styles.matchCard}>
-            <Sparkles size={36} color="#f59e0b" />
-            <Text style={styles.matchHeading}>It’s a Connection!</Text>
+            <Heart size={36} color="#f59e0b" />
+            <Text style={styles.matchHeading}>Mutual interest!</Text>
             <Text style={styles.matchSubheading}>
-              You and {matchedProfile?.name} connected with each other. You can now chat!
+              You and {matchedProfile?.name} are both interested. You can now say hello!
             </Text>
 
             <View style={styles.matchAvatarsRow}>

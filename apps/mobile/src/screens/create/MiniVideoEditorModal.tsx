@@ -22,7 +22,6 @@ import {
   Play,
   RotateCcw,
   Sliders,
-  Sparkles,
   Upload,
   Volume2,
   VolumeX,
@@ -228,7 +227,7 @@ export function MiniVideoEditorModal({
             onPress={() => setActiveTab('auto')}
             style={[styles.tabBtn, activeTab === 'auto' && styles.tabBtnActive]}
           >
-            <Sparkles size={14} color={activeTab === 'auto' ? '#000000' : '#8e95a5'} />
+            <Film size={14} color={activeTab === 'auto' ? '#000000' : '#8e95a5'} />
             <Text style={[styles.tabBtnText, activeTab === 'auto' && styles.tabBtnTextActive]}>
               Auto-Cut
             </Text>

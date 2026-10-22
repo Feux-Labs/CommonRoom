@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Sparkles, Wifi, WifiOff } from 'lucide-react-native/icons';
+import { Star, WifiOff } from 'lucide-react-native/icons';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -110,7 +110,7 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
       {/* Center Wordmark & Logo */}
       <View style={styles.centerContent}>
         <View style={styles.badgeWrap}>
-          <Sparkles size={24} color="#f59e0b" />
+          <Star size={24} color="#f59e0b" />
         </View>
 
         {/* Animated Typed Title */}

@@ -21,7 +21,6 @@ import {
   Search,
   ShieldCheck,
   ShoppingCart,
-  Sparkles,
   Sun,
   UserCheck,
   UserPlus,
@@ -32,19 +31,24 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { AnonymousExperience } from '@/components/AnonymousExperience';
+import { CommunityAnnouncement } from '@/components/CommunityAnnouncement';
 import { GamesExperience } from '@/components/GamesExperience';
 import { MarketplaceExperience } from '@/components/MarketplaceExperience';
+import { MeetExperience } from '@/components/MeetExperience';
 import { OnboardingWizard } from '@/components/OnboardingWizard';
+import { PhotoReelEditor } from '@/components/PhotoReelEditor';
 import { RoomExperience } from '@/components/RoomExperience';
+import { ReelEditor } from '@/components/ReelEditor';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { FormEvent, ReactNode } from 'react';
+import type { FormEvent } from 'react';
 import type { Audience, FeedPost, MediaItem, MediaType, OnboardingProfile } from '@/lib/contracts';
 import { institutions } from '@/lib/institutions';
+import { compressMedia } from '@/lib/media-compression';
 import { getBrowserSupabase, isSupabaseConfigured } from '@/lib/supabase-browser';
 
-type AppTab = 'home' | 'create' | 'anonymous' | 'marketplace' | 'games' | 'dating' | 'profile';
+type AppTab = 'home' | 'create' | 'anonymous' | 'marketplace' | 'games' | 'meet' | 'profile';
 type ProfileRecord = {
   id: string;
   displayName: string;
@@ -69,16 +73,37 @@ type ProfileApiRecord = {
   age_eligibility_confirmed: boolean;
   interests: string[];
 };
-type DatingProfile = {
-  user_id: string;
-  display_name: string;
-  school: string | null;
-  bio: string;
-  interests: string[];
-};
-
 type ApiEnvelope<T> = { data: T };
 type ApiFailure = { error?: { message?: string } };
+type LocationSuggestion = { id: string; name: string; detail: string; label: string };
+type AnonymousIdentity = { handle: string; created_at: string };
+type AnonymousMediaItem = { path: string; mediaType: 'photo' | 'video' };
+const anonymousTextTemplates = [
+  { id: 'blue-hour', name: 'Blue hour', className: 'create-text-card-blue', background: 'linear-gradient(145deg, #2358c9, #6f47d8)' },
+  { id: 'soft-sky', name: 'Soft sky', className: 'create-text-card-sky', background: 'linear-gradient(145deg, #1ca7bd, #476fda)' },
+  { id: 'warm-glow', name: 'Warm glow', className: 'create-text-card-warm', background: 'linear-gradient(145deg, #e08036, #d44872)' },
+  { id: 'rose-note', name: 'Rose note', className: 'create-text-card-rose', background: 'linear-gradient(145deg, #d33e7a, #814bd2)' },
+] as const;
+
+function mediaFileExtension(file: File) {
+  const extensions: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'video/mp4': 'mp4',
+    'video/quicktime': 'mov',
+    'video/webm': 'webm',
+  };
+  return extensions[file.type];
+}
+
+function mediaSavingsMessage(sourceBytes: number, uploadedBytes: number) {
+  if (sourceBytes === 0) return '';
+  const savedPercent = sourceBytes > 0 ? Math.round((sourceBytes - uploadedBytes) / sourceBytes * 100) : 0;
+  return savedPercent > 0
+    ? `Media optimized on your device and reduced by ${savedPercent}%.`
+    : 'Media was checked and is already optimized for upload.';
+}
 
 async function apiRequest<T>(path: string, token: string, method = 'GET', body?: unknown): Promise<T> {
   const response = await fetch(path, {
@@ -99,8 +124,8 @@ async function apiRequest<T>(path: string, token: string, method = 'GET', body?:
   return result.data;
 }
 
-function formatPostType(type: MediaType) {
-  return type === 'question' ? 'Question' : type === 'poll' ? 'Poll' : type === 'video' ? 'Video' : type === 'photo' ? 'Photo' : 'Text';
+function formatPostType(type: Extract<MediaType, 'photo' | 'video' | 'text'>) {
+  return type === 'video' ? 'Video' : type === 'photo' ? 'Photo' : 'Text';
 }
 
 export default function Home() {
@@ -111,7 +136,7 @@ export default function Home() {
   const [tab, setTabState] = useState<AppTab>(() => {
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem('commonroom_active_tab') as AppTab;
-      if (saved && ['home', 'create', 'dating', 'marketplace', 'games', 'anonymous', 'profile'].includes(saved)) {
+      if (saved && ['home', 'create', 'meet', 'marketplace', 'games', 'anonymous', 'profile'].includes(saved)) {
         return saved;
       }
     }
@@ -133,7 +158,6 @@ export default function Home() {
   const [notice, setNotice] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
-  const [datingProfiles, setDatingProfiles] = useState<DatingProfile[]>([]);
   const [signupName, setSignupName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -148,15 +172,25 @@ export default function Home() {
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [interests, setInterests] = useState<string[]>([]);
   const [createType, setCreateType] = useState<MediaType>('photo');
+  const [createDestination, setCreateDestination] = useState<'room' | 'anonymous'>('room');
+  const [anonymousTitle, setAnonymousTitle] = useState('');
+  const [anonymousIdentity, setAnonymousIdentity] = useState<AnonymousIdentity | null>(null);
+  const [anonymousHandleDraft, setAnonymousHandleDraft] = useState('');
+  const [anonymousIdentitySessionId, setAnonymousIdentitySessionId] = useState<string | null>(null);
+  const [anonymousIdentitySaving, setAnonymousIdentitySaving] = useState(false);
+  const [anonymousTemplate, setAnonymousTemplate] = useState<(typeof anonymousTextTemplates)[number]['id']>('blue-hour');
+  const [compressionProgress, setCompressionProgress] = useState<number | null>(null);
+  const [anonymousFocusPostId, setAnonymousFocusPostId] = useState<string | null>(null);
   const [createCaption, setCreateCaption] = useState('');
   const [createLocation, setCreateLocation] = useState('');
   const [createAudience, setCreateAudience] = useState<Audience>('Public');
   const [createFiles, setCreateFiles] = useState<File[]>([]);
+  const [photoReelEditorOpen, setPhotoReelEditorOpen] = useState(false);
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
+  const [locationSearchState, setLocationSearchState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [reelEditorOpen, setReelEditorOpen] = useState(false);
+  const [selectedSoundName, setSelectedSoundName] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<{ url: string; file: File; isVideo: boolean } | null>(null);
-  const [pollOptions, setPollOptions] = useState(['', '']);
-  const [datingOptIn, setDatingOptIn] = useState(false);
-  const [datingBio, setDatingBio] = useState('');
-  const [datingInterests, setDatingInterests] = useState('');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -168,6 +202,14 @@ export default function Home() {
   ]);
 
   const configuredNow = isSupabaseConfigured();
+  const anonymousIdentityLoading = createDestination === 'anonymous'
+    && Boolean(session)
+    && anonymousIdentitySessionId !== session?.user.id;
+  const createPreviewUrls = useMemo(() => createFiles.map((file) => URL.createObjectURL(file)), [createFiles]);
+
+  useEffect(() => () => {
+    createPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+  }, [createPreviewUrls]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -188,6 +230,61 @@ export default function Home() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [previewFile]);
+
+  useEffect(() => {
+    if (createDestination !== 'anonymous' || !session) return;
+    let active = true;
+    void apiRequest<AnonymousIdentity | null>('/api/v1/anonymous/identity', session.access_token)
+      .then((identity) => {
+        if (!active) return;
+        setAnonymousIdentitySessionId(session.user.id);
+        setAnonymousIdentity(identity);
+        if (identity) {
+          setAnonymousHandleDraft(identity.handle);
+          localStorage.setItem('anonymous_handle', identity.handle);
+        } else {
+          setAnonymousHandleDraft(localStorage.getItem('anonymous_handle') ?? '');
+        }
+      })
+      .catch((identityError: unknown) => {
+        if (active) {
+          setAnonymousIdentitySessionId(session.user.id);
+          setAnonymousIdentity(null);
+          setError(identityError instanceof Error ? identityError.message : 'Your Anonymous name could not be loaded.');
+        }
+      });
+    return () => { active = false; };
+  }, [createDestination, session]);
+
+  useEffect(() => {
+    const query = createLocation.trim();
+    if (query.length < 2) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      setLocationSearchState('loading');
+      void fetch(`/api/v1/locations/search?q=${encodeURIComponent(query)}`, { signal: controller.signal })
+        .then(async (response) => {
+          const result = await response.json() as ApiEnvelope<LocationSuggestion[]> | ApiFailure;
+          if (!response.ok) throw new Error((result as ApiFailure).error?.message ?? 'Location suggestions are temporarily unavailable.');
+          if (!('data' in result) || !Array.isArray(result.data)) throw new Error('Location suggestions returned an invalid response.');
+          setLocationSuggestions(result.data);
+          setLocationSearchState('ready');
+        })
+        .catch(() => {
+          if (controller.signal.aborted) return;
+          setLocationSuggestions([]);
+          setLocationSearchState('error');
+        });
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [createLocation]);
   const filteredInstitutions = useMemo(() => {
     const query = schoolSearch.trim().toLowerCase();
     return institutions.filter((item) => `${item.name} ${item.location}`.toLowerCase().includes(query)).slice(0, 12);
@@ -270,7 +367,6 @@ export default function Home() {
         });
       } else {
         setProfile(null);
-        setDatingProfiles([]);
       }
     });
     return () => {
@@ -278,20 +374,6 @@ export default function Home() {
       subscription.unsubscribe();
     };
   }, [configuredNow, loadProfile]);
-
-  const loadDating = useCallback(async () => {
-    if (!session) return;
-    const result = await apiRequest<DatingProfile[]>('/api/v1/dating', session.access_token);
-    setDatingProfiles(result);
-  }, [session]);
-
-  useEffect(() => {
-    if (profile && tab === 'dating') {
-      void loadDating().catch((loadError: unknown) => {
-        setError(loadError instanceof Error ? loadError.message : 'Dating profiles could not be loaded.');
-      });
-    }
-  }, [loadDating, profile, tab]);
 
   const submitAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -439,15 +521,120 @@ export default function Home() {
     setNotice('Your profile is ready. Welcome to Commonroom!');
   };
 
+  const saveAnonymousIdentity = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!session) {
+      setError('Your guest session is still starting. Try again in a moment.');
+      return;
+    }
+    setAnonymousIdentitySaving(true);
+    setError('');
+    try {
+      const identity = await apiRequest<AnonymousIdentity>('/api/v1/anonymous/identity', session.access_token, 'POST', {
+        handle: anonymousHandleDraft.trim(),
+      });
+      setAnonymousIdentity(identity);
+      setAnonymousHandleDraft(identity.handle);
+      localStorage.setItem('anonymous_handle', identity.handle);
+      setNotice(`You’re ready to post as ${identity.handle}.`);
+    } catch (identityError) {
+      setError(identityError instanceof Error ? identityError.message : 'Your Anonymous name could not be saved.');
+    } finally {
+      setAnonymousIdentitySaving(false);
+    }
+  };
+
+  const publishAnonymousPost = async () => {
+    if (!session) {
+      setError('Your guest session is still starting. Try again in a moment.');
+      return;
+    }
+    if (!anonymousIdentity) {
+      setError('Choose your Anonymous name before posting.');
+      return;
+    }
+    if (!createCaption.trim()) {
+      setError('Add something to your anonymous post first.');
+      return;
+    }
+    const uploadedPaths: string[] = [];
+    setError('');
+    setNotice('');
+    setCompressionProgress(createFiles.length ? 0 : null);
+    try {
+      const storage = getBrowserSupabase().storage.from('post-media');
+      const mediaItems: AnonymousMediaItem[] = [];
+      let uploadedBytes = 0;
+      const sourceBytes = createFiles.reduce((total, file) => total + file.size, 0);
+      for (const [index, originalFile] of createFiles.entries()) {
+        const file = await compressMedia(originalFile, (progress) => {
+          setCompressionProgress(Math.round(((index + progress / 100) / createFiles.length) * 100));
+        });
+        setCompressionProgress(Math.round(((index + 1) / createFiles.length) * 100));
+        if (file.size > 100 * 1024 * 1024) throw new Error(`This media file is still over 100 MB after compression: ${originalFile.name}`);
+        uploadedBytes += file.size;
+        const extension = mediaFileExtension(file);
+        if (!extension) throw new Error(`This format cannot be uploaded: ${originalFile.name}. Choose a JPG, PNG, WebP, MP4, MOV, or WebM file.`);
+        const { path } = await apiRequest<{ path: string }>('/api/v1/anonymous/media-path', session.access_token, 'POST', { extension });
+        uploadedPaths.push(path);
+        const { error: uploadError } = await storage.upload(path, file, {
+          contentType: file.type,
+          upsert: false,
+        });
+        if (uploadError) throw uploadError;
+        mediaItems.push({ path, mediaType: file.type.startsWith('video/') ? 'video' : 'photo' });
+      }
+      const created = await apiRequest<{ id: string }>('/api/v1/anonymous/posts', session.access_token, 'POST', {
+        scope: 'all_nigerian_schools',
+        title: anonymousTitle.trim() || 'Anonymous post',
+        body: createCaption,
+        mediaItems,
+        cardTheme: anonymousTemplate,
+      });
+      setCreateCaption('');
+      setAnonymousTitle('');
+      setCreateFiles([]);
+      setSelectedSoundName(null);
+      setCompressionProgress(null);
+      setAnonymousFocusPostId(created.id);
+      setTab('anonymous');
+      const savings = mediaSavingsMessage(sourceBytes, uploadedBytes);
+      setNotice(`Your post is live in the Anonymous Feed.${savings ? ` ${savings}` : ''}`);
+    } catch (publishError) {
+      const message = publishError instanceof Error ? publishError.message : 'Your anonymous post could not be published.';
+      if (uploadedPaths.length) {
+        const { error: cleanupError } = await getBrowserSupabase().storage.from('post-media').remove(uploadedPaths);
+        setError(cleanupError ? `${message} Uploaded media could not be cleaned up: ${cleanupError.message}` : message);
+      } else {
+        setError(message);
+      }
+    } finally {
+      setCompressionProgress(null);
+    }
+  };
+
   const publishPost = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!session) return;
+    if (createDestination === 'anonymous') {
+      await publishAnonymousPost();
+      return;
+    }
     setError('');
     setNotice('');
+    setCompressionProgress(createFiles.length ? 0 : null);
     try {
       const mediaItems: MediaItem[] = [];
-      if (createFiles.length > 10) throw new Error('A post can contain up to 10 photos.');
-      for (const file of createFiles) {
+      let uploadedBytes = 0;
+      const sourceBytes = createFiles.reduce((total, file) => total + file.size, 0);
+      if (createFiles.length > 10) throw new Error('Choose up to 10 photos for a Room post.');
+      for (const [index, originalFile] of createFiles.entries()) {
+        const file = await compressMedia(originalFile, (progress) => {
+          setCompressionProgress(Math.round(((index + progress / 100) / createFiles.length) * 100));
+        });
+        setCompressionProgress(Math.round(((index + 1) / createFiles.length) * 100));
+        if (file.size > 100 * 1024 * 1024) throw new Error(`This media file is still over 100 MB after compression: ${originalFile.name}`);
+        uploadedBytes += file.size;
         const isVideo = file.type.startsWith('video/');
         if ((createType === 'video') !== isVideo) {
           throw new Error('Choose media that matches the selected post type.');
@@ -465,59 +652,30 @@ export default function Home() {
         const { data: publicUrl } = supabase.storage.from('post-media').getPublicUrl(data.path);
         mediaItems.push({ uri: publicUrl.publicUrl, mediaType: isVideo ? 'video' : 'photo' });
       }
-      const options = pollOptions.map((option) => option.trim()).filter(Boolean);
-      if (createType === 'poll' && (options.length < 2 || options.length > 6)) {
-        throw new Error('A poll needs between two and six answer options.');
-      }
       const created = await apiRequest<FeedPost>('/api/v1/posts', session.access_token, 'POST', {
         caption: createCaption,
         mediaItems,
         mediaType: createType,
-        pollOptions: options,
+        selectedSound: selectedSoundName,
+        pollOptions: [],
         audience: createAudience,
         location: createLocation,
       });
       setCreateCaption('');
       setCreateLocation('');
       setCreateFiles([]);
-      setPollOptions(['', '']);
+      setSelectedSoundName(null);
+      setCompressionProgress(null);
+      setLocationSuggestions([]);
+      setLocationSearchState('idle');
       setTab('home');
       setRoomRefresh((value) => value + 1);
-      setNotice('Your post is published.');
+      const savings = mediaSavingsMessage(sourceBytes, uploadedBytes);
+      setNotice(`Your post is published.${savings ? ` ${savings}` : ''}`);
     } catch (publishError) {
       setError(publishError instanceof Error ? publishError.message : 'Your post could not be published.');
-    }
-  };
-
-  const saveDatingProfile = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!session || !profile) return;
-    try {
-      await apiRequest('/api/v1/dating', session.access_token, 'PUT', {
-        displayName: profile.displayName,
-        bio: datingBio,
-        interests: datingInterests.split(',').map((interest) => interest.trim()).filter(Boolean),
-        discoverable: datingOptIn,
-      });
-      await loadDating();
-      setNotice(datingOptIn ? 'Your dating profile is discoverable.' : 'Your dating profile is hidden.');
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Your dating settings could not be saved.');
-    }
-  };
-
-  const likeDatingProfile = async (userId: string) => {
-    if (!session) return;
-    try {
-      const result = await apiRequest<{ matched: boolean }>(
-        '/api/v1/dating',
-        session.access_token,
-        'POST',
-        { userId },
-      );
-      setNotice(result.matched ? 'It is a mutual match!' : 'Like sent. Your contact details stay private.');
-    } catch (likeError) {
-      setError(likeError instanceof Error ? likeError.message : 'Your like could not be sent.');
+    } finally {
+      setCompressionProgress(null);
     }
   };
 
@@ -552,14 +710,14 @@ export default function Home() {
     { id: 'create', label: 'Create', icon: Plus },
     { id: 'anonymous', label: 'Anonymous', icon: MessageCircle },
     { id: 'marketplace', label: 'Marketplace', icon: ShoppingCart },
-    { id: 'dating', label: 'Meet', icon: Sparkles },
+    { id: 'meet', label: 'Connect', icon: Users },
   ];
   const mobileTabs: { id: AppTab; label: string; icon: LucideIcon }[] = [
     { id: 'home', label: 'Room', icon: HomeIcon },
     { id: 'create', label: 'Create', icon: Plus },
     { id: 'anonymous', label: 'Anonymous', icon: MessageCircle },
     { id: 'marketplace', label: 'Marketplace', icon: ShoppingCart },
-    { id: 'dating', label: 'Connect', icon: Users },
+    { id: 'meet', label: 'Connect', icon: Users },
   ];
 
   if (loading) {
@@ -809,7 +967,7 @@ export default function Home() {
 
         <header className="workspace-topbar">
           <div className="workspace-heading">
-            <h2>{tabs.find((item) => item.id === tab)?.label ?? (tab === 'games' ? 'Games' : tab === 'profile' ? 'My profile' : 'Dating')}</h2>
+            <h2>{tabs.find((item) => item.id === tab)?.label ?? (tab === 'games' ? 'Games' : tab === 'profile' ? 'My profile' : 'Connect')}</h2>
           </div>
           <div className="topbar-actions">
             <button className="search-button" onClick={() => setSearchModalOpen(true)} type="button">
@@ -834,6 +992,7 @@ export default function Home() {
         <div className="content-scroll">
           {error ? <div className="feedback error-banner" role="alert"><span>{error}</span><button onClick={() => setError('')} aria-label="Dismiss error"><X size={16} /></button></div> : null}
           {notice ? <div className="feedback success-banner" role="status"><span>{notice}</span><button onClick={() => setNotice('')} aria-label="Dismiss message"><X size={16} /></button></div> : null}
+          <CommunityAnnouncement />
 
           {tab === 'home' ? (
             <RoomExperience
@@ -862,11 +1021,34 @@ export default function Home() {
           {tab === 'create' ? (
             <section className="standalone-column">
               <div className="page-heading"><div><span className="eyebrow">SHARE WITH YOUR COMMUNITY</span><h1>Create a post</h1></div></div>
-              {isGuest ? (
+              <div aria-label="Post destination" className="segmented-control create-destination-toggle" role="group">
+                <button className={createDestination === 'room' ? 'segment selected' : 'segment'} onClick={() => { setCreateDestination('room'); setCreateFiles([]); setSelectedSoundName(null); }} type="button">Room</button>
+                <button className={createDestination === 'anonymous' ? 'segment selected' : 'segment'} onClick={() => { setCreateDestination('anonymous'); setCreateType('text'); setCreateFiles([]); setSelectedSoundName(null); }} type="button">Anonymous</button>
+              </div>
+              {createDestination === 'anonymous' && !anonymousIdentity ? (
+                <form className="panel anon-create-identity" onSubmit={(event) => void saveAnonymousIdentity(event)}>
+                  <div><span className="anon-create-identity-icon"><ShieldCheck size={18} /></span><div><strong>Choose your Anonymous name</strong><p>This name is separate from your profile and won’t be attached to your post.</p></div></div>
+                  <label htmlFor="create-anonymous-name">Anonymous name</label>
+                  <input
+                    autoComplete="off"
+                    id="create-anonymous-name"
+                    maxLength={24}
+                    minLength={3}
+                    onChange={(event) => setAnonymousHandleDraft(event.target.value)}
+                    placeholder="Choose a name"
+                    required
+                    value={anonymousHandleDraft}
+                  />
+                  <button className="secondary-button" disabled={anonymousIdentitySaving || anonymousIdentityLoading || !session} type="submit">
+                    {anonymousIdentitySaving ? 'Saving…' : anonymousIdentityLoading ? 'Checking…' : 'Continue'}
+                  </button>
+                </form>
+              ) : null}
+              {isGuest && createDestination === 'room' ? (
                 <div className="panel guest-prompt-panel">
-                  <Sparkles size={36} className="guest-prompt-icon" />
+                  <ImagePlus size={36} className="guest-prompt-icon" />
                   <h2>Join your campus community</h2>
-                  <p>Sign in or create an account to post photos, videos, questions, and polls to Commonroom.</p>
+                  <p>Sign in or create an account to post to Room. You can still publish anonymously.</p>
                   <div className="guest-prompt-buttons">
                     <button
                       className="primary-button"
@@ -885,27 +1067,45 @@ export default function Home() {
                   </div>
                 </div>
               ) : (
-                <form className="panel form-panel" onSubmit={(event) => void publishPost(event)}>
+                <form className={`panel form-panel${createDestination === 'anonymous' ? ' anonymous-create-form' : ''}`} onSubmit={(event) => void publishPost(event)}>
                 <div className="segmented-control">
-                  {(['photo', 'video', 'text', 'question', 'poll'] as MediaType[]).map((type) => (
-                    <button key={type} type="button" className={createType === type ? 'segment selected' : 'segment'} onClick={() => { setCreateType(type); setCreateFiles([]); }}>
+                  {(['photo', 'video', 'text'] as const).map((type) => (
+                    <button key={type} type="button" className={createType === type ? 'segment selected' : 'segment'} onClick={() => { setCreateType(type); setCreateFiles([]); setSelectedSoundName(null); setReelEditorOpen(false); setPhotoReelEditorOpen(false); }}>
                       {type === 'video' ? <Video size={15} /> : type === 'photo' ? <ImagePlus size={15} /> : null}{formatPostType(type)}
                     </button>
                   ))}
                 </div>
+                {createDestination === 'anonymous' ? (
+                  <>
+                    <div className="anon-create-scope-row">
+                      <span>Post to</span>
+                      <strong>General</strong>
+                      <span>For You is a personalized feed, not a post destination.</span>
+                    </div>
+                    <label className="anon-create-title">Title (optional)
+                      <input maxLength={120} onChange={(event) => setAnonymousTitle(event.target.value)} placeholder="Give it a short title" value={anonymousTitle} />
+                    </label>
+                  </>
+                ) : null}
                 {createType === 'photo' || createType === 'video' ? (
                   createFiles.length === 0 ? (
                     <label className="upload-zone">
                       <ImagePlus size={24} />
                       <strong>Choose {createType === 'photo' ? 'photos' : 'a video'}</strong>
-                      <span>Media uploads directly to your private community storage.</span>
+                      <span>{createDestination === 'anonymous' ? 'Media is optimized on this device before upload.' : 'Media is optimized on this device before upload.'}</span>
                       <input
                         accept={createType === 'photo' ? 'image/*' : 'video/*'}
-                        multiple={createType === 'photo'}
+                        multiple={createType === 'photo' || createDestination === 'anonymous'}
                         type="file"
                         onChange={(event) => {
                           const files = Array.from(event.target.files ?? []);
+                          if (createDestination === 'room' && createType === 'photo' && createFiles.length + files.length > 10) {
+                            setError('Choose up to 10 photos for a Room post.');
+                            event.target.value = '';
+                            return;
+                          }
                           setCreateFiles(files);
+                          setSelectedSoundName(null);
                           event.target.value = '';
                         }}
                       />
@@ -920,6 +1120,8 @@ export default function Home() {
                           onClick={() => {
                             setCreateFiles([]);
                             setPreviewFile(null);
+                            setSelectedSoundName(null);
+                            setReelEditorOpen(false);
                           }}
                         >
                           Clear all
@@ -928,7 +1130,7 @@ export default function Home() {
                       <div className="upload-preview-grid">
                         {createFiles.map((file, index) => {
                           const isVideo = file.type.startsWith('video/');
-                          const url = URL.createObjectURL(file);
+                          const url = createPreviewUrls[index];
                           return (
                             <div key={`${file.name}-${index}`} className="upload-thumbnail-card">
                               <button
@@ -955,6 +1157,7 @@ export default function Home() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setCreateFiles((prev) => prev.filter((_, i) => i !== index));
+                                  setSelectedSoundName(null);
                                   if (previewFile?.file === file) setPreviewFile(null);
                                 }}
                                 aria-label="Remove media"
@@ -966,7 +1169,7 @@ export default function Home() {
                           );
                         })}
 
-                        {createType === 'photo' && createFiles.length < 10 ? (
+                        {createType === 'photo' && (createDestination === 'anonymous' || createFiles.length < 10) ? (
                           <label className="upload-add-more" aria-label="Add more photos" title="Add more photos">
                             <Plus size={20} />
                             <span>Add more</span>
@@ -976,30 +1179,106 @@ export default function Home() {
                               type="file"
                               onChange={(event) => {
                                 const additional = Array.from(event.target.files ?? []);
-                                setCreateFiles((prev) => [...prev, ...additional].slice(0, 10));
+                                setCreateFiles((prev) => createDestination === 'anonymous'
+                                  ? [...prev, ...additional]
+                                  : [...prev, ...additional].slice(0, 10));
                                 event.target.value = '';
                               }}
                             />
                           </label>
                         ) : null}
                       </div>
+                      {createType === 'video' && createFiles.length === 1 && createFiles[0] ? (
+                        <div className="reel-editor-entry">
+                          <div><strong>{selectedSoundName ? 'Edited reel ready' : 'Make it a reel'}</strong><span>{selectedSoundName ? `Soundtrack: ${selectedSoundName}` : 'Trim your clip and add your own audio.'}</span></div>
+                          <button className="secondary-button" onClick={() => setReelEditorOpen(true)} type="button"><Video size={15} /> Open editor</button>
+                        </div>
+                      ) : null}
+                      {createType === 'photo' && createFiles.length > 0 ? (
+                        <div className="reel-editor-entry">
+                          <div><strong>Turn photos into a video</strong><span>Arrange the sequence, choose timing, and optionally add your own soundtrack.</span></div>
+                          <button className="secondary-button" onClick={() => setPhotoReelEditorOpen(true)} type="button"><Video size={15} /> Make a reel</button>
+                        </div>
+                      ) : null}
                     </div>
                   )
                 ) : null}
-                <label>Caption<textarea value={createCaption} onChange={(event) => setCreateCaption(event.target.value)} maxLength={3000} rows={4} placeholder={createType === 'question' ? 'Ask the community…' : 'What would you like to share?'} /></label>
-                {createType === 'poll' ? (
-                  <div className="poll-options">
-                    <span className="field-label">Poll answers</span>
-                    {pollOptions.map((option, index) => <input key={index} placeholder={`Option ${index + 1}`} value={option} maxLength={100} onChange={(event) => setPollOptions((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} />)}
-                    {pollOptions.length < 6 ? <button className="subtle-link" type="button" onClick={() => setPollOptions((current) => [...current, ''])}>+ Add option</button> : null}
-                  </div>
+                {createDestination === 'anonymous' && createType === 'text' ? (
+                  <>
+                    <div aria-label="Text card style" className="create-text-template-grid" role="group">
+                      {anonymousTextTemplates.map((template) => (
+                        <button
+                          aria-pressed={anonymousTemplate === template.id}
+                          className={anonymousTemplate === template.id ? 'create-text-template selected' : 'create-text-template'}
+                          key={template.id}
+                          onClick={() => setAnonymousTemplate(template.id)}
+                          style={{ background: template.background }}
+                          type="button"
+                        >
+                          <span>{template.name}</span>
+                          <strong>Your words, your style</strong>
+                        </button>
+                      ))}
+                    </div>
+                    <div
+                      aria-label="Text card preview"
+                      className={`create-text-card-preview ${anonymousTextTemplates.find((template) => template.id === anonymousTemplate)?.className ?? ''}`}
+                      style={{ background: anonymousTextTemplates.find((template) => template.id === anonymousTemplate)?.background }}
+                    >
+                      {createCaption.trim() || 'Your words will appear here'}
+                    </div>
+                  </>
                 ) : null}
-                <div className="form-grid">
-                  <label>Location (optional)<input value={createLocation} onChange={(event) => setCreateLocation(event.target.value)} maxLength={120} placeholder="Add a location" /></label>
+                <label>{createDestination === 'anonymous' ? 'Your post' : 'Caption'}<textarea value={createCaption} onChange={(event) => setCreateCaption(event.target.value)} maxLength={3000} rows={4} placeholder={createDestination === 'anonymous' ? 'What would you like to say?' : 'What would you like to share?'} /></label>
+                {createDestination === 'room' ? <div className="form-grid">
+                  <div className="create-location-field">
+                    <label htmlFor="create-location">Location (optional)</label>
+                    <input
+                      autoComplete="off"
+                      id="create-location"
+                      maxLength={120}
+                      onChange={(event) => {
+                        setCreateLocation(event.target.value);
+                        setLocationSuggestions([]);
+                        setLocationSearchState('idle');
+                        setError('');
+                      }}
+                      placeholder="Search for a place or type a location"
+                      role="combobox"
+                      aria-autocomplete="list"
+                      aria-expanded={locationSuggestions.length > 0}
+                      aria-controls="create-location-suggestions"
+                      value={createLocation}
+                    />
+                    {locationSuggestions.length > 0 ? (
+                      <ul className="create-location-suggestions" id="create-location-suggestions" role="listbox">
+                        {locationSuggestions.map((suggestion) => (
+                          <li key={suggestion.id} role="option" aria-selected="false">
+                            <button
+                              onClick={() => {
+                                setCreateLocation(suggestion.label);
+                                setLocationSuggestions([]);
+                                setLocationSearchState('idle');
+                              }}
+                              type="button"
+                            >
+                              <strong>{suggestion.name}</strong>
+                              {suggestion.detail ? <span>{suggestion.detail}</span> : null}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {locationSearchState === 'loading' ? <small className="create-location-status" role="status">Searching locations…</small> : null}
+                    {locationSearchState === 'error' ? <small className="create-location-status" role="status">Suggestions are unavailable. Your typed location can still be posted.</small> : null}
+                    {locationSearchState === 'ready' && createLocation.trim().length >= 2 && locationSuggestions.length === 0 ? <small className="create-location-status" role="status">No matching places. Your typed location can still be posted.</small> : null}
+                    <small className="create-location-attribution">Location results by <a href="https://github.com/komoot/photon" rel="noreferrer" target="_blank">Photon</a> · © OpenStreetMap contributors</small>
+                  </div>
                   <label>Audience<select value={createAudience} onChange={(event) => setCreateAudience(event.target.value as Audience)}><option>Public</option><option>Followers</option><option>Private</option></select></label>
-                </div>
-                <div className="form-footnote"><ShieldCheck size={16} /><span>Audience permissions are enforced by the API and database policies.</span></div>
-                <button className="primary-button" type="submit">Publish to Commonroom</button>
+                </div> : null}
+                {compressionProgress !== null ? <p className="media-compression-status" role="status">Optimizing media on this device… {compressionProgress}%</p> : null}
+                <div className="form-footnote"><ShieldCheck size={16} /><span>{createDestination === 'anonymous' ? 'Not linked.' : 'Audience permissions are enforced by the API and database policies.'}</span></div>
+                <button className="primary-button anonymous-post-submit" disabled={compressionProgress !== null || (createDestination === 'anonymous' && (!anonymousIdentity || anonymousIdentityLoading))} type="submit">{compressionProgress !== null ? 'Optimizing…' : createDestination === 'anonymous' ? 'Post anonymously' : 'Post'}</button>
               </form>
             )}
           </section>
@@ -1052,6 +1331,7 @@ export default function Home() {
                     type="button"
                     onClick={() => {
                       setCreateFiles((prev) => prev.filter((f) => f !== previewFile.file));
+                      setSelectedSoundName(null);
                       setPreviewFile(null);
                     }}
                   >
@@ -1062,8 +1342,51 @@ export default function Home() {
             </div>
           ) : null}
 
+          {reelEditorOpen && createType === 'video' && createFiles[0] ? (
+            <ReelEditor
+              file={createFiles[0]}
+              onClose={() => setReelEditorOpen(false)}
+              onExport={(editedFile, soundName) => {
+                setCreateFiles([editedFile]);
+                setSelectedSoundName(soundName);
+                setReelEditorOpen(false);
+              }}
+            />
+          ) : null}
+
+          {photoReelEditorOpen && createType === 'photo' && createFiles.length > 0 ? (
+            <PhotoReelEditor
+              files={createFiles}
+              onClose={() => setPhotoReelEditorOpen(false)}
+              onExport={(editedFile, soundName) => {
+                setCreateFiles([editedFile]);
+                setCreateType('video');
+                setSelectedSoundName(soundName);
+                setPhotoReelEditorOpen(false);
+              }}
+            />
+          ) : null}
+
           {tab === 'anonymous' ? (
-            <AnonymousExperience initialSession={session} onBack={() => setTab('home')} />
+            <AnonymousExperience
+              initialPostId={anonymousFocusPostId ?? undefined}
+              initialSession={session}
+              onBack={() => {
+                setAnonymousFocusPostId(null);
+                setTab('home');
+              }}
+              onCreateAnonymous={() => {
+                setCreateDestination('anonymous');
+                setCreateType('text');
+                setCreateFiles([]);
+                setSelectedSoundName(null);
+                setTab('create');
+              }}
+              onRequireAccount={() => {
+                setAuthRoute('sign-in');
+                setAuthModalOpen(true);
+              }}
+            />
           ) : null}
 
           {tab === 'marketplace' ? (
@@ -1078,29 +1401,15 @@ export default function Home() {
             />
           ) : null}
 
-          {tab === 'dating' ? (
-            <section className="standalone-column">
-              <div className="page-heading"><div><span className="eyebrow">CAMPUS CONNECTIONS · YOU’RE IN CONTROL</span><h1>Meet</h1><p>No exact location, contact details, or private phone numbers are shown.</p></div></div>
-              <form className="panel dating-settings" onSubmit={(event) => void saveDatingProfile(event)}>
-                <div><strong>Meet profile</strong><p>Choose whether your profile can appear to other age-eligible students.</p></div>
-                <label className="switch-row"><span>Show my profile to students</span><input checked={datingOptIn} onChange={(event) => setDatingOptIn(event.target.checked)} type="checkbox" /></label>
-                <label>Short bio<textarea value={datingBio} onChange={(event) => setDatingBio(event.target.value)} maxLength={500} rows={2} placeholder="A little about you" /></label>
-                <label>Interests<input value={datingInterests} onChange={(event) => setDatingInterests(event.target.value)} placeholder="Music, books, vibes" /></label>
-                <button className="secondary-button" type="submit">Save Meet preferences</button>
-              </form>
-              <div className="dating-grid">
-                {datingProfiles.length ? datingProfiles.map((match) => (
-                  <article className="panel dating-card" key={match.user_id}>
-                    <div className="dating-avatar">{match.display_name.slice(0, 1).toUpperCase()}</div>
-                    <strong>{match.display_name}</strong>
-                    <span>{match.school ?? 'Student community'}</span>
-                    <p>{match.bio}</p>
-                    <div className="dating-tags">{match.interests.map((interest) => <span key={interest}>{interest}</span>)}</div>
-                    <button className="primary-button" onClick={() => void likeDatingProfile(match.user_id)}><Heart size={15} /> Connect</button>
-                  </article>
-                )) : <EmptyState icon={<Sparkles size={24} />} title="No profiles to show right now" copy="Opt in above to discover other students who choose to be visible." />}
-              </div>
-            </section>
+          {tab === 'meet' ? (
+            <MeetExperience
+              onRequireAccount={() => {
+                setAuthRoute('sign-in');
+                setAuthModalOpen(true);
+              }}
+              profile={currentProfile}
+              session={session && profile && !session.user.is_anonymous ? session : null}
+            />
           ) : null}
 
           {tab === 'profile' ? (
@@ -1118,7 +1427,7 @@ export default function Home() {
               </div>
               {isGuest ? (
                 <div className="panel guest-prompt-panel">
-                  <Sparkles size={36} className="guest-prompt-icon" />
+                  <UserPlus size={36} className="guest-prompt-icon" />
                   <h2>Create your student profile</h2>
                   <p>Sign up to connect with your school community, bookmark posts, sell items, and build your profile.</p>
                   <div className="guest-prompt-buttons">
@@ -1189,8 +1498,8 @@ export default function Home() {
                 <button onClick={() => { setTab('profile'); setMenuOpen(false); }} type="button">
                   <Users size={16} /> My profile
                 </button>
-                <button onClick={() => { setTab('dating'); setMenuOpen(false); }} type="button">
-                  <Heart size={16} /> Dating
+                <button onClick={() => { setTab('meet'); setMenuOpen(false); }} type="button">
+                  <Heart size={16} /> Connect
                 </button>
                 <button onClick={() => { setTab('create'); setMenuOpen(false); }} type="button">
                   <Plus size={16} /> Create post
@@ -1239,7 +1548,7 @@ export default function Home() {
                     }}
                   >
                     <div className={`notification-icon-wrap ${item.type}`}>
-                      {item.type === 'like' ? <Heart size={13} fill="currentColor" /> : item.type === 'comment' ? <MessageCircle size={13} fill="currentColor" /> : item.type === 'follow' ? <UserPlus size={13} /> : <Sparkles size={13} />}
+                      {item.type === 'like' ? <Heart size={13} fill="currentColor" /> : item.type === 'comment' ? <MessageCircle size={13} fill="currentColor" /> : item.type === 'follow' ? <UserPlus size={13} /> : <Bell size={13} />}
                     </div>
                     <div className="notification-content">
                       <p><strong>{item.actor}</strong> {item.text}</p>
@@ -1465,28 +1774,5 @@ function ProfileForm({
       {error ? <p className="form-error" role="alert">{error}</p> : null}
       <button className="primary-button" disabled={disabled} type="submit">Save profile</button>
     </form>
-  );
-}
-
-function EmptyState({
-  icon,
-  title,
-  copy,
-  action,
-  onAction,
-}: {
-  icon: ReactNode;
-  title: string;
-  copy: string;
-  action?: string;
-  onAction?: () => void;
-}) {
-  return (
-    <div className="empty-state">
-      <span className="empty-icon">{icon}</span>
-      <h2>{title}</h2>
-      <p>{copy}</p>
-      {action && onAction ? <button className="secondary-button" onClick={onAction}>{action}</button> : null}
-    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, requireRegisteredUser } from '@/lib/supabase-server';
+import { apiError, apiSuccess, authenticateRequest, createPublicSupabase, isAuthenticatedRequest, requireRegisteredUser } from '@/lib/supabase-server';
 import { attachRoomViewerFields, mapRoomPost } from '@/lib/room-map';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -6,9 +6,20 @@ type RouteContext = { params: Promise<{ id: string }> };
 const feedSelect = 'id, author_id, author_name, author_username, school_label, caption, poll_options, media_items, media_type, location, audience, age_restricted, allow_comments, allow_reuse, created_at, post_likes(count), post_comments(count)';
 
 export async function GET(request: Request, { params }: RouteContext) {
-  const auth = await authenticateRequest(request);
-  if (!isAuthenticatedRequest(auth)) return auth;
+  const auth = request.headers.has('authorization') ? await authenticateRequest(request) : null;
+  if (auth && !isAuthenticatedRequest(auth)) return auth;
   const { id } = await params;
+  if (!auth || auth.user.is_anonymous) {
+    const { data, error } = await createPublicSupabase().rpc('get_public_room_feed_page', {
+      p_before_created_at: null,
+      p_before_id: null,
+      p_limit: 1,
+      p_post_id: id,
+    });
+    if (error) return apiError('post_read_failed', 'This post could not be loaded.', 500);
+    const post = (data as Record<string, unknown>[] | null)?.[0];
+    return post ? apiSuccess(mapRoomPost(post)) : apiError('post_not_found', 'This post is unavailable.', 404);
+  }
   const { data, error } = await auth.supabase.from('posts').select(feedSelect).eq('id', id).maybeSingle();
   if (error) return apiError('post_read_failed', 'This post could not be loaded.', 500);
   if (!data) return apiError('post_not_found', 'This post is unavailable.', 404);

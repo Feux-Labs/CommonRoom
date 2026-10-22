@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { ArrowLeft, Check, Heart, LayoutGrid, MapPin, Pencil, Share2, Sparkles, Trophy, UserCheck, UserPlus, X } from 'lucide-react-native/icons';
+import { ArrowLeft, Check, Heart, LayoutGrid, MapPin, Pencil, Share2, Trophy, UserCheck, UserPlus, X } from 'lucide-react-native/icons';
 import { useAppTheme } from '../theme/ThemeContext';
 import { AppColors, radius } from '../theme/tokens';
 import type { UserProfile } from '../types/domain';
@@ -143,7 +143,7 @@ export function ProfileScreen({ onBack, profile, onUpdateProfile }: ProfileScree
             onPress={() => setActiveTab('badges')}
             style={[styles.tabBtn, activeTab === 'badges' && styles.tabBtnActive]}
           >
-            <Sparkles size={14} color={activeTab === 'badges' ? '#ffffff' : '#8e95a5'} />
+            <Trophy size={14} color={activeTab === 'badges' ? '#ffffff' : '#8e95a5'} />
             <Text style={[styles.tabBtnText, activeTab === 'badges' && styles.tabBtnTextActive]}>Aura & Badges</Text>
           </Pressable>
         </View>
@@ -177,7 +177,7 @@ export function ProfileScreen({ onBack, profile, onUpdateProfile }: ProfileScree
           <View style={styles.badgesList}>
             <View style={styles.badgeItem}>
               <View style={[styles.badgeIcon, { backgroundColor: '#f59e0b' }]}>
-                <Sparkles size={16} color="#ffffff" />
+                <Trophy size={16} color="#ffffff" />
               </View>
               <View style={styles.badgeInfo}>
                 <Text style={styles.badgeName}>Campus Pioneer</Text>

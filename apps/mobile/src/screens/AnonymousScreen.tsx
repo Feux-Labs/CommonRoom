@@ -16,7 +16,7 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft } from 'lucide-react-native';
-import { CircleQuestionMark, Copy, Heart, Link2, MessageCircle, MessagesSquare, Pencil, Quote, Send, Sparkles } from 'lucide-react-native/icons';
+import { CircleQuestionMark, Copy, Heart, Link2, MessageCircle, MessagesSquare, Pencil, Quote, Send } from 'lucide-react-native/icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconSymbol } from '../components/IconSymbol';
 import { getAnonymousAccessToken, getApiBaseUrl, apiRequest } from '../services/api';
@@ -52,7 +52,7 @@ const templateIllustrations = {
   confession: MessageCircle,
   crush: Heart,
   'three-words': Quote,
-  'never-have': Sparkles,
+  'never-have': CircleQuestionMark,
   tbh: MessagesSquare,
   custom: CircleQuestionMark,
 } satisfies Record<InboxTemplateId, typeof MessageCircle>;

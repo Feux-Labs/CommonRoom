@@ -1,4 +1,4 @@
-import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, isRecord, parseJson, requireRegisteredUser } from '@/lib/supabase-server';
+import { apiError, apiSuccess, authenticateRequest, createPublicSupabase, isAuthenticatedRequest, isRecord, parseJson, requireRegisteredUser } from '@/lib/supabase-server';
 import type { Audience, MediaItem, MediaType } from '@/lib/contracts';
 import type { RoomScope } from '@/lib/room-contracts';
 import { attachRoomViewerFields, decodeRoomCursor, encodeRoomCursor, mapRoomPost } from '@/lib/room-map';
@@ -15,8 +15,8 @@ function normalizeScope(value: string | null): RoomScope {
 }
 
 export async function GET(request: Request) {
-  const auth = await authenticateRequest(request);
-  if (!isAuthenticatedRequest(auth)) return auth;
+  const auth = request.headers.has('authorization') ? await authenticateRequest(request) : null;
+  if (auth && !isAuthenticatedRequest(auth)) return auth;
 
   const url = new URL(request.url);
   const scope = normalizeScope(url.searchParams.get('scope') ?? 'for_you');
@@ -26,6 +26,25 @@ export async function GET(request: Request) {
   }
   const parsedLimit = Number(url.searchParams.get('limit') ?? pageSize);
   const limit = Number.isFinite(parsedLimit) ? Math.max(1, Math.min(30, Math.floor(parsedLimit))) : pageSize;
+
+  if (!auth || auth.user.is_anonymous) {
+    if (scope === 'following') return apiSuccess({ posts: [], hasMore: false, nextCursor: null });
+    const { data, error } = await createPublicSupabase().rpc('get_public_room_feed_page', {
+      p_before_created_at: cursor?.createdAt ?? null,
+      p_before_id: cursor?.id ?? null,
+      p_limit: limit + 1,
+    });
+    if (error) return apiError('feed_read_failed', 'The public Room feed could not be loaded.', 500);
+    const rows = (data ?? []) as Record<string, unknown>[];
+    const hasMore = rows.length > limit;
+    const page = rows.slice(0, limit);
+    const last = page.at(-1);
+    return apiSuccess({
+      posts: page.map(mapRoomPost),
+      hasMore,
+      nextCursor: hasMore && last ? encodeRoomCursor(String(last.created_at), String(last.id)) : null,
+    });
+  }
 
   const { data: rpcData, error: rpcError } = await auth.supabase.rpc('get_room_feed_page', {
     p_scope: scope,

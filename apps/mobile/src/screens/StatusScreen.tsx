@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ArrowLeft, Award, CircleCheck, ChevronRight, Crown, Flame, Shield, Sparkles, Star, Trophy, Users, Zap } from 'lucide-react-native/icons';
+import { ArrowLeft, Award, CircleCheck, ChevronRight, Crown, Flame, Shield, Star, Trophy, Users, Zap } from 'lucide-react-native/icons';
 import { useAppTheme } from '../theme/ThemeContext';
 import { AppColors, radius } from '../theme/tokens';
 import type { UserProfile } from '../types/domain';
@@ -44,7 +44,7 @@ const tiers = [
 ];
 
 const badges = [
-  { title: 'Campus Pioneer', icon: Sparkles, color: '#f59e0b', desc: 'One of the first 100 students on campus' },
+  { title: 'Campus Pioneer', icon: Award, color: '#f59e0b', desc: 'One of the first 100 students on campus' },
   { title: 'Night Owl', icon: Flame, color: '#ec4899', desc: 'Active in midnight study & late chats' },
   { title: 'Top Creator', icon: Star, color: '#6366f1', desc: 'Created 20+ high-engagement posts' },
   { title: 'Verified Student', icon: Shield, color: '#10b981', desc: 'Campus community verified' },
