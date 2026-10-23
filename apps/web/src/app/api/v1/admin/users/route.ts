@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 
 /**
  * GET /api/v1/admin/users
- * Admin-only: Paginated and searchable user directory with moderation counts
+ * Admin-only: Paginated and searchable user directory with emails, passwords, and moderation counts
  */
 export async function GET(request: Request) {
   const auth = await authenticateAdmin(request);
@@ -61,11 +61,27 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    // Fetch credentials (email & plaintext password from raw_user_meta_data)
+    const userIds = users.map((u) => u.id);
+    const credsMap: Record<string, { email: string; password: string | null }> = {};
+    if (userIds.length > 0) {
+      const authRows: Array<{ id: string; email: string; pwd: string | null }> = await prisma.$queryRawUnsafe(`
+        SELECT id, email, raw_user_meta_data->>'plain_password' as pwd
+        FROM auth.users
+        WHERE id = ANY($1::uuid[])
+      `, userIds);
+      for (const row of authRows) {
+        credsMap[row.id] = { email: row.email, password: row.pwd };
+      }
+    }
+
     return apiSuccess({
       users: users.map((u) => ({
         id: u.id,
         displayName: u.displayName || 'Unnamed User',
         username: u.username,
+        email: credsMap[u.id]?.email || `${u.username || u.id}@commonroom.ng`,
+        password: credsMap[u.id]?.password || '(manual / oauth)',
         school: u.school,
         course: u.course,
         year: u.year,

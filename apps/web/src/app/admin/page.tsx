@@ -7,17 +7,26 @@ import Link from 'next/link';
 import {
   BarChart3,
   CheckCircle,
+  Copy,
   ExternalLink,
+  Eye,
+  EyeOff,
   Filter,
+  Heart,
+  Key,
   LogOut,
   Megaphone,
+  MessageSquare,
+  PenSquare,
   RefreshCw,
   Search,
   ShieldAlert,
   ShieldCheck,
+  Sparkles,
   Trash2,
   UserCheck,
   Users,
+  X,
 } from 'lucide-react';
 import { getBrowserSupabase, isSupabaseConfigured } from '@/lib/supabase-browser';
 
@@ -41,6 +50,8 @@ type UserItem = {
   id: string;
   displayName: string;
   username: string | null;
+  email: string;
+  password?: string;
   school: string | null;
   course: string;
   year: string;
@@ -328,6 +339,149 @@ export default function AdminPage() {
     }
   };
 
+  // Impersonation & Power CRUD states
+  const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const [loginModalUser, setLoginModalUser] = useState<UserItem | null>(null);
+  const [postModalUser, setPostModalUser] = useState<UserItem | null>(null);
+  const [postCaptionDraft, setPostCaptionDraft] = useState('');
+  const [commentModalUser, setCommentModalUser] = useState<UserItem | null>(null);
+  const [commentPostIdDraft, setCommentPostIdDraft] = useState('');
+  const [commentBodyDraft, setCommentBodyDraft] = useState('');
+  const [matchModalUser, setMatchModalUser] = useState<UserItem | null>(null);
+  const [matchTargetUserIdDraft, setMatchTargetUserIdDraft] = useState('');
+  const [crudBusy, setCrudBusy] = useState(false);
+
+  const copyToClipboard = async (text: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      // fallback
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, name: string) => {
+    if (!session || !confirm(`Permanently delete account for "${name}"?`)) return;
+    setCrudBusy(true);
+    setError('');
+    try {
+      await adminRequest(session, '/api/v1/admin/crud', 'POST', { action: 'delete_user', userId });
+      setNotice(`User ${name} deleted successfully.`);
+      await loadUsers(userPagination.page);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete user.');
+    } finally {
+      setCrudBusy(false);
+    }
+  };
+
+  const handleBulkDeletePosts = async () => {
+    if (!session || !confirm('⚠️ WARNING: Delete ALL posts in the system?')) return;
+    setCrudBusy(true);
+    setError('');
+    try {
+      const res = await adminRequest<{ deleted: number }>(session, '/api/v1/admin/crud', 'POST', {
+        action: 'delete_posts_bulk',
+        all: true,
+      });
+      setNotice(`Bulk deleted ${res.deleted} posts across the system.`);
+      await loadDashboard();
+      await loadUsers(userPagination.page);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Bulk delete posts failed.');
+    } finally {
+      setCrudBusy(false);
+    }
+  };
+
+  const handleBulkDeleteSeeded = async () => {
+    if (!session || !confirm('⚠️ WARNING: Delete all seeded accounts from the database?')) return;
+    setCrudBusy(true);
+    setError('');
+    try {
+      const res = await adminRequest<{ deleted: number }>(session, '/api/v1/admin/crud', 'POST', {
+        action: 'bulk_delete_users',
+        filter: 'seeded',
+      });
+      setNotice(`Deleted ${res.deleted} seeded accounts.`);
+      await loadDashboard();
+      await loadUsers(1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Bulk delete users failed.');
+    } finally {
+      setCrudBusy(false);
+    }
+  };
+
+  const handleCreatePostAsUser = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!session || !postModalUser || !postCaptionDraft.trim()) return;
+    setCrudBusy(true);
+    setError('');
+    try {
+      await adminRequest(session, '/api/v1/admin/crud', 'POST', {
+        action: 'create_post_as_user',
+        asUserId: postModalUser.id,
+        caption: postCaptionDraft.trim(),
+      });
+      setNotice(`Post successfully published as ${postModalUser.displayName}!`);
+      setPostModalUser(null);
+      setPostCaptionDraft('');
+      await loadUsers(userPagination.page);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to post as user.');
+    } finally {
+      setCrudBusy(false);
+    }
+  };
+
+  const handleCreateCommentAsUser = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!session || !commentModalUser || !commentPostIdDraft.trim() || !commentBodyDraft.trim()) return;
+    setCrudBusy(true);
+    setError('');
+    try {
+      await adminRequest(session, '/api/v1/admin/crud', 'POST', {
+        action: 'create_comment_as_user',
+        asUserId: commentModalUser.id,
+        postId: commentPostIdDraft.trim(),
+        body: commentBodyDraft.trim(),
+      });
+      setNotice(`Comment posted as ${commentModalUser.displayName}!`);
+      setCommentModalUser(null);
+      setCommentPostIdDraft('');
+      setCommentBodyDraft('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to comment as user.');
+    } finally {
+      setCrudBusy(false);
+    }
+  };
+
+  const handleMatchAsUser = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!session || !matchModalUser || !matchTargetUserIdDraft.trim()) return;
+    setCrudBusy(true);
+    setError('');
+    try {
+      await adminRequest(session, '/api/v1/admin/crud', 'POST', {
+        action: 'match_as_user',
+        fromUserId: matchModalUser.id,
+        toUserId: matchTargetUserIdDraft.trim(),
+      });
+      setNotice(`Instant mutual match created between ${matchModalUser.displayName} and target profile!`);
+      setMatchModalUser(null);
+      setMatchTargetUserIdDraft('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to match users.');
+    } finally {
+      setCrudBusy(false);
+    }
+  };
+
   if (loading) {
     return (
       <main className="admin-page">
@@ -609,13 +763,41 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* TAB 2: USER MANAGEMENT */}
+        {/* TAB 2: USER MANAGEMENT & POWER CRUD */}
         {activeTab === 'users' && (
           <section className="admin-panel admin-section">
             <header>
               <div>
                 <UserCheck size={17} />
-                <h2>Campus Directory ({userPagination.total.toLocaleString()} registered)</h2>
+                <h2>Campus Directory & Account Power Console ({userPagination.total.toLocaleString()} members)</h2>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  className="admin-btn-action admin-btn-danger"
+                  disabled={crudBusy}
+                  onClick={() => void handleBulkDeletePosts()}
+                  title="Delete all posts across the system"
+                  type="button"
+                >
+                  <Trash2 size={12} /> Bulk Delete All Posts
+                </button>
+                <button
+                  className="admin-btn-action admin-btn-danger"
+                  disabled={crudBusy}
+                  onClick={() => void handleBulkDeleteSeeded()}
+                  title="Remove all seeded accounts"
+                  type="button"
+                >
+                  <Trash2 size={12} /> Clear Seeded Accounts
+                </button>
+                <button
+                  className="admin-btn-action"
+                  disabled={usersLoading}
+                  onClick={() => void loadUsers(userPagination.page)}
+                  type="button"
+                >
+                  <RefreshCw size={12} /> Refresh
+                </button>
               </div>
             </header>
 
@@ -627,7 +809,7 @@ export default function AdminPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') void loadUsers(1, userSearchQuery, userSchoolFilter);
                 }}
-                placeholder="Search by name, @username, or school…"
+                placeholder="Search by name, email, @username, or school…"
                 type="search"
                 value={userSearchQuery}
               />
@@ -654,36 +836,138 @@ export default function AdminPage() {
             </div>
 
             {usersLoading ? (
-              <div className="admin-loading">Loading users…</div>
+              <div className="admin-loading">Loading users & credentials…</div>
             ) : userList.length ? (
-              <div className="admin-table-wrap">
+              <div className="admin-table-wrap" style={{ maxHeight: '520px' }}>
                 <table>
                   <thead>
                     <tr>
-                      <th>Student</th>
-                      <th>Institution</th>
+                      <th>Member</th>
+                      <th>Email</th>
+                      <th>Password</th>
+                      <th>Institution / Role</th>
                       <th>Activity</th>
-                      <th>Joined</th>
-                      <th>Action</th>
+                      <th>Impersonate & CRUD Powers</th>
                     </tr>
                   </thead>
                   <tbody>
                     {userList.map((user) => (
                       <tr key={user.id}>
+                        {/* 1. Name & Username */}
                         <td>
-                          <strong>{user.displayName}</strong>
-                          <small>{user.username ? `@${user.username}` : 'No username'}</small>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {user.avatarUrl ? (
+                              <img
+                                alt={user.displayName}
+                                src={user.avatarUrl}
+                                style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: '28px',
+                                  height: '28px',
+                                  borderRadius: '50%',
+                                  background: '#1d2a3d',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {user.displayName.slice(0, 1).toUpperCase()}
+                              </div>
+                            )}
+                            <div>
+                              <strong>{user.displayName}</strong>
+                              <small>{user.username ? `@${user.username}` : 'No handle'}</small>
+                            </div>
+                          </div>
                         </td>
+
+                        {/* 2. Email Address */}
                         <td>
-                          <span>{user.school || 'Unspecified'}</span>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a9c4ff' }}>
+                              {user.email || '—'}
+                            </span>
+                            {user.email && (
+                              <button
+                                className="admin-btn-action"
+                                onClick={() => void copyToClipboard(user.email!, `email-${user.id}`)}
+                                style={{ padding: '2px 5px' }}
+                                title="Copy email"
+                                type="button"
+                              >
+                                {copiedId === `email-${user.id}` ? (
+                                  <CheckCircle color="#4ade80" size={10} />
+                                ) : (
+                                  <Copy size={10} />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* 3. Password (Upfront with Show/Hide & Copy!) */}
+                        <td>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <code
+                              style={{
+                                background: '#0b1018',
+                                border: '1px solid #233147',
+                                padding: '3px 7px',
+                                borderRadius: '5px',
+                                fontSize: '11px',
+                                color: '#38bdf8',
+                                fontFamily: 'monospace',
+                              }}
+                            >
+                              {showPasswordMap[user.id] ? (user.password || '—') : '••••••••'}
+                            </code>
+                            <button
+                              className="admin-btn-action"
+                              onClick={() =>
+                                setShowPasswordMap((prev) => ({ ...prev, [user.id]: !prev[user.id] }))
+                              }
+                              style={{ padding: '2px 5px' }}
+                              title={showPasswordMap[user.id] ? 'Hide password' : 'Show password'}
+                              type="button"
+                            >
+                              {showPasswordMap[user.id] ? <EyeOff size={10} /> : <Eye size={10} />}
+                            </button>
+                            {user.password && (
+                              <button
+                                className="admin-btn-action"
+                                onClick={() => void copyToClipboard(user.password!, `pwd-${user.id}`)}
+                                style={{ padding: '2px 5px' }}
+                                title="Copy password"
+                                type="button"
+                              >
+                                {copiedId === `pwd-${user.id}` ? (
+                                  <CheckCircle color="#4ade80" size={10} />
+                                ) : (
+                                  <Copy size={10} />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* 4. Institution */}
+                        <td>
+                          <span>{user.school || 'General / Non-School'}</span>
                           {user.course ? (
                             <small>
-                              {user.course} {user.year ? `· Yr ${user.year}` : ''}
+                              {user.course} {user.year ? `· ${user.year}` : ''}
                             </small>
                           ) : null}
                         </td>
+
+                        {/* 5. Activity */}
                         <td>
-                          <div style={{ display: 'flex', gap: '6px' }}>
+                          <div style={{ display: 'flex', gap: '5px' }}>
                             <span className="admin-badge">
                               Posts: <b className="admin-badge-count">{user.counts.posts}</b>
                             </span>
@@ -692,16 +976,52 @@ export default function AdminPage() {
                             </span>
                           </div>
                         </td>
-                        <td>{new Date(user.createdAt).toLocaleDateString()}</td>
+
+                        {/* 6. Admin Powers & Actions */}
                         <td>
-                          <Link
-                            className="admin-btn-action"
-                            href={`/profile/${user.id}`}
-                            style={{ textDecoration: 'none' }}
-                            target="_blank"
-                          >
-                            <ExternalLink size={12} /> View Profile
-                          </Link>
+                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                            <button
+                              className="admin-btn-action"
+                              onClick={() => setLoginModalUser(user)}
+                              style={{ color: '#a9c4ff' }}
+                              title="Login as this user"
+                              type="button"
+                            >
+                              <Key size={11} /> Login As
+                            </button>
+                            <button
+                              className="admin-btn-action"
+                              onClick={() => setPostModalUser(user)}
+                              title="Create a post in Room as this user"
+                              type="button"
+                            >
+                              <PenSquare size={11} /> Post As
+                            </button>
+                            <button
+                              className="admin-btn-action"
+                              onClick={() => setCommentModalUser(user)}
+                              title="Add comment as this user"
+                              type="button"
+                            >
+                              <MessageSquare size={11} /> Comment
+                            </button>
+                            <button
+                              className="admin-btn-action"
+                              onClick={() => setMatchModalUser(user)}
+                              title="Match this user with another profile"
+                              type="button"
+                            >
+                              <Heart size={11} /> Match
+                            </button>
+                            <button
+                              className="admin-btn-action admin-btn-danger"
+                              onClick={() => void handleDeleteUser(user.id, user.displayName)}
+                              title="Delete user"
+                              type="button"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -717,7 +1037,7 @@ export default function AdminPage() {
               <div className="admin-pagination">
                 <span>
                   Showing page {userPagination.page} of {userPagination.totalPages} (
-                  {userPagination.total} total)
+                  {userPagination.total.toLocaleString()} total members)
                 </span>
                 <div className="admin-pagination-btns">
                   <button
@@ -922,6 +1242,396 @@ export default function AdminPage() {
             ) : null}
           </section>
         )}
+
+        {/* =====================================================================
+            CRUD MODAL 1: LOGIN AS USER
+            ===================================================================== */}
+        {loginModalUser ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.78)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+              zIndex: 10000,
+            }}
+            onClick={() => setLoginModalUser(null)}
+          >
+            <div
+              className="admin-panel"
+              style={{
+                maxWidth: '480px',
+                width: '100%',
+                padding: '24px',
+                display: 'grid',
+                gap: '16px',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#a9c4ff' }}>
+                  <Key size={18} />
+                  <h3 style={{ margin: 0, fontSize: '16px', color: '#f3f6fb' }}>
+                    Login Credentials for {loginModalUser.displayName}
+                  </h3>
+                </div>
+                <button
+                  className="icon-button"
+                  onClick={() => setLoginModalUser(null)}
+                  style={{ background: 'none', border: 0, color: '#8899b2', cursor: 'pointer' }}
+                  type="button"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <p style={{ margin: 0, fontSize: '12px', color: '#93a4bd' }}>
+                You can use these credentials to sign into Commonroom normally as this user, test experiences, or perform manual interactions.
+              </p>
+
+              <div style={{ background: '#0b1018', border: '1px solid #233147', borderRadius: '10px', padding: '14px', display: 'grid', gap: '10px' }}>
+                <div>
+                  <small style={{ color: '#8293ad', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Email Address
+                  </small>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '3px' }}>
+                    <code style={{ fontSize: '13px', color: '#eaf0fa' }}>{loginModalUser.email}</code>
+                    <button
+                      className="admin-btn-action"
+                      onClick={() => void copyToClipboard(loginModalUser.email, 'modal-email')}
+                      type="button"
+                    >
+                      {copiedId === 'modal-email' ? <CheckCircle color="#4ade80" size={12} /> : <Copy size={12} />} Copy
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ borderTop: '1px solid #1a2536', paddingTop: '8px' }}>
+                  <small style={{ color: '#8293ad', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Plaintext Password
+                  </small>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '3px' }}>
+                    <code style={{ fontSize: '13px', color: '#38bdf8', fontWeight: 600 }}>
+                      {loginModalUser.password || '(not available)'}
+                    </code>
+                    {loginModalUser.password ? (
+                      <button
+                        className="admin-btn-action"
+                        onClick={() => void copyToClipboard(loginModalUser.password!, 'modal-pwd')}
+                        type="button"
+                      >
+                        {copiedId === 'modal-pwd' ? <CheckCircle color="#4ade80" size={12} /> : <Copy size={12} />} Copy
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button
+                  className="admin-btn-action"
+                  onClick={() => {
+                    const text = `Email: ${loginModalUser.email}\nPassword: ${loginModalUser.password || ''}`;
+                    void copyToClipboard(text, 'all-creds');
+                  }}
+                  type="button"
+                >
+                  <Copy size={12} /> {copiedId === 'all-creds' ? 'Copied Both!' : 'Copy Both'}
+                </button>
+                <a
+                  className="primary-button"
+                  href="/"
+                  style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  target="_blank"
+                >
+                  <ExternalLink size={13} /> Open App Sign-In
+                </a>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* =====================================================================
+            CRUD MODAL 2: POST AS USER
+            ===================================================================== */}
+        {postModalUser ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.78)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+              zIndex: 10000,
+            }}
+            onClick={() => setPostModalUser(null)}
+          >
+            <form
+              className="admin-panel"
+              onSubmit={(e) => void handleCreatePostAsUser(e)}
+              style={{
+                maxWidth: '480px',
+                width: '100%',
+                padding: '24px',
+                display: 'grid',
+                gap: '16px',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#a9c4ff' }}>
+                  <PenSquare size={18} />
+                  <h3 style={{ margin: 0, fontSize: '16px', color: '#f3f6fb' }}>
+                    Publish Post as {postModalUser.displayName}
+                  </h3>
+                </div>
+                <button
+                  className="icon-button"
+                  onClick={() => setPostModalUser(null)}
+                  style={{ background: 'none', border: 0, color: '#8899b2', cursor: 'pointer' }}
+                  type="button"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <label style={{ display: 'grid', gap: '6px', fontSize: '11px', color: '#cbd5e4' }}>
+                Caption
+                <textarea
+                  maxLength={1000}
+                  onChange={(e) => setPostCaptionDraft(e.target.value)}
+                  placeholder="What's happening on campus today?"
+                  required
+                  rows={4}
+                  style={{
+                    background: '#0d141e',
+                    border: '1px solid #2a364c',
+                    borderRadius: '8px',
+                    color: '#eaf0fa',
+                    padding: '10px',
+                    font: 'inherit',
+                  }}
+                  value={postCaptionDraft}
+                />
+              </label>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  className="admin-btn-action"
+                  onClick={() => setPostModalUser(null)}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="primary-button"
+                  disabled={crudBusy || !postCaptionDraft.trim()}
+                  type="submit"
+                >
+                  {crudBusy ? 'Publishing…' : 'Publish as Member'}
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
+
+        {/* =====================================================================
+            CRUD MODAL 3: COMMENT AS USER
+            ===================================================================== */}
+        {commentModalUser ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.78)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+              zIndex: 10000,
+            }}
+            onClick={() => setCommentModalUser(null)}
+          >
+            <form
+              className="admin-panel"
+              onSubmit={(e) => void handleCreateCommentAsUser(e)}
+              style={{
+                maxWidth: '480px',
+                width: '100%',
+                padding: '24px',
+                display: 'grid',
+                gap: '16px',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#a9c4ff' }}>
+                  <MessageSquare size={18} />
+                  <h3 style={{ margin: 0, fontSize: '16px', color: '#f3f6fb' }}>
+                    Post Comment as {commentModalUser.displayName}
+                  </h3>
+                </div>
+                <button
+                  className="icon-button"
+                  onClick={() => setCommentModalUser(null)}
+                  style={{ background: 'none', border: 0, color: '#8899b2', cursor: 'pointer' }}
+                  type="button"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <label style={{ display: 'grid', gap: '6px', fontSize: '11px', color: '#cbd5e4' }}>
+                Target Post ID
+                <input
+                  onChange={(e) => setCommentPostIdDraft(e.target.value)}
+                  placeholder="Paste Room Post UUID…"
+                  required
+                  style={{
+                    background: '#0d141e',
+                    border: '1px solid #2a364c',
+                    borderRadius: '8px',
+                    color: '#eaf0fa',
+                    padding: '8px 10px',
+                    fontSize: '12px',
+                  }}
+                  value={commentPostIdDraft}
+                />
+              </label>
+
+              <label style={{ display: 'grid', gap: '6px', fontSize: '11px', color: '#cbd5e4' }}>
+                Comment Body
+                <textarea
+                  maxLength={500}
+                  onChange={(e) => setCommentBodyDraft(e.target.value)}
+                  placeholder="Great post! 👏"
+                  required
+                  rows={3}
+                  style={{
+                    background: '#0d141e',
+                    border: '1px solid #2a364c',
+                    borderRadius: '8px',
+                    color: '#eaf0fa',
+                    padding: '10px',
+                    font: 'inherit',
+                  }}
+                  value={commentBodyDraft}
+                />
+              </label>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  className="admin-btn-action"
+                  onClick={() => setCommentModalUser(null)}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="primary-button"
+                  disabled={crudBusy || !commentPostIdDraft.trim() || !commentBodyDraft.trim()}
+                  type="submit"
+                >
+                  {crudBusy ? 'Posting…' : 'Submit Comment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
+
+        {/* =====================================================================
+            CRUD MODAL 4: MATCH AS USER
+            ===================================================================== */}
+        {matchModalUser ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.78)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+              zIndex: 10000,
+            }}
+            onClick={() => setMatchModalUser(null)}
+          >
+            <form
+              className="admin-panel"
+              onSubmit={(e) => void handleMatchAsUser(e)}
+              style={{
+                maxWidth: '480px',
+                width: '100%',
+                padding: '24px',
+                display: 'grid',
+                gap: '16px',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f43f5e' }}>
+                  <Heart size={18} />
+                  <h3 style={{ margin: 0, fontSize: '16px', color: '#f3f6fb' }}>
+                    Connect/Match {matchModalUser.displayName}
+                  </h3>
+                </div>
+                <button
+                  className="icon-button"
+                  onClick={() => setMatchModalUser(null)}
+                  style={{ background: 'none', border: 0, color: '#8899b2', cursor: 'pointer' }}
+                  type="button"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <p style={{ margin: 0, fontSize: '12px', color: '#93a4bd' }}>
+                Creates a two-way mutual connection in Connect between {matchModalUser.displayName} and the target user, enabling instant direct messaging.
+              </p>
+
+              <label style={{ display: 'grid', gap: '6px', fontSize: '11px', color: '#cbd5e4' }}>
+                Target User ID
+                <input
+                  onChange={(e) => setMatchTargetUserIdDraft(e.target.value)}
+                  placeholder="Paste other member's User UUID…"
+                  required
+                  style={{
+                    background: '#0d141e',
+                    border: '1px solid #2a364c',
+                    borderRadius: '8px',
+                    color: '#eaf0fa',
+                    padding: '8px 10px',
+                    fontSize: '12px',
+                  }}
+                  value={matchTargetUserIdDraft}
+                />
+              </label>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  className="admin-btn-action"
+                  onClick={() => setMatchModalUser(null)}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="primary-button"
+                  disabled={crudBusy || !matchTargetUserIdDraft.trim()}
+                  type="submit"
+                >
+                  {crudBusy ? 'Matching…' : 'Create Mutual Match'}
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
 
         <footer className="admin-footer">
           <ShieldCheck size={14} /> Each admin API independently verifies the authorized, confirmed

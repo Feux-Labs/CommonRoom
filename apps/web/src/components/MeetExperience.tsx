@@ -25,8 +25,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { getBrowserSupabase } from '@/lib/supabase-browser';
-import { demoMeetProfiles, demoInitialConnections } from '@/lib/demo-content';
-import type { DemoMeetProfile } from '@/lib/demo-content';
 
 export type MeetProfile = {
   user_id: string;
@@ -154,23 +152,14 @@ export function MeetExperience({ session, profile, onRequireAccount }: Props) {
   const [pendingPhotoUpload, setPendingPhotoUpload] = useState(false);
 
   // Mutual Match & Connections
-  const [connections, setConnections] = useState<MeetProfile[]>(demoInitialConnections as MeetProfile[]);
+  const [connections, setConnections] = useState<MeetProfile[]>([]);
   const [matchedProfile, setMatchedProfile] = useState<MeetProfile | null>(null);
 
   // 1-on-1 Direct Chat
   const [activeChat, setActiveChat] = useState<{ profile: MeetProfile; conversationId: string; messages: ChatMessage[] } | null>(null);
   const [chatDraft, setChatDraft] = useState('');
   const [chatBusy, setChatBusy] = useState(false);
-  const [chatHistoryByUserId, setChatHistoryByUserId] = useState<Record<string, ChatMessage[]>>({
-    'demo-connect-aisha': [
-      {
-        id: 'msg-seed-1',
-        sender_id: 'demo-connect-aisha',
-        body: 'Hey! Loved your profile. Are you around the faculty today? 😊',
-        created_at: new Date(Date.now() - 3600000).toISOString(),
-      },
-    ],
-  });
+  const [chatHistoryByUserId, setChatHistoryByUserId] = useState<Record<string, ChatMessage[]>>({});
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
@@ -187,14 +176,13 @@ export function MeetExperience({ session, profile, onRequireAccount }: Props) {
     }
   }, [isOptedIn]);
 
-  // Load profiles from backend or fallback to demo
+  // Load real profiles from backend
   const reload = useCallback(async () => {
     setError('');
     try {
       const result = await meetRequest<MeetData>(session?.access_token ?? null);
-      const useDemoProfiles = result.profiles.length === 0;
-      setData(useDemoProfiles ? { ...result, profiles: demoMeetProfiles as MeetProfile[], demoContent: true } : result);
-      if (result.me.meet) {
+      setData(result);
+      if (result.me?.meet) {
         setConnectBio(result.me.meet.bio || '');
         setConnectInterests(result.me.meet.interests.join(', ') || '');
         const pUrls = result.me.meet.photo_urls || [];
@@ -203,19 +191,17 @@ export function MeetExperience({ session, profile, onRequireAccount }: Props) {
         setDiscoverable(result.me.meet.discoverable ?? false);
         setIsOptedIn(true);
       }
-      if (result.people && result.people.length > 0) {
+      if (result.people) {
         setConnections(result.people);
       }
     } catch (loadError) {
-      // Offline / dev fallback: seamlessly load rich campus demo profiles
       setData({
         me: {
           profile: { displayName: profile.displayName, school: profile.school, course: 'Student', year: 'Year 2', avatarUrl: null },
           meet: null,
         },
-        profiles: demoMeetProfiles as MeetProfile[],
-        people: demoInitialConnections as MeetProfile[],
-        demoContent: true,
+        profiles: [],
+        people: [],
       });
     }
   }, [profile.displayName, profile.school, session]);
@@ -225,13 +211,32 @@ export function MeetExperience({ session, profile, onRequireAccount }: Props) {
     return () => window.clearTimeout(timer);
   }, [reload]);
 
+  // Polling for active chat messages to support real 2-way conversation
+  useEffect(() => {
+    if (!session || !activeChat) return;
+    const interval = setInterval(async () => {
+      try {
+        const chat = await meetChatRequest<{ conversationId: string; messages: ChatMessage[] }>(session.access_token, {
+          userId: activeChat.profile.user_id,
+        });
+        if (chat?.messages) {
+          setActiveChat((prev) => (prev ? { ...prev, messages: chat.messages } : null));
+          setChatHistoryByUserId((prev) => ({ ...prev, [activeChat.profile.user_id]: chat.messages }));
+        }
+      } catch {
+        // silent
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [session, activeChat?.profile.user_id]);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeChat?.messages.length]);
 
   // Filtered profiles for discovery deck
   const discoverProfiles = useMemo(() => {
-    const list = data?.profiles ?? (demoMeetProfiles as MeetProfile[]);
+    const list = data?.profiles ?? [];
     return list
       .filter((candidate) => !skipped.includes(candidate.user_id))
       .filter((candidate) => filterSchool !== 'my_school' || !profile.school || candidate.school === profile.school)
@@ -390,32 +395,6 @@ export function MeetExperience({ session, profile, onRequireAccount }: Props) {
         // Stored locally
       }
     }
-
-    // Realistic campus auto-reply for demo profiles
-    const targetUserId = activeChat.profile.user_id;
-    window.setTimeout(() => {
-      const sampleReplies = [
-        "Hey! Great to connect with you 😊 Are you on campus today?",
-        "Haha totally agree! Which faculty are you usually around?",
-        "Sounds fun! Let me know when you're free for a quick coffee between classes ☕",
-        "Awesome! I was actually just heading over to the library.",
-      ];
-      const randomReply = sampleReplies[Math.floor(Math.random() * sampleReplies.length)];
-      const replyMsg: ChatMessage = {
-        id: `reply-${Date.now()}`,
-        sender_id: targetUserId,
-        body: randomReply,
-        created_at: new Date().toISOString(),
-      };
-      setChatHistoryByUserId((prev) => {
-        const currentList = prev[targetUserId] ?? [];
-        return { ...prev, [targetUserId]: [...currentList, replyMsg] };
-      });
-      setActiveChat((current) => {
-        if (!current || current.profile.user_id !== targetUserId) return current;
-        return { ...current, messages: [...current.messages, replyMsg] };
-      });
-    }, 1300);
   };
 
   // Photo Upload Handler for Photo Setup Studio
