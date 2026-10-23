@@ -64,29 +64,58 @@ export async function GET(request: Request) {
     });
   }
 
-  let query = auth.supabase.from('posts').select(feedSelect).order('created_at', { ascending: false }).order('id', { ascending: false }).limit(limit + 1);
+function computePostScore(
+  row: Record<string, unknown>,
+  userSchool?: string | null,
+  followingIds?: Set<string>,
+): number {
+  const createdAt = new Date(String(row.created_at)).getTime();
+  const ageHours = Math.max(0.1, (Date.now() - createdAt) / 3600000);
+  const likes = typeof row.likes_count === 'number' ? row.likes_count : (Array.isArray(row.post_likes) ? ((row.post_likes as { count?: number }[])[0]?.count ?? 0) : 0);
+  const comments = typeof row.comments_count === 'number' ? row.comments_count : (Array.isArray(row.post_comments) ? ((row.post_comments as { count?: number }[])[0]?.count ?? 0) : 0);
+  const shares = typeof row.shares_count === 'number' ? row.shares_count : 0;
+  const saves = typeof row.saves_count === 'number' ? row.saves_count : 0;
+
+  const isSameSchool = Boolean(userSchool && row.school_label && row.school_label === userSchool);
+  const isFollowing = Boolean(followingIds && followingIds.has(String(row.author_id)));
+
+  const engagement = (likes * 2) + (comments * 3.5) + (saves * 3) + (shares * 4);
+  const affinity = (isSameSchool ? 15 : 0) + (isFollowing ? 12 : 0);
+  const timeDecay = Math.pow(ageHours + 2, 1.25);
+
+  return (engagement + affinity) / timeDecay;
+}
+
+  const { data: profile } = await auth.supabase.from('profiles').select('school').eq('id', auth.user.id).maybeSingle();
+  const { data: follows } = await auth.supabase.from('follows').select('following_id').eq('follower_id', auth.user.id);
+  const followingIds = new Set((follows ?? []).map((follow) => follow.following_id));
+
+  let query = auth.supabase.from('posts').select(feedSelect).order('created_at', { ascending: false }).order('id', { ascending: false }).limit(limit * 2);
   if (cursor) {
     query = query.or(`created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`);
   }
 
   if (scope === 'following') {
-    const { data: follows, error: followsError } = await auth.supabase
-      .from('follows')
-      .select('following_id')
-      .eq('follower_id', auth.user.id);
-    if (followsError) return apiError('feed_read_failed', 'Your feed could not be loaded.', 500);
-    const followingIds = (follows ?? []).map((follow) => follow.following_id);
-    if (followingIds.length === 0) return apiSuccess({ posts: [], hasMore: false, nextCursor: null });
-    query = query.in('author_id', followingIds);
-  } else {
-    const { data: profile } = await auth.supabase.from('profiles').select('school').eq('id', auth.user.id).maybeSingle();
-    if (scope === 'for_you' && profile?.school) query = query.eq('school_label', profile.school);
-    if (scope === 'general' && profile?.school) query = query.or(`school_label.is.null,school_label.neq.${profile.school}`);
+    if (followingIds.size === 0) return apiSuccess({ posts: [], hasMore: false, nextCursor: null });
+    query = query.in('author_id', [...followingIds]);
+  } else if (scope === 'for_you') {
+    if (profile?.school) {
+      const allowedAuthors = [...followingIds, auth.user.id];
+      query = query.or(`school_label.eq.${profile.school}${allowedAuthors.length ? `,author_id.in.(${allowedAuthors.join(',')})` : ''}`);
+    }
   }
 
   const { data, error } = await query;
   if (error) return apiError('feed_read_failed', 'Your feed could not be loaded.', 500);
-  const rows = await attachRoomViewerFields(auth.supabase, auth.user.id, (data ?? []) as Record<string, unknown>[]);
+  let rows = await attachRoomViewerFields(auth.supabase, auth.user.id, (data ?? []) as Record<string, unknown>[]);
+
+  if (scope === 'for_you' || scope === 'general') {
+    rows = rows.map((r) => ({
+      ...r,
+      score: computePostScore(r, profile?.school, followingIds),
+    })).sort((a, b) => ((b.score as number) ?? 0) - ((a.score as number) ?? 0));
+  }
+
   const hasMore = rows.length > limit;
   const page = rows.slice(0, limit);
   const last = page.at(-1);

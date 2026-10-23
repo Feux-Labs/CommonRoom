@@ -29,6 +29,9 @@ export type FeedPost = {
   location?: string;
   mediaItems?: MediaItem[];
   pollOptions?: string[];
+  pollVotes?: number[];
+  userPollVote?: number | null;
+  totalPollVotes?: number;
   audience?: Audience;
   ageRestricted?: boolean;
   allowComments?: boolean;

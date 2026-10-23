@@ -124,7 +124,8 @@ async function apiRequest<T>(path: string, token: string, method = 'GET', body?:
   return result.data;
 }
 
-function formatPostType(type: Extract<MediaType, 'photo' | 'video' | 'text'>) {
+function formatPostType(type: Extract<MediaType, 'photo' | 'video' | 'text' | 'poll'>) {
+  if (type === 'poll') return 'Poll';
   return type === 'video' ? 'Video' : type === 'photo' ? 'Photo' : 'Text';
 }
 
@@ -172,6 +173,7 @@ export default function Home() {
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [interests, setInterests] = useState<string[]>([]);
   const [createType, setCreateType] = useState<MediaType>('photo');
+  const [createPollOptions, setCreatePollOptions] = useState<string[]>(['', '']);
   const [createDestination, setCreateDestination] = useState<'room' | 'anonymous'>('room');
   const [anonymousTitle, setAnonymousTitle] = useState('');
   const [anonymousIdentity, setAnonymousIdentity] = useState<AnonymousIdentity | null>(null);
@@ -657,7 +659,7 @@ export default function Home() {
         mediaItems,
         mediaType: createType,
         selectedSound: selectedSoundName,
-        pollOptions: [],
+        pollOptions: createType === 'poll' ? createPollOptions.map((o) => o.trim()).filter(Boolean) : [],
         audience: createAudience,
         location: createLocation,
       });
@@ -665,6 +667,7 @@ export default function Home() {
       setCreateLocation('');
       setCreateFiles([]);
       setSelectedSoundName(null);
+      setCreatePollOptions(['', '']);
       setCompressionProgress(null);
       setLocationSuggestions([]);
       setLocationSearchState('idle');
@@ -900,79 +903,15 @@ export default function Home() {
       </aside>
 
       <section className="workspace">
-        {tab === 'home' ? (
-          <header className="mobile-topbar">
-            <RoomMobileBrand />
-            <div className="mobile-topbar-actions room-topbar-actions">
-              <button
-                className="icon-button room-topbar-icon room-notifications-button"
-                aria-label="Notifications"
-                onClick={() => {
-                  setNotificationsOpen((prev) => !prev);
-                  setMenuOpen(false);
-                }}
-                type="button"
-              >
-                <Bell size={20} strokeWidth={1.8} />
-                {notifications.some((n) => !n.read) ? (
-                  <span className="notification-dot" />
-                ) : null}
-              </button>
-              <span aria-hidden="true" className="room-topbar-divider" />
-              <button
-                className="icon-button room-topbar-icon"
-                aria-label="Search"
-                onClick={() => setSearchModalOpen(true)}
-                type="button"
-              >
-                <Search size={22} strokeWidth={1.8} />
-              </button>
-              {isGuest ? (
-                <button
-                  className="guest-login-pill room-login-button"
-                  onClick={() => { setAuthRoute('sign-in'); setAuthModalOpen(true); }}
-                  type="button"
-                >
-                  Log in
-                </button>
-              ) : (
-                <button
-                  className="mobile-avatar-btn room-account-button"
-                  aria-label="Account menu"
-                  onClick={() => {
-                    setMenuOpen((prev) => !prev);
-                    setNotificationsOpen(false);
-                  }}
-                  type="button"
-                >
-                  <span className="profile-avatar-circle">
-                    {currentProfile.displayName.slice(0, 1).toUpperCase()}
-                  </span>
-                </button>
-              )}
-              <button
-                className="icon-button room-topbar-icon room-menu-button"
-                aria-label="Open menu"
-                onClick={() => {
-                  setMenuOpen((prev) => !prev);
-                  setNotificationsOpen(false);
-                }}
-                type="button"
-              >
-                <Menu size={24} strokeWidth={2} />
-              </button>
+        {tab !== 'home' ? (
+          <header className="workspace-topbar">
+            <div className="workspace-heading">
+              <h2>{tabs.find((item) => item.id === tab)?.label ?? (tab === 'games' ? 'Games' : tab === 'profile' ? 'My profile' : 'Connect')}</h2>
             </div>
-          </header>
-        ) : null}
-
-        <header className="workspace-topbar">
-          <div className="workspace-heading">
-            <h2>{tabs.find((item) => item.id === tab)?.label ?? (tab === 'games' ? 'Games' : tab === 'profile' ? 'My profile' : 'Connect')}</h2>
-          </div>
-          <div className="topbar-actions">
-            <button className="search-button" onClick={() => setSearchModalOpen(true)} type="button">
-              <Search size={16} />
-              <span>Search</span>
+            <div className="topbar-actions">
+              <button className="search-button" onClick={() => setSearchModalOpen(true)} type="button">
+                <Search size={16} />
+                <span>Search</span>
               <kbd>⌘ K</kbd>
             </button>
             <button
@@ -988,16 +927,18 @@ export default function Home() {
             </button>
           </div>
         </header>
+        ) : null}
 
         <div className="content-scroll">
           {error ? <div className="feedback error-banner" role="alert"><span>{error}</span><button onClick={() => setError('')} aria-label="Dismiss error"><X size={16} /></button></div> : null}
           {notice ? <div className="feedback success-banner" role="status"><span>{notice}</span><button onClick={() => setNotice('')} aria-label="Dismiss message"><X size={16} /></button></div> : null}
-          <CommunityAnnouncement />
+          {tab !== 'home' ? <CommunityAnnouncement /> : null}
 
           {tab === 'home' ? (
             <RoomExperience
               accessToken={session?.access_token ?? ''}
               focusPostId={focusPostId}
+              hasUnreadNotifications={notifications.some((n) => !n.read)}
               isGuest={isGuest}
               onCreate={() => {
                 if (isGuest) {
@@ -1009,6 +950,15 @@ export default function Home() {
               }}
               onError={setError}
               onNotice={setNotice}
+              onOpenAccountMenu={() => {
+                setMenuOpen((prev) => !prev);
+                setNotificationsOpen(false);
+              }}
+              onOpenNotifications={() => {
+                setNotificationsOpen((prev) => !prev);
+                setMenuOpen(false);
+              }}
+              onOpenSearch={() => setSearchModalOpen(true)}
               onRequireAccount={() => {
                 setAuthRoute('sign-in');
                 setAuthModalOpen(true);
@@ -1069,7 +1019,7 @@ export default function Home() {
               ) : (
                 <form className={`panel form-panel${createDestination === 'anonymous' ? ' anonymous-create-form' : ''}`} onSubmit={(event) => void publishPost(event)}>
                 <div className="segmented-control">
-                  {(['photo', 'video', 'text'] as const).map((type) => (
+                  {(createDestination === 'anonymous' ? ['text', 'photo', 'video'] as const : ['photo', 'video', 'poll', 'text'] as const).map((type) => (
                     <button key={type} type="button" className={createType === type ? 'segment selected' : 'segment'} onClick={() => { setCreateType(type); setCreateFiles([]); setSelectedSoundName(null); setReelEditorOpen(false); setPhotoReelEditorOpen(false); }}>
                       {type === 'video' ? <Video size={15} /> : type === 'photo' ? <ImagePlus size={15} /> : null}{formatPostType(type)}
                     </button>
@@ -1086,6 +1036,56 @@ export default function Home() {
                       <input maxLength={120} onChange={(event) => setAnonymousTitle(event.target.value)} placeholder="Give it a short title" value={anonymousTitle} />
                     </label>
                   </>
+                ) : null}
+                {createType === 'poll' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '14px 0' }}>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: '#f8fafc' }}>
+                      Poll Options (2 to 6 choices)
+                    </label>
+                    {createPollOptions.map((opt, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <input
+                          maxLength={100}
+                          placeholder={`Option ${idx + 1}`}
+                          value={opt}
+                          onChange={(e) => {
+                            const updated = [...createPollOptions];
+                            updated[idx] = e.target.value;
+                            setCreatePollOptions(updated);
+                          }}
+                          style={{
+                            background: '#1e293b',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            borderRadius: 10,
+                            padding: '10px 14px',
+                            color: '#ffffff',
+                            fontSize: 14,
+                            flex: 1,
+                          }}
+                        />
+                        {createPollOptions.length > 2 ? (
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            style={{ padding: '8px 12px' }}
+                            onClick={() => setCreatePollOptions(createPollOptions.filter((_, i) => i !== idx))}
+                          >
+                            Remove
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
+                    {createPollOptions.length < 6 ? (
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        style={{ width: 'fit-content', marginTop: 4 }}
+                        onClick={() => setCreatePollOptions([...createPollOptions, ''])}
+                      >
+                        + Add Option
+                      </button>
+                    ) : null}
+                  </div>
                 ) : null}
                 {createType === 'photo' || createType === 'video' ? (
                   createFiles.length === 0 ? (

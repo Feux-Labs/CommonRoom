@@ -38,7 +38,10 @@ export function mapRoomPost(row: Record<string, unknown>): RoomPost {
     time: formatRelativeTime(createdAt),
     location: typeof row.location === 'string' ? row.location : undefined,
     mediaItems: items,
-    pollOptions: Array.isArray(row.poll_options) ? row.poll_options as string[] : [],
+    pollOptions: Array.isArray(row.poll_options) ? (row.poll_options as string[]) : [],
+    pollVotes: Array.isArray(row.poll_votes) ? (row.poll_votes as number[]) : undefined,
+    userPollVote: typeof row.user_poll_vote === 'number' ? (row.user_poll_vote as number) : null,
+    totalPollVotes: typeof row.total_poll_votes === 'number' ? (row.total_poll_votes as number) : undefined,
     audience: row.audience as Audience,
     ageRestricted: row.age_restricted === true,
     allowComments: row.allow_comments !== false,
@@ -78,14 +81,20 @@ export async function attachRoomViewerFields(
   if (rows.length === 0) return rows;
   const postIds = rows.map((row) => String(row.id));
   const authorIds = [...new Set(rows.map((row) => String(row.author_id ?? '')).filter(Boolean))];
+  const pollPostIds = rows
+    .filter((r) => Array.isArray(r.poll_options) && (r.poll_options as unknown[]).length > 0)
+    .map((r) => String(r.id));
 
-  const [likes, saves, shareRows, authors] = await Promise.all([
+  const [likes, saves, shareRows, authors, pollVoteRows] = await Promise.all([
     supabase.from('post_likes').select('post_id').eq('user_id', userId).in('post_id', postIds),
     supabase.from('post_saves').select('post_id').eq('user_id', userId).in('post_id', postIds),
     supabase.from('post_shares').select('post_id').in('post_id', postIds),
     authorIds.length
       ? supabase.from('profiles').select('id, avatar_url').in('id', authorIds)
       : Promise.resolve({ data: [] as { id: string; avatar_url: string | null }[], error: null }),
+    pollPostIds.length
+      ? supabase.from('post_poll_votes').select('post_id, user_id, option_index').in('post_id', pollPostIds)
+      : Promise.resolve({ data: [] as { post_id: string; user_id: string; option_index: number }[], error: null }),
   ]);
 
   const liked = new Set((likes.error ? [] : likes.data ?? []).map((row) => row.post_id as string));
@@ -97,14 +106,53 @@ export async function attachRoomViewerFields(
   }
   const avatars = new Map((authors.error ? [] : authors.data ?? []).map((author) => [author.id, author.avatar_url]));
 
+  const pollVotesByPost = new Map<string, { tallies: Map<number, number>; userVote: number | null; total: number }>();
+  if (!pollVoteRows.error && pollVoteRows.data) {
+    for (const vote of pollVoteRows.data) {
+      const pId = String(vote.post_id);
+      let entry = pollVotesByPost.get(pId);
+      if (!entry) {
+        entry = { tallies: new Map(), userVote: null, total: 0 };
+        pollVotesByPost.set(pId, entry);
+      }
+      entry.total += 1;
+      const opt = vote.option_index;
+      entry.tallies.set(opt, (entry.tallies.get(opt) ?? 0) + 1);
+      if (vote.user_id === userId) {
+        entry.userVote = opt;
+      }
+    }
+  }
+
   return rows.map((row) => {
     const id = String(row.id);
+    const options = Array.isArray(row.poll_options) ? (row.poll_options as string[]) : [];
+    let pollVotes: number[] | undefined;
+    let userPollVote: number | null = null;
+    let totalPollVotes: number | undefined;
+
+    if (options.length > 0) {
+      const pollData = pollVotesByPost.get(id);
+      if (pollData) {
+        pollVotes = options.map((_, idx) => pollData.tallies.get(idx) ?? 0);
+        userPollVote = pollData.userVote;
+        totalPollVotes = pollData.total;
+      } else {
+        pollVotes = options.map(() => 0);
+        userPollVote = null;
+        totalPollVotes = 0;
+      }
+    }
+
     return {
       ...row,
       liked_by_me: liked.has(id),
       saved_by_me: saved.has(id),
       shares_count: typeof row.shares_count === 'number' ? row.shares_count : (shareCounts.get(id) ?? 0),
       author_avatar: row.author_avatar ?? avatars.get(String(row.author_id ?? '')) ?? null,
+      poll_votes: pollVotes,
+      user_poll_vote: userPollVote,
+      total_poll_votes: totalPollVotes,
     };
   });
 }

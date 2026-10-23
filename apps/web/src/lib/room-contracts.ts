@@ -9,6 +9,9 @@ export type RoomPost = FeedPost & {
   saved: boolean;
   createdAt: string;
   score?: number;
+  pollVotes?: number[];
+  userPollVote?: number | null;
+  totalPollVotes?: number;
 };
 
 export type RoomComment = {

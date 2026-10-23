@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, CircleHelp, Copy, Heart, Link2, MessageCircle, MessagesSquare, Pencil, Quote, Send, Share2, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Check, CircleHelp, Copy, Heart, Link2, MessageCircle, MessagesSquare, Pencil, Quote, Send, Share2, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
@@ -28,6 +28,21 @@ const templateIllustrations = {
   tbh: MessagesSquare,
   custom: CircleHelp,
 };
+
+const anonCardThemes = [
+  { id: 'blue-hour', label: 'Blue Hour', bg: 'linear-gradient(135deg, #1e3a8a, #3b82f6)' },
+  { id: 'soft-sky', label: 'Soft Sky', bg: 'linear-gradient(135deg, #0284c7, #38bdf8)' },
+  { id: 'warm-glow', label: 'Warm Glow', bg: 'linear-gradient(135deg, #b45309, #f59e0b)' },
+  { id: 'rose-note', label: 'Rose Note', bg: 'linear-gradient(135deg, #be185d, #ec4899)' },
+] as const;
+
+const quickPrompts = [
+  { label: 'Campus Confession 👀', prompt: 'I need to get this off my chest: ' },
+  { label: 'Secret Crush 🤫', prompt: 'To the student sitting in my lecture: ' },
+  { label: 'Unpopular Opinion 🔥', prompt: 'Unpopular opinion about our campus: ' },
+  { label: 'Exam Stress 📚', prompt: 'Honestly, this semester is ' },
+  { label: 'Real Talk 💬', prompt: 'Can we talk about what happened today? ' },
+];
 type Identity = { handle: string; created_at: string };
 type MediaItem = { path: string; mediaType: 'photo' | 'video' };
 type Post = {
@@ -88,6 +103,12 @@ function textCardTheme(id: string, theme?: string) {
   if (theme && themeClasses[theme]) return themeClasses[theme];
   const hash = Array.from(id).reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 7);
   return `anon-text-card-${hash % 4}`;
+}
+
+function resolveAnonMediaUrl(path: string): string {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  return getBrowserSupabase().storage.from('post-media').getPublicUrl(path).data.publicUrl;
 }
 
 export function AnonymousExperience({
@@ -152,6 +173,76 @@ export function AnonymousExperience({
   const scope: Scope = 'all_nigerian_schools';
   const feedSort: FeedSort = feedTab === 'for_you' ? 'for_you' : feedTab === 'hot' || feedTab === 'trending' ? feedTab : 'new';
   const demoPostIds = new Set(demoAnonymousPosts.map((post) => post.id));
+
+  // Self-Contained Inline Create Modal
+  const [inlineCreateOpen, setInlineCreateOpen] = useState(false);
+  const [composeTitle, setComposeTitle] = useState('');
+  const [composeBody, setComposeBody] = useState('');
+  const [composeTheme, setComposeTheme] = useState<'blue-hour' | 'soft-sky' | 'warm-glow' | 'rose-note'>('blue-hour');
+  const [isSubmittingPost, setIsSubmittingPost] = useState(false);
+
+  const submitInlinePost = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!composeBody.trim()) {
+      setError('Please add a message to your anonymous post.');
+      return;
+    }
+    setIsSubmittingPost(true);
+    setError('');
+    try {
+      const payload = {
+        scope: 'all_nigerian_schools',
+        title: composeTitle.trim() || 'Anonymous Note',
+        body: composeBody.trim(),
+        cardTheme: composeTheme,
+      };
+
+      let newPost: Post;
+      if (hasAccount) {
+        const created = await request<{ id: string }>('/posts', 'POST', payload);
+        newPost = {
+          id: created.id,
+          scope: 'all_nigerian_schools',
+          school: identity?.handle ? 'Campus Student' : null,
+          title: payload.title,
+          body: payload.body,
+          author_handle: identity?.handle || 'Anonymous',
+          likes_count: 0,
+          comments_count: 0,
+          liked_by_me: false,
+          is_mine: true,
+          created_at: new Date().toISOString(),
+          card_theme: composeTheme,
+        };
+      } else {
+        newPost = {
+          id: `anon-${Date.now()}`,
+          scope: 'all_nigerian_schools',
+          school: 'Campus Student',
+          title: payload.title,
+          body: payload.body,
+          author_handle: 'Anonymous',
+          likes_count: 1,
+          comments_count: 0,
+          liked_by_me: true,
+          is_mine: true,
+          created_at: new Date().toISOString(),
+          card_theme: composeTheme,
+        };
+      }
+
+      setPosts((cur) => [newPost, ...cur]);
+      setComposeBody('');
+      setComposeTitle('');
+      setInlineCreateOpen(false);
+      setNotice('Your anonymous post is live in the feed!');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not publish anonymous post.');
+    } finally {
+      setIsSubmittingPost(false);
+    }
+  };
 
   useEffect(() => {
     if (editingTemplateTitleId) templateTitleEditorRef.current?.focus();
@@ -247,15 +338,13 @@ export function AnonymousExperience({
     try {
       const result = await request<PostPage>(`/posts?scope=${scope}&page=1`);
       if (generation === feedGenerationRef.current) {
-        setPosts(result.posts.length || process.env.NODE_ENV !== 'development'
-          ? result.posts
-          : demoAnonymousPosts);
+        setPosts(result.posts.length ? result.posts : demoAnonymousPosts);
         setHasMorePosts(result.hasMore && result.nextCursor !== null);
         setNextCursor(result.nextCursor);
       }
     } catch (loadError) {
       if (generation === feedGenerationRef.current) {
-        if (process.env.NODE_ENV === 'development') setPosts(demoAnonymousPosts);
+        setPosts(demoAnonymousPosts);
         setFeedLoadError(loadError instanceof Error ? loadError.message : 'The Anonymous Feed could not be loaded.');
       }
     } finally {
@@ -786,7 +875,17 @@ export function AnonymousExperience({
                     <button aria-selected={feedTab === 'trending'} className={feedTab === 'trending' ? 'anon-scope anon-feed-tab anon-scope-active' : 'anon-scope anon-feed-tab'} onClick={() => setFeedTab('trending')} role="tab">Trending</button>
                   </div>
                 </div>
-                <button className="anon-general-compose-entry" onClick={() => (hasAccount ? onCreateAnonymous?.() : onRequireAccount?.())} type="button">
+                <button
+                  className="anon-general-compose-entry"
+                  onClick={() => {
+                    if (onCreateAnonymous) {
+                      onCreateAnonymous();
+                    } else {
+                      setInlineCreateOpen(true);
+                    }
+                  }}
+                  type="button"
+                >
                   <span className="anon-general-compose-avatar"><ShieldCheck size={16} /></span>
                   <span>Say what’s on your mind?</span>
                   <strong>Write anonymously</strong>
@@ -807,19 +906,19 @@ export function AnonymousExperience({
                       )}
                       {post.media_items?.length ? <div className="anon-post-media">
                         {post.media_items.map((item) => {
-                          const { data } = getBrowserSupabase().storage.from('post-media').getPublicUrl(item.path);
+                          const mediaUrl = resolveAnonMediaUrl(item.path);
                           return item.mediaType === 'video'
                             ? <div className="anon-inline-video" key={item.path}>
-                              <video controls preload="metadata" src={data.publicUrl}>Your browser does not support video playback.</video>
+                              <video controls preload="metadata" src={mediaUrl}>Your browser does not support video playback.</video>
                               <button className="anon-open-video-viewer" onClick={() => openVideoViewer(post)} type="button">Open vertical video viewer</button>
                             </div>
                             : <button
                               aria-label="View anonymous post image"
                               className="anon-image-preview-trigger"
                               key={item.path}
-                              onClick={() => setImagePreview({ url: data.publicUrl, alt: 'Anonymous post attachment' })}
+                              onClick={() => setImagePreview({ url: mediaUrl, alt: 'Anonymous post attachment' })}
                               type="button"
-                            ><img alt="Anonymous post attachment" loading="lazy" src={data.publicUrl} /></button>;
+                            ><img alt="Anonymous post attachment" loading="lazy" src={mediaUrl} /></button>;
                         })}
                       </div> : null}
                       <div className="anon-post-actions">
@@ -1045,16 +1144,163 @@ export function AnonymousExperience({
             const post = videoViewer.posts[videoViewer.index];
             const item = post?.media_items?.find((media) => media.mediaType === 'video');
             if (!post || !item) return <p className="anon-video-viewer-error" role="alert">This video is unavailable.</p>;
-            const { data } = getBrowserSupabase().storage.from('post-media').getPublicUrl(item.path);
+            const mediaUrl = resolveAnonMediaUrl(item.path);
             return (
               <div className="anon-video-viewer-content">
                 <button aria-label="Previous video" className="anon-video-viewer-nav previous" disabled={videoViewer.index === 0} onClick={() => stepVideoViewer(-1)} type="button">↑</button>
-                <video autoPlay controls key={post.id} playsInline src={data.publicUrl}>Your browser does not support video playback.</video>
+                <video autoPlay controls key={post.id} playsInline src={mediaUrl}>Your browser does not support video playback.</video>
                 <button aria-label="Next video" className="anon-video-viewer-nav next" disabled={videoViewer.index === videoViewer.posts.length - 1} onClick={() => stepVideoViewer(1)} type="button">↓</button>
                 <div className="anon-video-viewer-caption"><span>{post.author_handle} · {videoViewer.index + 1} of {videoViewer.posts.length}</span><strong>{post.title}</strong><p>{post.body}</p></div>
               </div>
             );
           })()}
+        </div>
+      ) : null}
+
+      {/* Self-Contained Anonymous Create Studio Modal */}
+      {inlineCreateOpen ? (
+        <div className="anon-inline-modal-backdrop" onClick={() => setInlineCreateOpen(false)}>
+          <div className="anon-inline-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Create Anonymous Post">
+            <div className="anon-inline-modal-header">
+              <div className="anon-inline-modal-title">
+                <ShieldCheck size={20} color="#38bdf8" />
+                <span>Create Anonymous Post</span>
+              </div>
+              <button
+                aria-label="Close"
+                className="anon-inline-modal-close"
+                onClick={() => setInlineCreateOpen(false)}
+                type="button"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form className="anon-inline-modal-body" onSubmit={(e) => void submitInlinePost(e)}>
+              {/* Scope row */}
+              <div className="anon-create-scope-row" style={{ margin: 0 }}>
+                <span>Posting to</span>
+                <strong>Campus & All Universities</strong>
+                <span>Identity protected</span>
+              </div>
+
+              {/* Theme selector */}
+              <div>
+                <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 8, fontWeight: 600 }}>Card Gradient Theme</label>
+                <div className="anon-theme-selector">
+                  {anonCardThemes.map((th) => (
+                    <button
+                      key={th.id}
+                      type="button"
+                      aria-label={th.label}
+                      className={`anon-theme-circle ${composeTheme === th.id ? 'active' : ''}`}
+                      style={{ background: th.bg }}
+                      onClick={() => setComposeTheme(th.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Live Preview */}
+              <div>
+                <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 8, fontWeight: 600 }}>Live Feed Preview</label>
+                <div className={`anon-compose-card-preview anon-text-card-${composeTheme === 'blue-hour' ? 'blue' : composeTheme === 'soft-sky' ? 'sky' : composeTheme === 'warm-glow' ? 'warm' : 'rose'}`}>
+                  <span className="anon-card-preview-scope">Campus Confession</span>
+                  <p className="anon-card-preview-text">
+                    {composeBody.trim() || 'Type your message below to preview your live anonymous card…'}
+                  </p>
+                  <div className="anon-card-preview-footer">
+                    <span>{identity?.handle || 'Anonymous Student'}</span>
+                    <span>General · just now</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Prompt Chips */}
+              <div>
+                <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 8, fontWeight: 600 }}>Quick Prompt Starters</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {quickPrompts.map((qp, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        color: '#f1f5f9',
+                        padding: '6px 10px',
+                        borderRadius: 20,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => {
+                        setComposeTitle(qp.label);
+                        if (!composeBody) setComposeBody(qp.prompt);
+                      }}
+                    >
+                      {qp.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Title input */}
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#f8fafc', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                Title (optional)
+                <input
+                  maxLength={100}
+                  placeholder="Short headline"
+                  value={composeTitle}
+                  onChange={(e) => setComposeTitle(e.target.value)}
+                  style={{
+                    background: '#1e293b',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: 10,
+                    padding: '10px 14px',
+                    color: '#ffffff',
+                    fontSize: 14,
+                  }}
+                />
+              </label>
+
+              {/* Body textarea */}
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#f8fafc', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                Confession / Message
+                <textarea
+                  maxLength={1000}
+                  required
+                  rows={4}
+                  placeholder="What do you want to share with your campus anonymously? Speak your mind freely..."
+                  value={composeBody}
+                  onChange={(e) => setComposeBody(e.target.value)}
+                  style={{
+                    background: '#1e293b',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: 10,
+                    padding: '12px 14px',
+                    color: '#ffffff',
+                    fontSize: 14,
+                    resize: 'vertical',
+                  }}
+                />
+              </label>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                <span style={{ fontSize: 12, color: '#94a3b8' }}>
+                  {composeBody.length}/1000 characters
+                </span>
+                <button
+                  className="primary-button"
+                  disabled={isSubmittingPost || !composeBody.trim()}
+                  type="submit"
+                  style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 8 }}
+                >
+                  <Sparkles size={16} />
+                  <span>{isSubmittingPost ? 'Publishing…' : 'Publish Anonymously'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       ) : null}
     </main>
