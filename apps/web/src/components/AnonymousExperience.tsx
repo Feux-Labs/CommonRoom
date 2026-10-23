@@ -817,14 +817,7 @@ export function AnonymousExperience({
             <ArrowLeft size={20} />
           </button>
           <div className="anon-brand">
-            <Image
-              alt="Commonroom Anonymous"
-              className="anon-brand-logo"
-              height={26}
-              priority
-              src="/common-room-full-logo-white.png"
-              width={120}
-            />
+            <span className="anon-instagram-logo instagram-brand-font">Anonymous</span>
           </div>
         </header>
 

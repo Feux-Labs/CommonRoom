@@ -45,8 +45,8 @@ type ViewerState =
   | { kind: 'photo'; postId: string }
   | { kind: 'reel'; postId: string };
 
-type RoomFeedSection = 'For You' | 'General' | 'Trending / Conversations';
-const roomFeedSections: RoomFeedSection[] = ['For You', 'General', 'Trending / Conversations'];
+type RoomFeedSection = 'For You' | 'Videos' | 'General' | 'Trending / Conversations';
+const roomFeedSections: RoomFeedSection[] = ['For You', 'Videos', 'General', 'Trending / Conversations'];
 
 function formatCount(num: number): string {
   if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
@@ -231,6 +231,13 @@ export function RoomExperience({
   const lastTapRef = useRef<{ time: number; postId: string }>({ time: 0, postId: '' });
 
   const displayedPosts = useMemo(() => {
+    if (feedSection === 'Videos') {
+      const v = posts.filter((p) => {
+        const items = postMedia(p);
+        return items.some((it) => it.mediaType === 'video') || p.mediaType === 'video';
+      });
+      return v.length > 0 ? v : posts;
+    }
     if (feedSection === 'Trending / Conversations') {
       return [...posts].sort((a, b) => {
         const scoreA = (a.likes || 0) + (a.comments || 0) * 2 + (a.shares || 0) * 3;
@@ -242,12 +249,12 @@ export function RoomExperience({
   }, [feedSection, posts]);
 
   const videoPosts = useMemo(() => {
-    const vList = displayedPosts.filter((p) => {
+    const vList = posts.filter((p) => {
       const items = postMedia(p);
-      return items.some((it) => it.mediaType === 'video');
+      return items.some((it) => it.mediaType === 'video') || p.mediaType === 'video';
     });
-    return vList.length > 0 ? vList : displayedPosts;
-  }, [displayedPosts]);
+    return vList.length > 0 ? vList : posts;
+  }, [posts]);
 
   const [reelViewerOffset, setReelViewerOffset] = useState(0);
   const reelTouchStartY = useRef<number | null>(null);
@@ -945,7 +952,9 @@ export function RoomExperience({
       <div className="room-feed-main">
         {/* Top Header Bar matching mobile TopBar */}
         <header className="room-topbar">
-          <h1 className="room-brand-title">Commonroom</h1>
+          <div className="room-topbar-brand-wrap">
+            <h1 className="room-brand-title instagram-brand-font">Commonroom</h1>
+          </div>
           <div className="room-topbar-actions">
             <button
               aria-label="Search"
@@ -1040,8 +1049,27 @@ export function RoomExperience({
           })}
         </div>
 
-        {/* Loading / Empty States */}
-        {loading ? <div className="feed-status">Loading moments…</div> : null}
+        {/* Skeleton Loading State */}
+        {loading ? (
+          <div className="room-skeleton-feed" aria-label="Loading moments">
+            {[1, 2].map((k) => (
+              <div className="room-skeleton-card" key={k}>
+                <div className="room-skeleton-header">
+                  <div className="room-skeleton-avatar skeleton-shimmer" />
+                  <div className="room-skeleton-col">
+                    <div className="room-skeleton-line short skeleton-shimmer" />
+                    <div className="room-skeleton-line tiny skeleton-shimmer" />
+                  </div>
+                </div>
+                <div className="room-skeleton-media skeleton-shimmer" />
+                <div className="room-skeleton-footer">
+                  <div className="room-skeleton-line medium skeleton-shimmer" />
+                  <div className="room-skeleton-line full skeleton-shimmer" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
         {!loading && displayedPosts.length === 0 && !feedError ? (
           <div className="empty-state">
             <span className="empty-icon"><Users size={24} /></span>
@@ -1121,7 +1149,7 @@ export function RoomExperience({
                       {post.pollOptions && post.pollOptions.length > 0 ? (
                         <div className="reel-poll-card" onClick={(e) => e.stopPropagation()}>
                           <div className="reel-poll-header">
-                            <span className="reel-poll-badge">📊 Campus Poll</span>
+                            <span className="reel-poll-badge">Poll</span>
                             <span className="reel-poll-total">
                               {post.totalPollVotes ?? post.pollVotes?.reduce((a, b) => a + b, 0) ?? 0} {((post.totalPollVotes ?? 1) === 1 ? 'vote' : 'votes')}
                             </span>
@@ -1151,11 +1179,15 @@ export function RoomExperience({
                                   ) : null}
                                   <div className="reel-poll-option-content">
                                     <span className="reel-poll-option-text">
-                                      {isSelected ? <Check size={14} className="reel-poll-check" /> : null}
-                                      {option}
+                                      <span className={`reel-poll-radio ${isSelected ? 'checked' : ''}`}>
+                                        {isSelected ? <Check size={8} strokeWidth={3} /> : null}
+                                      </span>
+                                      <span>{option}</span>
                                     </span>
                                     {hasVoted ? (
-                                      <span className="reel-poll-pct">{pct}%</span>
+                                      <span className="reel-poll-stats">
+                                        <b>{votes}</b> ({pct}%)
+                                      </span>
                                     ) : null}
                                   </div>
                                 </button>
@@ -1221,8 +1253,11 @@ export function RoomExperience({
                         </div>
                       ) : (
                         <img
-                          alt={post.caption || 'Campus reel moment'}
+                          alt=""
                           className="reel-img"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
                           src={currentMedia.uri}
                         />
                       )}
@@ -1269,16 +1304,18 @@ export function RoomExperience({
                           <span className="reel-action-count">{formatCount(post.likes)}</span>
                         </button>
 
-                        {/* Comments Button -> Opens Slide-over Comments Sheet */}
-                        <button
-                          aria-label="Open comments"
-                          className={`reel-action-btn ${commentsOpen === post.id ? 'active' : ''}`}
-                          onClick={(e) => { e.stopPropagation(); void openComments(post.id); }}
-                          type="button"
-                        >
-                          <MessageCircle color="#ffffff" size={24} strokeWidth={1.9} />
-                          <span className="reel-action-count">{formatCount(post.comments)}</span>
-                        </button>
+                        {/* Comments Button -> Hidden on polls per user request */}
+                        {!(post.pollOptions && post.pollOptions.length > 0) ? (
+                          <button
+                            aria-label="Open comments"
+                            className={`reel-action-btn ${commentsOpen === post.id ? 'active' : ''}`}
+                            onClick={(e) => { e.stopPropagation(); void openComments(post.id); }}
+                            type="button"
+                          >
+                            <MessageCircle color="#ffffff" size={24} strokeWidth={1.9} />
+                            <span className="reel-action-count">{formatCount(post.comments)}</span>
+                          </button>
+                        ) : null}
 
                         {/* Bookmark Button */}
                         <button
@@ -1831,8 +1868,8 @@ export function RoomExperience({
 
         const reelMediaList = postMedia(currentReelPost);
         const reelItem = reelMediaList[0] ?? null;
-        const reelList = displayedPosts;
-        const currentReelIndex = reelList.findIndex((p) => p.id === currentReelPost.id);
+        const reelList = videoPosts.length > 0 ? videoPosts : displayedPosts;
+        const currentReelIndex = Math.max(0, reelList.findIndex((p) => p.id === currentReelPost.id));
 
         const goNextReel = () => {
           if (currentReelIndex < reelList.length - 1) {
@@ -1880,21 +1917,20 @@ export function RoomExperience({
               }
             }}
             onTouchStart={(e) => {
-              reelTouchStartY.current = e.touches[0].clientY;
+              reelTouchStartY.current = e.touches[0]?.clientY ?? null;
             }}
-            onTouchMove={(e) => {
-              if (reelTouchStartY.current === null) return;
-              const delta = e.touches[0].clientY - reelTouchStartY.current;
-              setReelViewerOffset(delta);
-            }}
-            onTouchEnd={() => {
-              if (reelViewerOffset < -50) {
-                goNextReel();
-              } else if (reelViewerOffset > 50) {
-                goPrevReel();
+            onTouchEnd={(e) => {
+              const start = reelTouchStartY.current;
+              reelTouchStartY.current = null;
+              const end = e.changedTouches[0]?.clientY;
+              if (start !== null && end !== undefined && Math.abs(start - end) > 35) {
+                if (start > end) {
+                  goNextReel(); // Swipe up for next reel (TikTok / Instagram standard)
+                } else {
+                  goPrevReel(); // Swipe down for previous reel
+                }
               }
               setReelViewerOffset(0);
-              reelTouchStartY.current = null;
             }}
           >
             {/* Desktop Navigation Floating Buttons (Next / Prev Reel) */}
@@ -1976,7 +2012,7 @@ export function RoomExperience({
                   />
                 ) : reelItem ? (
                   <img
-                    alt={currentReelPost.caption || 'Reel moment'}
+                    alt=""
                     className="room-fullscreen-reels-photo"
                     src={reelItem.uri}
                   />
@@ -2167,7 +2203,7 @@ export function RoomExperience({
                     <p>{viewedPost.caption}</p>
                   </div>
                 ) : (
-                  <img alt={viewedPost.caption || 'Photo'} src={viewedItem.uri} />
+                  <img alt="" src={viewedItem.uri} />
                 )}
 
                 {heartBurst?.id === viewedPost.id ? (

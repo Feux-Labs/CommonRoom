@@ -85,27 +85,59 @@ export async function GET(request: Request) {
   });
 }
 
-/** DELETE /api/v1/admin/reports — admin-only: delete a report */
+/** DELETE /api/v1/admin/reports — admin-only: resolve or dismiss report, optionally taking down content */
 export async function DELETE(request: Request) {
   const auth = await authenticateAdmin(request);
   if (!isAdminAuthenticated(auth)) return auth;
 
   try {
     const body = await request.json();
-    const { reportId, type } = body as { reportId?: string; type?: 'post' | 'marketplace' };
-    
+    const { reportId, type, action = 'dismiss' } = body as {
+      reportId?: string;
+      type?: 'post' | 'marketplace';
+      action?: 'dismiss' | 'take_down';
+    };
+
     if (!reportId || !type) {
       return apiError('invalid_input', 'reportId and type are required.', 400);
     }
 
     if (type === 'post') {
-      await prisma.postReport.delete({ where: { id: reportId } });
+      const report = await prisma.postReport.findUnique({
+        where: { id: reportId },
+        select: { postId: true },
+      });
+
+      if (action === 'take_down' && report?.postId) {
+        // Delete the offending post, cascading to its reports, likes, comments
+        await prisma.post.delete({ where: { id: report.postId } }).catch(() => null);
+      } else {
+        await prisma.postReport.delete({ where: { id: reportId } }).catch(() => null);
+      }
     } else {
-      await prisma.marketplaceReport.delete({ where: { id: reportId } });
+      const report = await prisma.marketplaceReport.findUnique({
+        where: { id: reportId },
+        select: { listingId: true },
+      });
+
+      if (action === 'take_down' && report?.listingId) {
+        // Delist the listing
+        await prisma.marketplaceListing.update({
+          where: { id: report.listingId },
+          data: { status: 'removed' },
+        }).catch(() => null);
+        await prisma.marketplaceReport.delete({ where: { id: reportId } }).catch(() => null);
+      } else {
+        await prisma.marketplaceReport.delete({ where: { id: reportId } }).catch(() => null);
+      }
     }
 
-    return apiSuccess({ deleted: true });
-  } catch {
-    return apiError('delete_failed', 'Could not delete the report.', 500);
+    return apiSuccess({ success: true, actionTaken: action });
+  } catch (error) {
+    return apiError(
+      'moderation_action_failed',
+      error instanceof Error ? error.message : 'Could not process moderation action.',
+      500
+    );
   }
 }
