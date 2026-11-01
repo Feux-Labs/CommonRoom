@@ -4,6 +4,9 @@ import { fileURLToPath } from "node:url";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const nextConfig: NextConfig = {
+  experimental: {
+    agentUpgrade: "security",
+  },
   cacheComponents: true,
   partialPrefetching: true,
   outputFileTracingRoot: repositoryRoot,
