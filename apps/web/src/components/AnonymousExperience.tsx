@@ -1,17 +1,16 @@
 'use client';
 
-import { ArrowLeft, Check, CircleHelp, Copy, Heart, Link2, MessageCircle, MessagesSquare, Pencil, Quote, Send, Share2, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, Check, CircleHelp, Clock3, Copy, Heart, Link2, LockKeyhole, MessageCircle, MessagesSquare, Pencil, Quote, Send, Share2, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { getBrowserSupabase } from '@/lib/supabase-browser';
-import Image from 'next/image';
-import { demoAnonymousPosts } from '@/lib/demo-content';
+import { Button, EmptyState, ErrorState, Header, ListRow, Sheet, Skeleton, Toggle } from '@/components/cr/primitives';
 
 type Scope = 'school' | 'all_nigerian_schools';
 type FeedSort = 'new' | 'hot' | 'trending' | 'for_you';
 type FeedTab = 'for_you' | 'general' | 'hot' | 'trending';
-type MeTab = 'try_these' | 'inbox';
+type MeTab = 'try_these' | 'inbox' | 'link_settings';
 const inboxTemplates = [
   { id: 'confession', title: 'Confessions', prompt: 'Send me an anonymous confession 👀', colors: ['#31a9ed', '#6844ed'] },
   { id: 'crush', title: 'Your crush', prompt: 'Tell me who your crush is, anonymously 🤫', colors: ['#f04c88', '#ad38d2'] },
@@ -66,7 +65,15 @@ type InboxLink = { token: string; enabled: boolean };
 type Thread = { id: string; last_message: string | null; last_message_at: string | null; message_count: number };
 type InboxMessage = { id: string; body: string; is_mine: boolean; participant_label: 'Anonymous'; created_at: string };
 type ApiEnvelope<T> = { data: T };
-type ApiFailure = { error?: { message?: string } };
+type ApiFailure = { error?: { code?: string; message?: string } };
+type PublicMessageState = 'loading' | 'ready' | 'sending' | 'sent' | 'rate_limited' | 'off' | 'invalid' | 'error';
+
+class AnonymousApiError extends Error {
+  constructor(message: string, readonly status: number, readonly code?: string) {
+    super(message);
+    this.name = 'AnonymousApiError';
+  }
+}
 
 function rankPosts(posts: Post[], sort: FeedSort) {
   if (sort === 'new') return posts;
@@ -78,6 +85,15 @@ function rankPosts(posts: Post[], sort: FeedSort) {
     const leftScore = sort === 'hot' ? leftEngagement : leftEngagement / Math.pow(leftAgeHours + 2, 0.8);
     const rightScore = sort === 'hot' ? rightEngagement : rightEngagement / Math.pow(rightAgeHours + 2, 0.8);
     return rightScore - leftScore;
+  });
+}
+
+function uniquePostsById(posts: Post[]) {
+  const seen = new Set<string>();
+  return posts.filter((post) => {
+    if (seen.has(post.id)) return false;
+    seen.add(post.id);
+    return true;
   });
 }
 
@@ -147,15 +163,25 @@ export function AnonymousExperience({
   const [feedLoadError, setFeedLoadError] = useState('');
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [openComments, setOpenComments] = useState<string | null>(null);
+  const [loadingCommentsFor, setLoadingCommentsFor] = useState<string | null>(null);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [replyTargets, setReplyTargets] = useState<Record<string, Comment | null>>({});
+  const [reportTarget, setReportTarget] = useState<{ targetKind: 'post' | 'comment' | 'message'; targetId: string } | null>(null);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [shareTarget, setShareTarget] = useState<Post | null>(null);
   const [link, setLink] = useState<InboxLink | null>(null);
   const [threads, setThreads] = useState<Thread[]>([]);
+  const [isLoadingInbox, setIsLoadingInbox] = useState(false);
+  const [inboxLoadError, setInboxLoadError] = useState('');
   const [threadId, setThreadId] = useState<string | null>(null);
   const [threadOwner, setThreadOwner] = useState(false);
   const [messages, setMessages] = useState<InboxMessage[]>([]);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [messageDraft, setMessageDraft] = useState('');
-  const [inboxPromptEnabled, setInboxPromptEnabled] = useState<boolean | null>(null);
+  const [publicMessageState, setPublicMessageState] = useState<PublicMessageState>('loading');
+  const [publicPageError, setPublicPageError] = useState('');
   const [previewMessage, setPreviewMessage] = useState<InboxMessage | null>(null);
   const [imagePreview, setImagePreview] = useState<{ url: string; alt: string } | null>(null);
   const [videoViewer, setVideoViewer] = useState<{ posts: Post[]; index: number } | null>(null);
@@ -170,9 +196,12 @@ export function AnonymousExperience({
   const loadingMoreRef = useRef(false);
   const viewerTouchStartRef = useRef<number | null>(null);
   const hasAccount = Boolean(session && !session.user.is_anonymous);
+  const displayedPublicMessageState: PublicMessageState = initialInboxToken && ready && !session ? 'error' : publicMessageState;
+  const displayedPublicPageError = initialInboxToken && ready && !session
+    ? 'Couldn’t start a private anonymous session. Check your connection and try again.'
+    : publicPageError;
   const scope: Scope = 'all_nigerian_schools';
   const feedSort: FeedSort = feedTab === 'for_you' ? 'for_you' : feedTab === 'hot' || feedTab === 'trending' ? feedTab : 'new';
-  const demoPostIds = new Set(demoAnonymousPosts.map((post) => post.id));
 
   // Self-Contained Inline Create Modal
   const [inlineCreateOpen, setInlineCreateOpen] = useState(false);
@@ -261,7 +290,7 @@ export function AnonymousExperience({
       const result = await response.json().catch(() => null) as ApiEnvelope<T> | ApiFailure | null;
       if (!response.ok) {
         const failure = result as ApiFailure | null;
-        throw new Error(failure?.error?.message ?? `Request failed with status ${response.status}.`);
+        throw new AnonymousApiError(failure?.error?.message ?? `Request failed with status ${response.status}.`, response.status, failure?.error?.code);
       }
       if (!result || !('data' in result)) throw new Error('The Anonymous service returned an invalid response.');
       return result.data;
@@ -278,14 +307,14 @@ export function AnonymousExperience({
     const result = await response.json().catch(() => null) as ApiEnvelope<T> | ApiFailure | null;
     if (!response.ok) {
       const failure = result as ApiFailure | null;
-      throw new Error(failure?.error?.message ?? `Request failed with status ${response.status}.`);
+      throw new AnonymousApiError(failure?.error?.message ?? `Request failed with status ${response.status}.`, response.status, failure?.error?.code);
     }
     if (!result || !('data' in result)) throw new Error('The Anonymous service returned an invalid response.');
     return result.data;
   }, [onRequireAccount, session]);
 
   const loadIdentity = useCallback(async () => {
-    if (!hasAccount) {
+    if (!session || (!hasAccount && !initialInboxToken)) {
       setIdentity(null);
       setIdentityPromptOpen(false);
       setHandleDraft((current) => current || `Ghost ${Math.floor(1000 + Math.random() * 9000)}`);
@@ -310,7 +339,7 @@ export function AnonymousExperience({
     setHandleDraft(fallbackHandle);
     setIdentityPromptOpen(true);
     return null;
-  }, [hasAccount, request]);
+  }, [hasAccount, initialInboxToken, request, session]);
 
   const loadPosts = useCallback(async () => {
     const generation = ++feedGenerationRef.current;
@@ -338,13 +367,12 @@ export function AnonymousExperience({
     try {
       const result = await request<PostPage>(`/posts?scope=${scope}&page=1`);
       if (generation === feedGenerationRef.current) {
-        setPosts(result.posts.length ? result.posts : demoAnonymousPosts);
+        setPosts(uniquePostsById(result.posts));
         setHasMorePosts(result.hasMore && result.nextCursor !== null);
         setNextCursor(result.nextCursor);
       }
     } catch (loadError) {
       if (generation === feedGenerationRef.current) {
-        setPosts(demoAnonymousPosts);
         setFeedLoadError(loadError instanceof Error ? loadError.message : 'The Anonymous Feed could not be loaded.');
       }
     } finally {
@@ -363,7 +391,12 @@ export function AnonymousExperience({
       if (generation !== feedGenerationRef.current) return;
       setPosts((current) => {
         const existingIds = new Set(current.map((post) => post.id));
-        return [...current, ...result.posts.filter((post) => !existingIds.has(post.id))];
+        const newPosts = result.posts.filter((post) => {
+          if (existingIds.has(post.id)) return false;
+          existingIds.add(post.id);
+          return true;
+        });
+        return [...current, ...newPosts];
       });
       setHasMorePosts(result.hasMore && result.nextCursor !== null);
       setNextCursor(result.nextCursor);
@@ -380,17 +413,32 @@ export function AnonymousExperience({
   }, [hasMorePosts, initialPostId, nextCursor, request, scope]);
 
   const loadInbox = useCallback(async () => {
-    const [currentLink, currentThreads] = await Promise.all([
-      request<InboxLink | null>('/inbox/link'),
-      request<Thread[]>('/inbox'),
-    ]);
-    setLink(currentLink);
-    setThreads(currentThreads);
+    setIsLoadingInbox(true);
+    setInboxLoadError('');
+    try {
+      const [currentLink, currentThreads] = await Promise.all([
+        request<InboxLink | null>('/inbox/link'),
+        request<Thread[]>('/inbox'),
+      ]);
+      setLink(currentLink);
+      setThreads(currentThreads);
+    } catch (loadError) {
+      const message = loadError instanceof Error ? loadError.message : 'Your Inbox could not be loaded.';
+      setInboxLoadError(message);
+      throw loadError;
+    } finally {
+      setIsLoadingInbox(false);
+    }
   }, [request]);
 
   const loadMessages = useCallback(async (id: string) => {
-    const result = await request<InboxMessage[]>(`/inbox/threads/${id}`);
-    setMessages(result);
+    setIsLoadingMessages(true);
+    try {
+      const result = await request<InboxMessage[]>(`/inbox/threads/${id}`);
+      setMessages(result);
+    } finally {
+      setIsLoadingMessages(false);
+    }
   }, [request]);
 
   useEffect(() => {
@@ -452,19 +500,33 @@ export function AnonymousExperience({
     void loadInbox().catch((loadError: unknown) => setError(loadError instanceof Error ? loadError.message : 'Your Inbox could not be loaded.'));
   }, [hasAccount, initialInboxToken, loadInbox, view]);
 
-  useEffect(() => {
-    if (!hasAccount || !initialInboxToken) return;
-    void request<{ enabled: boolean }>(`/inbox/links/${initialInboxToken}`)
-      .then((prompt) => setInboxPromptEnabled(prompt.enabled))
-      .catch((promptError: unknown) => {
-        setInboxPromptEnabled(false);
-        setError(promptError instanceof Error ? promptError.message : 'This anonymous link could not be opened.');
-      });
-  }, [hasAccount, initialInboxToken, request]);
+  const fetchPublicPrompt = useCallback(() => {
+    if (!initialInboxToken) return Promise.reject(new Error('This anonymous link could not be opened.'));
+    return request<{ enabled: boolean }>(`/inbox/links/${initialInboxToken}`);
+  }, [initialInboxToken, request]);
 
-  const scopeLabel = 'General';
+  const handlePublicPrompt = useCallback((prompt: { enabled: boolean }) => {
+    setPublicPageError('');
+    setPublicMessageState(prompt.enabled ? 'ready' : 'off');
+  }, []);
+
+  const handlePublicPromptError = useCallback((promptError: unknown) => {
+    setPublicMessageState(promptError instanceof AnonymousApiError && promptError.status === 404 ? 'invalid' : 'error');
+    setPublicPageError(promptError instanceof Error ? promptError.message : 'This anonymous link could not be opened.');
+  }, []);
+
+  function retryPublicPrompt() {
+    setPublicMessageState('loading');
+    setPublicPageError('');
+    void fetchPublicPrompt().then(handlePublicPrompt, handlePublicPromptError);
+  }
+
+  useEffect(() => {
+    if (!initialInboxToken || !session) return;
+    void fetchPublicPrompt().then(handlePublicPrompt, handlePublicPromptError);
+  }, [fetchPublicPrompt, handlePublicPrompt, handlePublicPromptError, initialInboxToken, session]);
+
   const rankedPosts = useMemo(() => rankPosts(posts, feedSort), [feedSort, posts]);
-  const showingDemoPosts = rankedPosts.some((post) => demoPostIds.has(post.id));
   const videoPosts = useMemo(() => rankedPosts.filter((post) => post.media_items?.some((item) => item.mediaType === 'video')), [rankedPosts]);
 
   const openVideoViewer = (post: Post) => {
@@ -493,7 +555,7 @@ export function AnonymousExperience({
   };
 
   useEffect(() => {
-    if (!imagePreview && !videoViewer && !swipeTutorialOpen) return;
+    if (!imagePreview && !videoViewer && !swipeTutorialOpen && !openComments && !shareTarget && !reportTarget && !previewMessage) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -501,6 +563,10 @@ export function AnonymousExperience({
         setImagePreview(null);
         setVideoViewer(null);
         setSwipeTutorialOpen(false);
+        setOpenComments(null);
+        setShareTarget(null);
+        setReportTarget(null);
+        setPreviewMessage(null);
       } else if (event.key === 'ArrowDown') {
         setVideoViewer((current) => current
           ? { ...current, index: Math.min(current.posts.length - 1, current.index + 1) }
@@ -516,11 +582,11 @@ export function AnonymousExperience({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [imagePreview, swipeTutorialOpen, videoViewer]);
+  }, [imagePreview, openComments, previewMessage, reportTarget, shareTarget, swipeTutorialOpen, videoViewer]);
 
   async function createIdentity(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!hasAccount) {
+    if (!session || (!hasAccount && !initialInboxToken)) {
       onRequireAccount?.();
       return;
     }
@@ -535,7 +601,11 @@ export function AnonymousExperience({
       }
       setIdentityPromptOpen(false);
       setNotice(`You’re in as ${result.handle}.`);
-    } catch {
+    } catch (identityError) {
+      if (initialInboxToken) {
+        setError(identityError instanceof Error ? identityError.message : 'Your Anonymous name could not be saved.');
+        return;
+      }
       const localIdentity: Identity = {
         handle: chosenHandle,
         created_at: new Date().toISOString(),
@@ -580,11 +650,15 @@ export function AnonymousExperience({
       return;
     }
     setOpenComments(postId);
+    setLoadingCommentsFor(postId);
     try {
       const result = await request<Comment[]>(`/posts/${postId}/comments`);
       setComments((current) => ({ ...current, [postId]: result }));
     } catch (commentError) {
+      setOpenComments(null);
       setError(commentError instanceof Error ? commentError.message : 'Comments could not be loaded.');
+    } finally {
+      setLoadingCommentsFor(null);
     }
   }
 
@@ -611,18 +685,29 @@ export function AnonymousExperience({
     }
   }
 
-  async function report(targetKind: 'post' | 'comment' | 'message', targetId: string) {
+  function report(targetKind: 'post' | 'comment' | 'message', targetId: string) {
     if (!hasAccount) {
       onRequireAccount?.();
       return;
     }
-    const reason = window.prompt('Tell us why you are reporting this content:');
-    if (!reason?.trim()) return;
+    setReportTarget({ targetKind, targetId });
+    setReportReason('');
+    setReportDetails('');
+  }
+
+  async function submitReport(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!reportTarget || !reportReason) return;
+    setIsSubmittingReport(true);
     try {
-      await request('/reports', 'POST', { targetKind, targetId, reason });
+      const reason = reportDetails.trim() ? `${reportReason}: ${reportDetails.trim()}` : reportReason;
+      await request('/reports', 'POST', { ...reportTarget, reason });
+      setReportTarget(null);
       setNotice('Report sent for review.');
     } catch (reportError) {
       setError(reportError instanceof Error ? reportError.message : 'Your report could not be sent.');
+    } finally {
+      setIsSubmittingReport(false);
     }
   }
 
@@ -646,6 +731,29 @@ export function AnonymousExperience({
       return null;
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function setLinkEnabled(enabled: boolean) {
+    if (!link || busy) return;
+    try {
+      setBusy(true);
+      setError('');
+      const result = await request<{ enabled: boolean }>('/inbox/link', 'PATCH', { enabled });
+      setLink((current) => current ? { ...current, enabled: result.enabled } : current);
+      setNotice(result.enabled ? 'Your link is accepting messages.' : 'Your link is paused.');
+    } catch (linkError) {
+      setError(linkError instanceof Error ? linkError.message : 'Your link setting could not be updated.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function retryInbox() {
+    try {
+      await loadInbox();
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Your Inbox could not be loaded.');
     }
   }
 
@@ -694,6 +802,7 @@ export function AnonymousExperience({
     setThreadId(id);
     setThreadOwner(true);
     setPreviewMessage(null);
+    setMessages([]);
     try {
       await loadMessages(id);
     } catch (threadError) {
@@ -703,32 +812,53 @@ export function AnonymousExperience({
 
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!hasAccount) {
+    if (!initialInboxToken && !hasAccount) {
       onRequireAccount?.();
       return;
     }
     if (!messageDraft.trim()) return;
+    if (initialInboxToken && !session) {
+      setPublicMessageState('error');
+      setPublicPageError('Couldn’t start a private anonymous session. Check your connection and try again.');
+      return;
+    }
     if (!identity) {
-      setNotice('Choose your Anonymous name before sending.');
+      if (initialInboxToken) {
+        await loadIdentity();
+      } else {
+        setNotice('Choose your Anonymous name before sending.');
+      }
       return;
     }
     setBusy(true);
     setError('');
+    if (initialInboxToken) {
+      setPublicPageError('');
+      setPublicMessageState('sending');
+    }
     try {
       if (initialInboxToken && !threadId) {
-        const result = await request<{ thread_id: string }>(`/inbox/links/${initialInboxToken}/messages`, 'POST', { body: messageDraft });
-        setThreadId(result.thread_id);
-        setThreadOwner(false);
+        await request<{ thread_id: string }>(`/inbox/links/${initialInboxToken}/messages`, 'POST', { body: messageDraft });
         setMessageDraft('');
-        await loadMessages(result.thread_id);
-        setNotice('Your anonymous message was sent. Replies stay in this private thread.');
+        setPublicMessageState('sent');
       } else if (threadId) {
         const result = await request<InboxMessage>(`/inbox/threads/${threadId}`, 'POST', { body: messageDraft });
         setMessages((current) => [...current, result]);
         setMessageDraft('');
       }
     } catch (sendError) {
-      setError(sendError instanceof Error ? sendError.message : 'Your message could not be sent.');
+      if (initialInboxToken) {
+        if (sendError instanceof AnonymousApiError && sendError.status === 429) {
+          setPublicMessageState('rate_limited');
+        } else if (sendError instanceof AnonymousApiError && sendError.code === 'anonymous_inbox_link_unavailable') {
+          setPublicMessageState('off');
+        } else {
+          setPublicMessageState('ready');
+          setPublicPageError(sendError instanceof Error ? sendError.message : 'Your message could not be sent.');
+        }
+      } else {
+        setError(sendError instanceof Error ? sendError.message : 'Your message could not be sent.');
+      }
     } finally {
       setBusy(false);
     }
@@ -756,8 +886,10 @@ export function AnonymousExperience({
       onRequireAccount?.();
       return;
     }
-    if (!threadId || !previewMessage) return;
+    if (!threadId || !previewMessage || busy) return;
     try {
+      setBusy(true);
+      setError('');
       const created = await request<Post>(`/inbox/threads/${threadId}/share`, 'POST', {
         messageId: previewMessage.id,
         scope,
@@ -767,20 +899,44 @@ export function AnonymousExperience({
       setNotice('Only the selected message was published as a new Feed post.');
     } catch (shareError) {
       setError(shareError instanceof Error ? shareError.message : 'The message could not be shared.');
+    } finally {
+      setBusy(false);
     }
   }
 
-  async function sharePost(post: Post) {
+  function sharePost(post: Post) {
     if (!hasAccount) {
       onRequireAccount?.();
       return;
     }
-    const url = `${window.location.origin}/anonymous/posts/${post.id}`;
+    setShareTarget(post);
+  }
+
+  async function copyPostLink() {
+    if (!shareTarget) return;
+    const url = `${window.location.origin}/anonymous/posts/${shareTarget.id}`;
     try {
-      await navigator.clipboard.writeText(`${post.title}\n${url}`);
+      await navigator.clipboard.writeText(`${shareTarget.title}\n${url}`);
+      setShareTarget(null);
       setNotice('Post link copied.');
-    } catch {
-      window.prompt('Copy this link:', url);
+    } catch (clipboardError) {
+      setError(clipboardError instanceof Error ? clipboardError.message : 'The post link could not be copied.');
+    }
+  }
+
+  async function sharePostWithDevice() {
+    if (!shareTarget) return;
+    const url = `${window.location.origin}/anonymous/posts/${shareTarget.id}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: shareTarget.title, url });
+        setShareTarget(null);
+      } else {
+        await copyPostLink();
+      }
+    } catch (shareError) {
+      if (shareError instanceof DOMException && shareError.name === 'AbortError') return;
+      setError(shareError instanceof Error ? shareError.message : 'The share sheet could not be opened.');
     }
   }
 
@@ -795,61 +951,135 @@ export function AnonymousExperience({
   }
 
   const personalLinkUrl = link ? `${typeof window === 'undefined' ? '' : window.location.origin}/anonymous/inbox/${link.token}` : '';
+  const activeCommentsPost = openComments ? posts.find((post) => post.id === openComments) ?? null : null;
+  const openComposer = () => {
+    if (onCreateAnonymous) onCreateAnonymous();
+    else setInlineCreateOpen(true);
+  };
 
   if (!ready) return <main className="anon-shell"><p className="anon-loading">Opening Anonymous…</p></main>;
 
   return (
-    <main className="anon-shell">
-      <div className="anon-wrap">
-        <header className="anon-topbar">
-          <button
-            type="button"
-            className="anon-back-btn"
-            aria-label="Back"
-            onClick={() => {
-              if (onBack) {
-                onBack();
-              } else if (typeof window !== 'undefined') {
-                window.location.href = '/';
-              }
-            }}
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div className="anon-brand">
-            <span className="anon-instagram-logo instagram-brand-font">Anonymous</span>
-          </div>
-        </header>
+    <main className={initialInboxToken ? 'anon-shell cr-anon-public-shell' : 'anon-shell'}>
+      <div className={initialInboxToken ? 'anon-wrap cr-anon-public-wrap' : 'anon-wrap'}>
+        {initialInboxToken ? (
+          <Header className="cr-anon-public-header">
+            <div className="cr-anon-public-brand">
+              <span aria-hidden="true" className="cr-anon-public-dots"><i /><i /><i /></span>
+              <span>common room</span>
+            </div>
+          </Header>
+        ) : (
+          <header className="anon-topbar">
+            <button
+              type="button"
+              className="anon-back-btn"
+              aria-label="Back"
+              onClick={() => {
+                if (onBack) {
+                  onBack();
+                } else if (typeof window !== 'undefined') {
+                  window.location.href = '/';
+                }
+              }}
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div className="anon-brand">
+              <span className="anon-instagram-logo instagram-brand-font">Anonymous</span>
+            </div>
+          </header>
+        )}
 
-        {error && !error.toLowerCase().includes('sign in') ? <div className="anon-feedback anon-error" role="alert">{error}<button onClick={() => setError('')} aria-label="Dismiss error">×</button></div> : null}
+        {error && !error.toLowerCase().includes('sign in') ? <div className={`anon-feedback anon-error${initialInboxToken ? ' cr-anon-public-feedback' : ''}`} role="alert">{error}<button onClick={() => setError('')} aria-label="Dismiss error">×</button></div> : null}
         {notice ? <div className="anon-feedback anon-notice" role="status">{notice}<button onClick={() => setNotice('')} aria-label="Dismiss notice">×</button></div> : null}
 
         {initialInboxToken ? (
-          !hasAccount ? (
-            <section className="anon-panel anon-prompt-panel">
-              <a className="anon-back-link" href="/anonymous">← Back to Anonymous Feed</a>
-              <h2>Sign in to open this private inbox.</h2>
-              <button className="anon-button" onClick={onRequireAccount} type="button">Sign in</button>
-            </section>
-          ) : <section className="anon-panel anon-prompt-panel">
-            <a className="anon-back-link" href="/anonymous">← Back to Anonymous Feed</a>
-            <span className="anon-eyebrow">PRIVATE MESSAGE · ONLY THE RECIPIENT SEES THIS</span>
-            <h2>Send an honest note.</h2>
-            {inboxPromptEnabled === false ? <p>This link is paused or unavailable.</p> : (
-              <>
-                <form className="anon-form" onSubmit={(event) => void sendMessage(event)}>
-                  <textarea aria-label="Anonymous message" maxLength={2000} onChange={(event) => setMessageDraft(event.target.value)} placeholder="Write your message…" required rows={5} value={messageDraft} />
-                  <div className="anon-form-foot"><span>Replies stay in this private Inbox thread.</span><button className="anon-button" disabled={busy || !identity} type="submit">{busy ? 'Sending…' : 'Send anonymously'}</button></div>
-                </form>
-              </>
-            )}
-            {threadId ? (
-              <div className="anon-thread">
-                <h3>Your private conversation</h3>
-                {messages.map((message) => <div className={message.is_mine ? 'anon-message anon-message-mine' : 'anon-message'} key={message.id}><small>{message.is_mine ? 'You' : 'Anonymous'} · {relativeTime(message.created_at)}</small><p>{message.body}</p></div>)}
-                <form className="anon-reply-form" onSubmit={(event) => void sendMessage(event)}><textarea aria-label="Reply privately" maxLength={2000} onChange={(event) => setMessageDraft(event.target.value)} placeholder="Reply privately…" required rows={3} value={messageDraft} /><button className="anon-button" disabled={busy} type="submit">Reply</button></form>
+          <section aria-label="Send anonymous message" className="cr-anon-public">
+            {displayedPublicMessageState === 'loading' ? (
+              <div aria-busy="true" className="cr-anon-public-loading">
+                <Skeleton style={{ width: '100%', height: 190, borderRadius: 20 }} />
+                <Skeleton style={{ width: 'calc(100% - 28px)', height: 210, borderRadius: 20, margin: '-32px 14px 0', position: 'relative' }} />
               </div>
-            ) : null}
+            ) : displayedPublicMessageState === 'ready' || displayedPublicMessageState === 'sending' ? (
+              <>
+                <div className="cr-anon-public-hero">
+                  <div aria-hidden="true" className="cr-anon-public-avatar"><ShieldCheck size={23} /></div>
+                  <h1>Send an anonymous message</h1>
+                  <p>They won’t see who you are. No account needed.</p>
+                </div>
+                <form className="cr-anon-public-card" onSubmit={(event) => void sendMessage(event)}>
+                  {displayedPublicPageError ? <div className="cr-anon-public-banner" role="alert">Couldn’t send your message. Check your connection and try again. Your message is still here.</div> : null}
+                  <label htmlFor="cr-anon-public-message">Your message</label>
+                  <textarea
+                    aria-label="Your message"
+                    disabled={busy}
+                    id="cr-anon-public-message"
+                    maxLength={500}
+                    onChange={(event) => setMessageDraft(event.target.value)}
+                    placeholder="Write something kind or honest…"
+                    required
+                    rows={5}
+                    value={messageDraft}
+                  />
+                  <div className="cr-anon-public-count">
+                    <span>Need a prompt?</span>
+                    <span>{messageDraft.length} / 500</span>
+                  </div>
+                  <div className="cr-anon-public-submit">
+                    <Button disabled={busy || !messageDraft.trim()} type="submit">
+                      {busy ? <><span aria-hidden="true" className="cr-anon-public-spinner" />Sending…</> : displayedPublicPageError ? 'Try again' : 'Send anonymously'}
+                    </Button>
+                  </div>
+                </form>
+                <div className="cr-anon-public-privacy">
+                  <LockKeyhole aria-hidden="true" size={16} />
+                  <span>Your identity is never shared with the recipient. Messages are private, and the recipient chooses whether to share anything publicly.</span>
+                </div>
+              </>
+            ) : displayedPublicMessageState === 'sent' ? (
+              <div className="cr-anon-public-result">
+                <div aria-hidden="true" className="cr-anon-public-result-icon"><Check size={25} /></div>
+                <h1>Message sent</h1>
+                <p>They won’t see who you are.</p>
+                <div className="cr-anon-public-result-actions">
+                  <Button onClick={() => { setMessageDraft(''); setPublicPageError(''); setPublicMessageState('ready'); }} variant="ghost">Send another</Button>
+                  <a className="cr-anon-public-button" href="/anonymous">Get your own link</a>
+                </div>
+              </div>
+            ) : displayedPublicMessageState === 'rate_limited' ? (
+              <div className="cr-anon-public-result">
+                <div aria-hidden="true" className="cr-anon-public-result-icon"><Clock3 size={25} /></div>
+                <h1>Too many messages</h1>
+                <p>You sent a few messages in a short time. Please try again later.</p>
+                <div className="cr-anon-public-result-actions"><a className="cr-anon-public-button" href="/anonymous">Get your own link</a></div>
+              </div>
+            ) : displayedPublicMessageState === 'off' ? (
+              <div className="cr-anon-public-result">
+                <div aria-hidden="true" className="cr-anon-public-result-icon"><CircleHelp size={25} /></div>
+                <h1>This link is turned off</h1>
+                <p>This person isn’t taking anonymous messages right now. Try again later.</p>
+                <div className="cr-anon-public-result-actions"><a className="cr-anon-public-button" href="/anonymous">Get your own link</a></div>
+              </div>
+            ) : displayedPublicMessageState === 'invalid' ? (
+              <div className="cr-anon-public-result">
+                <div aria-hidden="true" className="cr-anon-public-result-icon"><X size={25} /></div>
+                <h1>This link isn’t valid</h1>
+                <p>It may have been replaced or removed. Ask for a new link.</p>
+                <div className="cr-anon-public-result-actions"><a className="cr-anon-public-button" href="/anonymous">Get your own link</a></div>
+              </div>
+            ) : (
+              <div className="cr-anon-public-result">
+                <div aria-hidden="true" className="cr-anon-public-result-icon"><CircleHelp size={25} /></div>
+                <h1>Couldn’t open this link</h1>
+                <p>{displayedPublicPageError || 'Check your connection and try again.'}</p>
+                <div className="cr-anon-public-result-actions"><Button onClick={retryPublicPrompt} variant="ghost">Try again</Button></div>
+              </div>
+            )}
+            <footer className="cr-anon-public-footer">
+              <span aria-disabled="true" title="Reporting this link is not available here">Report abuse</span>
+              <a href="/anonymous">Get your own link</a>
+            </footer>
           </section>
         ) : (
           <>
@@ -870,13 +1100,7 @@ export function AnonymousExperience({
                 </div>
                 <button
                   className="anon-general-compose-entry"
-                  onClick={() => {
-                    if (onCreateAnonymous) {
-                      onCreateAnonymous();
-                    } else {
-                      setInlineCreateOpen(true);
-                    }
-                  }}
+                  onClick={openComposer}
                   type="button"
                 >
                   <span className="anon-general-compose-avatar"><ShieldCheck size={16} /></span>
@@ -885,10 +1109,9 @@ export function AnonymousExperience({
                 </button>
                 <div className="anon-feed">
                   {rankedPosts.length ? rankedPosts.map((post) => {
-                    const isDemoPost = demoPostIds.has(post.id);
                     return (
                     <article className="anon-post" key={post.id}>
-                      <div className="anon-post-top"><span className="anon-avatar"><ShieldCheck size={17} /></span><div><strong>{post.author_handle}</strong><small>General · {relativeTime(post.created_at)}{isDemoPost ? ' · Sample' : ''}</small></div>{hasAccount && !isDemoPost ? <button aria-label="Report post" className="anon-more" onClick={() => void report('post', post.id)}>•••</button> : null}</div>
+                      <div className="anon-post-top"><span className="anon-avatar"><ShieldCheck size={17} /></span><div><strong>{post.author_handle}</strong><small>General · {relativeTime(post.created_at)}</small></div>{hasAccount ? <button aria-label="Report post" className="anon-more" onClick={() => report('post', post.id)}>•••</button> : null}</div>
                       {post.media_items?.length ? (
                         <><h2>{post.title}</h2><p className="anon-post-body">{post.body}</p></>
                       ) : (
@@ -915,43 +1138,21 @@ export function AnonymousExperience({
                         })}
                       </div> : null}
                       <div className="anon-post-actions">
-                        <button aria-pressed={post.liked_by_me} disabled={isDemoPost} onClick={() => void toggleLike(post)}><Heart size={16} fill={post.liked_by_me ? 'currentColor' : 'none'} /> {post.likes_count}</button>
-                        <button disabled={isDemoPost} onClick={() => void toggleComments(post.id)}><MessageCircle size={16} /> {post.comments_count}</button>
-                        <button disabled={isDemoPost} onClick={() => void sharePost(post)}><Share2 size={16} /> Share</button>
-                        {post.is_mine && !isDemoPost ? <button onClick={() => void deletePost(post)}>Delete</button> : null}
+                        <button aria-pressed={post.liked_by_me} onClick={() => void toggleLike(post)}><Heart size={16} fill={post.liked_by_me ? 'currentColor' : 'none'} /> {post.likes_count}</button>
+                        <button onClick={() => void toggleComments(post.id)}><MessageCircle size={16} /> {post.comments_count}</button>
+                        <button onClick={() => sharePost(post)}><Share2 size={16} /> Share</button>
+                        {post.is_mine ? <button onClick={() => void deletePost(post)}>Delete</button> : null}
                       </div>
-                      {isDemoPost ? <p className="anon-feed-status">Sample preview · sign in to interact with real posts.</p> : null}
-                      {openComments === post.id ? (
-                        <div className="anon-comments">
-                          {(comments[post.id] ?? []).filter((comment) => !comment.parent_comment_id).map((comment) => (
-                            <div className="anon-comment-thread" key={comment.id}>
-                              <div className="anon-comment">
-                                <div><strong>{comment.author_handle}</strong><p>{comment.body}</p></div>
-                                <div className="anon-comment-actions">
-                                  <button onClick={() => setReplyTargets((current) => ({ ...current, [post.id]: current[post.id]?.id === comment.id ? null : comment }))} type="button">Reply</button>
-                                  <button onClick={() => void report('comment', comment.id)} type="button">Report</button>
-                                </div>
-                              </div>
-                              {(comments[post.id] ?? []).filter((reply) => reply.parent_comment_id === comment.id).map((reply) => (
-                                <div className="anon-comment anon-comment-reply" key={reply.id}>
-                                  <div><strong>{reply.author_handle}</strong><p>{reply.body}</p></div>
-                                  <button onClick={() => void report('comment', reply.id)} type="button">Report</button>
-                                </div>
-                              ))}
-                            </div>
-                          ))}
-                          {replyTargets[post.id] ? <p className="anon-replying-to">Replying to {replyTargets[post.id]?.author_handle}<button onClick={() => setReplyTargets((current) => ({ ...current, [post.id]: null }))} type="button">Cancel</button></p> : null}
-                          <form className="anon-reply-form" onSubmit={(event) => void submitComment(event, post.id)}><input aria-label={replyTargets[post.id] ? 'Write an anonymous reply' : 'Write an anonymous comment'} maxLength={2000} onChange={(event) => setCommentDrafts((current) => ({ ...current, [post.id]: event.target.value }))} placeholder={replyTargets[post.id] ? `Reply to ${replyTargets[post.id]?.author_handle}…` : 'Add a comment…'} required value={commentDrafts[post.id] ?? ''} /><button aria-label={replyTargets[post.id] ? 'Send reply' : 'Send comment'} disabled={!identity} type="submit"><Send size={16} /></button></form>
-                        </div>
-                      ) : null}
                     </article>
                     );
-                  }) : isLoadingPosts ? <p aria-live="polite" className="anon-feed-status">Loading conversations…</p>
-                    : feedLoadError ? null
-                      : <div className="anon-empty"><span>✦</span><h2>No conversations yet</h2><p>Start a conversation in {scopeLabel}.</p></div>}
+                  }) : isLoadingPosts ? <div aria-label="Loading Anonymous posts" aria-live="polite" className="cr-anon-loading">
+                    {[0, 1, 2].map((item) => <article className="cr-anon-skeleton-card" key={item}><div><Skeleton style={{ width: 30, height: 30, borderRadius: '50%' }} /><Skeleton style={{ width: 100, height: 10 }} /></div><Skeleton style={{ width: '100%', height: 92, borderRadius: 12 }} /><div><Skeleton style={{ width: 58, height: 10 }} /><Skeleton style={{ width: 58, height: 10 }} /></div></article>)}
+                  </div>
+                    : feedLoadError ? <ErrorState className="cr-anon-feed-error" title="Couldn’t load the Anonymous feed" description={feedLoadError} onRetry={() => void loadPosts()} />
+                      : <EmptyState className="cr-anon-empty" title="No posts yet" description="Be the first to post. Nobody will know it’s you." action={<Button onClick={openComposer}>Post anonymously</Button>} />}
                   {!initialPostId ? <div aria-hidden="true" className="anon-feed-sentinel" ref={feedSentinelRef} /> : null}
                   {isLoadingMorePosts ? <p aria-live="polite" className="anon-feed-status">Loading more conversations…</p> : null}
-                  {feedLoadError ? <div className="anon-feed-status anon-feed-retry" role={showingDemoPosts ? 'status' : 'alert'}><span>{showingDemoPosts ? 'Live Anonymous feed unavailable; showing local sample posts.' : feedLoadError}</span><button className="anon-outline-button" onClick={() => void (nextCursor ? loadMorePosts() : loadPosts())} type="button">Retry</button></div> : null}
+                  {feedLoadError && rankedPosts.length > 0 ? <ErrorState className="cr-anon-load-more-error" title="Couldn’t load more posts" description={feedLoadError} onRetry={() => void (nextCursor ? loadMorePosts() : loadPosts())} /> : null}
                   {!initialPostId && rankedPosts.length > 0 && !hasMorePosts && !isLoadingPosts
                     ? <p aria-live="polite" className="anon-feed-status">You’re all caught up.</p>
                     : null}
@@ -959,9 +1160,10 @@ export function AnonymousExperience({
               </div>
             ) : (
               <section className="anon-content anon-inbox-content">
-                <nav aria-label="ME sections" className="anon-me-tabs">
-                  <button aria-selected={meTab === 'try_these'} className={meTab === 'try_these' ? 'anon-me-tab anon-me-tab-active' : 'anon-me-tab'} onClick={() => setMeTab('try_these')}>Try these</button>
-                  <button aria-selected={meTab === 'inbox'} className={meTab === 'inbox' ? 'anon-me-tab anon-me-tab-active' : 'anon-me-tab'} onClick={() => { setMeTab('inbox'); setThreadId(null); }}>Inbox</button>
+                <nav aria-label="ME sections" className="anon-me-tabs" role="tablist">
+                  <button aria-selected={meTab === 'try_these'} className={meTab === 'try_these' ? 'anon-me-tab anon-me-tab-active' : 'anon-me-tab'} onClick={() => setMeTab('try_these')} role="tab">Try these</button>
+                  <button aria-selected={meTab === 'inbox'} className={meTab === 'inbox' ? 'anon-me-tab anon-me-tab-active' : 'anon-me-tab'} onClick={() => { setMeTab('inbox'); setThreadId(null); }} role="tab">Inbox</button>
+                  <button aria-selected={meTab === 'link_settings'} className={meTab === 'link_settings' ? 'anon-me-tab anon-me-tab-active' : 'anon-me-tab'} onClick={() => setMeTab('link_settings')} role="tab">Link settings</button>
                 </nav>
                 {meTab === 'try_these' ? (
                   <div className="anon-try-these">
@@ -1069,20 +1271,53 @@ export function AnonymousExperience({
                       </div>
                     </section>
                   </div>
+                ) : meTab === 'link_settings' ? (
+                  <section aria-labelledby="anon-link-settings-title" className="cr-anon-link-settings">
+                    <h2 id="anon-link-settings-title">Anonymous link</h2>
+                    <p className="cr-anon-link-settings__intro">Manage where people can send you private anonymous messages.</p>
+                    {isLoadingInbox ? (
+                      <div className="cr-anon-link-skeleton"><Skeleton style={{ width: '100%', height: 44, borderRadius: 12 }} /><Skeleton style={{ width: '100%', height: 48, borderRadius: 10 }} /></div>
+                    ) : inboxLoadError ? (
+                      <ErrorState title="Couldn’t load your link settings" description={inboxLoadError} onRetry={() => void retryInbox()} />
+                    ) : link ? (
+                      <>
+                        <div className="cr-anon-link-url" aria-label="Your anonymous message link">{personalLinkUrl}</div>
+                        <div className="cr-anon-link-actions">
+                          <Button onClick={() => void shareTemplate()} variant="ghost"><Share2 size={14} /> Share</Button>
+                          <Button onClick={() => void copyLink()} variant="ghost"><Copy size={14} /> Copy</Button>
+                        </div>
+                        <ListRow
+                          className="cr-anon-link-row"
+                          label="Accept messages"
+                          sublabel="Turn off to pause new messages"
+                          right={<Toggle label="Accept messages" on={link.enabled} onChange={busy ? undefined : (enabled) => void setLinkEnabled(enabled)} />}
+                        />
+                        <div className="cr-anon-regenerate-row">
+                          <div><strong>Regenerate link</strong><small>Old link stops working</small></div>
+                          <small className="cr-anon-regenerate-unavailable">Not available yet</small>
+                        </div>
+                        <p className="cr-anon-link-note" id="anon-regenerate-unavailable" role="note">Regenerating is unavailable because the current server endpoint does not invalidate existing links. Messages already in your Inbox are kept.</p>
+                      </>
+                    ) : (
+                      <EmptyState title="No link yet" description="Create your personal link to start receiving anonymous messages." action={<Button disabled={busy} onClick={() => void createLink()}>{busy ? 'Creating…' : 'Create my link'}</Button>} />
+                    )}
+                  </section>
                 ) : threadId ? (
                   <div className="anon-panel">
                     <button className="anon-back-link anon-back-button" onClick={() => { setThreadId(null); setMessages([]); void loadInbox(); }}>← Back to Inbox</button>
-                    <div className="anon-inbox-heading"><div><span className="anon-eyebrow">PRIVATE THREAD</span><h2>Conversation</h2><p>The other participant is shown only as Anonymous.</p></div><button className="anon-outline-button" onClick={() => void blockThread()}>Block</button></div>
+                    <div className="anon-inbox-heading"><div><span className="anon-avatar"><ShieldCheck size={16} /></span><div><h2>Anonymous</h2><p>Only you can see this.</p></div></div><button className="anon-outline-button" onClick={() => void blockThread()}>Block</button></div>
                     <div className="anon-thread">
-                      {messages.map((message) => <div className={message.is_mine ? 'anon-message anon-message-mine' : 'anon-message'} key={message.id}><small>{message.is_mine ? 'You' : 'Anonymous'} · {relativeTime(message.created_at)}</small><p>{message.body}</p>{threadOwner ? <div className="anon-message-tools"><button onClick={() => setPreviewMessage(message)}>Preview & share to Feed</button><button onClick={() => void report('message', message.id)}>Report</button></div> : null}</div>)}
+                      {isLoadingMessages ? <div className="cr-anon-thread-skeleton" aria-label="Loading private conversation"><Skeleton style={{ width: '76%', height: 56, borderRadius: 12 }} /><Skeleton style={{ width: '68%', height: 56, borderRadius: 12 }} /></div> : messages.map((message) => <div className={message.is_mine ? 'anon-message anon-message-mine' : 'anon-message'} key={message.id}><small>{message.is_mine ? 'You' : 'Anonymous'} · {relativeTime(message.created_at)}</small><p>{message.body}</p>{!message.is_mine ? <div className="anon-message-tools">{threadOwner ? <button onClick={() => setPreviewMessage(message)}>Share publicly</button> : null}<button onClick={() => report('message', message.id)}>Report</button></div> : null}</div>)}
                     </div>
-                    {previewMessage ? <div className="anon-share-preview"><span className="anon-eyebrow">PUBLIC PREVIEW</span><p>{previewMessage.body}</p><small>Only this selected message will be public. The private conversation remains private.</small><div><button className="anon-outline-button" onClick={() => setPreviewMessage(null)}>Cancel</button><button className="anon-button" onClick={() => void confirmShare()}>Confirm share</button></div></div> : null}
-                    <form className="anon-reply-form" onSubmit={(event) => void sendMessage(event)}><textarea aria-label="Private reply" maxLength={2000} onChange={(event) => setMessageDraft(event.target.value)} placeholder="Reply privately…" required rows={3} value={messageDraft} /><button className="anon-button" disabled={busy || !identity} type="submit">Send reply</button></form>
+                    <form className="anon-reply-form" onSubmit={(event) => void sendMessage(event)}><input aria-label="Reply privately" maxLength={2000} onChange={(event) => setMessageDraft(event.target.value)} placeholder="Reply privately…" required value={messageDraft} /><button aria-label="Send private reply" className="cr-anon-send-reply" disabled={busy || !identity} type="submit"><Send size={16} /></button></form>
                   </div>
                 ) : initialPostId ? null : (
                   <>
-                    <h2 className="anon-inbox-title">Inbox <span>{threads.length}</span></h2>
-                    {threads.length ? threads.map((thread) => <button className="anon-thread-row" key={thread.id} onClick={() => void openThread(thread.id)}><span className="anon-avatar"><ShieldCheck size={17} /></span><span className="anon-thread-row-copy"><strong>Anonymous</strong><small>{thread.last_message ?? 'Private conversation'} </small></span><small>{thread.message_count} · {thread.last_message_at ? relativeTime(thread.last_message_at) : ''}</small></button>) : <div className="anon-empty anon-inbox-empty"><span>✦</span><h2>Your Inbox is quiet</h2><p>Messages sent through your link will appear here as Anonymous.</p></div>}
+                    <h2 className="anon-inbox-title">Inbox <span>{threads.length}</span><button className="cr-anon-inbox-settings" onClick={() => setMeTab('link_settings')} type="button">Link settings</button></h2>
+                    {isLoadingInbox ? <div className="cr-anon-inbox-skeleton" aria-label="Loading Inbox"><Skeleton style={{ width: '100%', height: 58, borderRadius: 12 }} /><Skeleton style={{ width: '100%', height: 58, borderRadius: 12 }} /></div>
+                      : inboxLoadError ? <ErrorState title="Couldn’t load your Inbox" description={inboxLoadError} onRetry={() => void retryInbox()} />
+                      : threads.length ? threads.map((thread) => <button className="anon-thread-row" key={thread.id} onClick={() => void openThread(thread.id)}><span className="anon-avatar"><ShieldCheck size={17} /></span><span className="anon-thread-row-copy"><strong>Anonymous</strong><small>{thread.last_message ?? 'Private conversation'} </small></span><small>{thread.message_count} · {thread.last_message_at ? relativeTime(thread.last_message_at) : ''}</small></button>)
+                        : <EmptyState className="cr-anon-inbox-empty" title="No messages yet" description="Share your link to start getting anonymous messages." action={<Button onClick={() => void shareTemplate()}>Share my link</Button>} />}
                   </>
                 )}
               </section>
@@ -1091,6 +1326,88 @@ export function AnonymousExperience({
         )}
         <footer className="anon-footer">Keep personal details out of messages. Commonroom may review reports to protect the community.</footer>
       </div>
+      {activeCommentsPost ? (
+        <div className="cr-anon-overlay" onClick={() => setOpenComments(null)}>
+          <div className="cr-anon-overlay__content" onClick={(event) => event.stopPropagation()}>
+            <Sheet className="cr-anon-sheet" full modal title={`Comments · ${activeCommentsPost.comments_count}`}>
+              <button aria-label="Close comments" className="cr-anon-sheet__close" onClick={() => setOpenComments(null)} type="button"><X size={17} /></button>
+              <p className="cr-anon-sheet__note">Comments here are anonymous too.</p>
+              <div className="cr-anon-comments">
+                {loadingCommentsFor === activeCommentsPost.id ? <div className="cr-anon-comments-loading"><Skeleton style={{ width: 30, height: 30, borderRadius: '50%' }} /><Skeleton style={{ width: '80%', height: 42, borderRadius: 8 }} /></div> : null}
+                {(comments[activeCommentsPost.id] ?? []).filter((comment) => !comment.parent_comment_id).map((comment) => (
+                  <div className="anon-comment-thread" key={comment.id}>
+                    <div className="anon-comment">
+                      <div><strong>{comment.author_handle}</strong><p>{comment.body}</p></div>
+                      <div className="anon-comment-actions">
+                        <button onClick={() => setReplyTargets((current) => ({ ...current, [activeCommentsPost.id]: current[activeCommentsPost.id]?.id === comment.id ? null : comment }))} type="button">Reply</button>
+                        <button onClick={() => report('comment', comment.id)} type="button">Report</button>
+                      </div>
+                    </div>
+                    {(comments[activeCommentsPost.id] ?? []).filter((reply) => reply.parent_comment_id === comment.id).map((reply) => (
+                      <div className="anon-comment anon-comment-reply" key={reply.id}>
+                        <div><strong>{reply.author_handle}</strong><p>{reply.body}</p></div>
+                        <button onClick={() => report('comment', reply.id)} type="button">Report</button>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+                {!loadingCommentsFor && !(comments[activeCommentsPost.id] ?? []).length ? <EmptyState title="No comments yet" description="Be the first to comment anonymously." /> : null}
+              </div>
+              {replyTargets[activeCommentsPost.id] ? <p className="anon-replying-to">Replying to {replyTargets[activeCommentsPost.id]?.author_handle}<button onClick={() => setReplyTargets((current) => ({ ...current, [activeCommentsPost.id]: null }))} type="button">Cancel</button></p> : null}
+              <form className="anon-reply-form" onSubmit={(event) => void submitComment(event, activeCommentsPost.id)}>
+                <input aria-label={replyTargets[activeCommentsPost.id] ? 'Write an anonymous reply' : 'Write an anonymous comment'} maxLength={2000} onChange={(event) => setCommentDrafts((current) => ({ ...current, [activeCommentsPost.id]: event.target.value }))} placeholder={replyTargets[activeCommentsPost.id] ? `Reply to ${replyTargets[activeCommentsPost.id]?.author_handle}…` : 'Comment anonymously'} required value={commentDrafts[activeCommentsPost.id] ?? ''} />
+                <button aria-label={replyTargets[activeCommentsPost.id] ? 'Send reply' : 'Send comment'} disabled={!identity} type="submit"><Send size={16} /></button>
+              </form>
+            </Sheet>
+          </div>
+        </div>
+      ) : null}
+      {reportTarget ? (
+        <div className="cr-anon-overlay" onClick={() => setReportTarget(null)}>
+          <div className="cr-anon-overlay__content" onClick={(event) => event.stopPropagation()}>
+            <Sheet className="cr-anon-sheet cr-anon-sheet--compact" modal title={`Report ${reportTarget.targetKind}`}>
+              <p className="cr-anon-sheet__note">Pick the closest reason. Your report is anonymous.</p>
+              <form className="cr-anon-report-form" onSubmit={(event) => void submitReport(event)}>
+                {['Spam', 'Harassment or bullying', 'Hate speech', 'Sexual content', 'Self-harm', 'Something else'].map((reason) => (
+                  <label className="cr-anon-report-option" key={reason}><input checked={reportReason === reason} name="anonymous-report-reason" onChange={() => setReportReason(reason)} required type="radio" value={reason} /><span>{reason}</span></label>
+                ))}
+                <textarea aria-label="Add details (optional)" maxLength={500} onChange={(event) => setReportDetails(event.target.value)} placeholder="Add details (optional)" value={reportDetails} />
+                <div className="cr-anon-sheet__actions">
+                  <Button onClick={() => setReportTarget(null)} variant="ghost">Cancel</Button>
+                  <Button disabled={!reportReason || isSubmittingReport} type="submit">{isSubmittingReport ? 'Sending…' : 'Report'}</Button>
+                </div>
+              </form>
+            </Sheet>
+          </div>
+        </div>
+      ) : null}
+      {shareTarget ? (
+        <div className="cr-anon-overlay" onClick={() => setShareTarget(null)}>
+          <div className="cr-anon-overlay__content" onClick={(event) => event.stopPropagation()}>
+            <Sheet className="cr-anon-sheet cr-anon-sheet--compact" modal title="Share post">
+              <div className="cr-anon-share-preview"><span className="anon-avatar"><ShieldCheck size={17} /></span><p>{shareTarget.body}</p></div>
+              <div className="cr-anon-share-actions">
+                <Button onClick={() => void copyPostLink()}><Copy size={15} /> Copy link</Button>
+                <Button onClick={() => void sharePostWithDevice()} variant="ghost"><Share2 size={15} /> More</Button>
+              </div>
+            </Sheet>
+          </div>
+        </div>
+      ) : null}
+      {previewMessage && threadOwner ? (
+        <div className="cr-anon-overlay" onClick={() => setPreviewMessage(null)}>
+          <div className="cr-anon-overlay__content" onClick={(event) => event.stopPropagation()}>
+            <Sheet className="cr-anon-sheet cr-anon-sheet--compact" modal title="Share this message publicly?">
+              <div className="cr-anon-message-share-preview"><span className="anon-avatar"><ShieldCheck size={17} /></span><p>{previewMessage.body}</p></div>
+              <p className="cr-anon-sheet__note">It will appear in the Anonymous feed. Your name and the sender’s identity are not shown. Nothing else from your Inbox is shared.</p>
+              <div className="cr-anon-sheet__actions">
+                <Button onClick={() => setPreviewMessage(null)} variant="ghost">Cancel</Button>
+                <Button disabled={busy} onClick={() => void confirmShare()}>{busy ? 'Sharing…' : 'Share'}</Button>
+              </div>
+            </Sheet>
+          </div>
+        </div>
+      ) : null}
       {identityPromptOpen && !identity ? (
         <div className="anon-identity-modal-backdrop">
           <section aria-labelledby="anon-identity-modal-title" aria-modal="true" className="anon-identity-modal" role="dialog">

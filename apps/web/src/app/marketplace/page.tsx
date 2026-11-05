@@ -1,4 +1,5 @@
 import { MarketplaceExperience } from '@/components/MarketplaceExperience';
+import { AppRouteShell } from '@/components/cr/AppRouteShell';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function MarketplacePage() {
-  return <MarketplaceExperience />;
+  return (
+    <AppRouteShell active="Market">
+      <MarketplaceExperience />
+    </AppRouteShell>
+  );
 }

@@ -37,6 +37,8 @@ import type { Session } from '@supabase/supabase-js';
 import { getBrowserSupabase, isSupabaseConfigured } from '@/lib/supabase-browser';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { MediaUploadQueue } from '@/components/cr/MediaUploadQueue';
+import { Skeleton } from '@/components/cr/primitives';
 import {
   MARKETPLACE_CATEGORIES,
   type CreateListingInput,
@@ -46,8 +48,9 @@ import {
 } from '@/lib/marketplace-contracts';
 import { INITIAL_MARKETPLACE_LISTINGS } from '@/lib/marketplace-seed';
 
-type MarketplaceTab = 'explore' | 'saved' | 'my_listings';
+type MarketplaceTab = 'explore' | 'saved' | 'my_listings' | 'messages';
 type SortOption = 'newest' | 'price_asc' | 'price_desc' | 'popular';
+type LocationSuggestion = { id: string; name: string; detail: string; label: string };
 
 function formatNaira(amount: number): string {
   return new Intl.NumberFormat('en-NG', {
@@ -129,8 +132,15 @@ export function MarketplaceExperience({
   const [formCondition, setFormCondition] = useState<ListingCondition>('like_new');
   const [formLocation, setFormLocation] = useState('');
   const [formPhone, setFormPhone] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
+  const [locationSearchState, setLocationSearchState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [locationSelected, setLocationSelected] = useState(true);
   const [formImageUrl, setFormImageUrl] = useState('');
   const [formImages, setFormImages] = useState<string[]>([]);
+  const [formFiles, setFormFiles] = useState<File[]>([]);
+  const [uploadError, setUploadError] = useState('');
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const formFilePreviews = useMemo(() => formFiles.map((file) => URL.createObjectURL(file)), [formFiles]);
 
   // Report Modal
   const [reportModalOpen, setReportModalOpen] = useState(false);
@@ -151,6 +161,38 @@ export function MarketplaceExperience({
     else router.push('/?account=required');
     return false;
   };
+
+  useEffect(() => () => {
+    formFilePreviews.forEach((url) => URL.revokeObjectURL(url));
+  }, [formFilePreviews]);
+
+  useEffect(() => {
+    const query = formLocation.trim();
+    if (!composerOpen || locationSelected || query.length < 2) return;
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setLocationSearchState('loading');
+      void fetch(`/api/v1/locations/search?q=${encodeURIComponent(query)}`, { signal: controller.signal })
+        .then(async (response) => {
+          const result = await response.json().catch(() => null);
+          if (!response.ok) throw new Error(result?.error?.message || 'Location suggestions are temporarily unavailable.');
+          setLocationSuggestions(Array.isArray(result?.data) ? result.data : []);
+          setLocationSearchState('ready');
+        })
+        .catch((searchError: unknown) => {
+          if (controller.signal.aborted) return;
+          setLocationSuggestions([]);
+          setLocationSearchState('error');
+          if (searchError instanceof Error) console.warn('Marketplace location search failed:', searchError.message);
+        });
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [composerOpen, formLocation, locationSelected]);
 
   // Check Supabase session
   useEffect(() => {
@@ -174,6 +216,7 @@ export function MarketplaceExperience({
     setError('');
     try {
       const params = new URLSearchParams();
+      params.set('limit', '50');
       if (selectedCategory !== 'all') params.set('category', selectedCategory);
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
       if (sortOption) params.set('sort', sortOption);
@@ -276,11 +319,14 @@ export function MarketplaceExperience({
     setFormCategory('electronics');
     setFormCondition('like_new');
     setFormLocation('Main Library / Hostel');
+    setLocationSelected(true);
     setFormPhone('');
     setFormImageUrl('');
+    setFormFiles([]);
     setFormImages([
       'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1000&q=80',
     ]);
+    setUploadError('');
     setComposerOpen(true);
   };
 
@@ -294,26 +340,50 @@ export function MarketplaceExperience({
     setFormCategory(listing.category);
     setFormCondition(listing.condition);
     setFormLocation(listing.location);
+    setLocationSelected(true);
     setFormPhone(listing.seller_phone || '');
     setFormImageUrl('');
+    setFormFiles([]);
     setFormImages(listing.images);
+    setUploadError('');
     setComposerOpen(true);
   };
 
   // Add Image URL to form
   const handleAddImage = () => {
     if (!formImageUrl.trim()) return;
-    if (formImages.length >= 6) {
-      setError('You can add up to 6 images per listing.');
+    if (formImages.length + formFiles.length >= 6) {
+      setUploadError('You can add up to 6 images per listing.');
       return;
     }
     setFormImages((current) => [...current, formImageUrl.trim()]);
     setFormImageUrl('');
+    setUploadError('');
   };
 
   // Remove image from form
   const handleRemoveImage = (index: number) => {
     setFormImages((current) => current.filter((_, i) => i !== index));
+  };
+
+  const addListingFiles = (selected: File[], append: boolean) => {
+    const next = append ? [...formFiles, ...selected] : selected;
+    if (formImages.length + next.length > 6) {
+      setUploadError('You can add up to 6 images per listing.');
+      return;
+    }
+    const invalid = next.find((file) => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type));
+    if (invalid) {
+      setUploadError('This file type isn’t supported. Use a JPG, PNG, or WebP image.');
+      return;
+    }
+    const tooLarge = next.find((file) => file.size > 100 * 1024 * 1024);
+    if (tooLarge) {
+      setUploadError(`${tooLarge.name} is too large. Choose an image under 100 MB.`);
+      return;
+    }
+    setFormFiles(next);
+    setUploadError('');
   };
 
   // Submit Listing (Create or Update)
@@ -335,7 +405,7 @@ export function MarketplaceExperience({
 
     setIsSubmitting(true);
 
-    const payload: CreateListingInput = {
+    let payload: CreateListingInput = {
       title: formTitle.trim(),
       description: formDescription.trim(),
       price: priceNum,
@@ -343,13 +413,32 @@ export function MarketplaceExperience({
       condition: formCondition,
       location: formLocation.trim() || 'Local',
       contact_phone: formPhone.trim() || undefined,
-      images:
-        formImages.length > 0
-          ? formImages
-          : ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1000&q=80'],
+      images: formImages.length > 0 || formFiles.length > 0
+        ? formImages
+        : ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1000&q=80'],
     };
 
+    const uploadedStoragePaths: string[] = [];
+    let supabaseClient: ReturnType<typeof getBrowserSupabase> | null = null;
     try {
+      if (formFiles.length) {
+        supabaseClient = getBrowserSupabase();
+        const uploadedUrls: string[] = [];
+        setUploadProgress(10);
+        for (const [index, file] of formFiles.entries()) {
+          const path = `${session?.user.id ?? 'marketplace'}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, '_')}`;
+          setUploadProgress(Math.round(((index + 0.3) / formFiles.length) * 100));
+          const { data, error: uploadError } = await supabaseClient.storage.from('post-media').upload(path, file, {
+            contentType: file.type,
+            upsert: false,
+          });
+          if (uploadError) throw uploadError;
+          uploadedStoragePaths.push(data.path);
+          uploadedUrls.push(supabaseClient.storage.from('post-media').getPublicUrl(data.path).data.publicUrl);
+          setUploadProgress(Math.round(((index + 1) / formFiles.length) * 100));
+        }
+        payload = { ...payload, images: [...formImages, ...uploadedUrls] };
+      }
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -389,8 +478,20 @@ export function MarketplaceExperience({
       }
 
       setComposerOpen(false);
+      setFormFiles([]);
+      setUploadError('');
+      setUploadProgress(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save listing.');
+      setUploadProgress(null);
+      let message = err instanceof Error ? err.message : 'Failed to save listing.';
+      if (supabaseClient && uploadedStoragePaths.length > 0) {
+        const { error: cleanupError } = await supabaseClient.storage.from('post-media').remove(uploadedStoragePaths);
+        if (cleanupError) {
+          message = `${message} Some uploaded images could not be removed.`;
+        }
+      }
+      setError(message);
+      setUploadError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -667,9 +768,14 @@ export function MarketplaceExperience({
 
         {/* Listings Grid */}
         {isLoading ? (
-          <div className="market-loading-state">
-            <div className="market-spinner" />
-            <p>Finding listings near you…</p>
+          <div aria-label="Loading listings" aria-live="polite" className="market-loading-grid" role="status">
+            {Array.from({ length: 4 }, (_, index) => (
+              <div className="market-loading-card" key={index}>
+                <Skeleton className="market-loading-card__image" />
+                <Skeleton className="market-loading-card__line market-loading-card__line--title" />
+                <Skeleton className="market-loading-card__line market-loading-card__line--price" />
+              </div>
+            ))}
           </div>
         ) : listings.length === 0 ? (
           <div className="market-empty-state">
@@ -1077,16 +1183,54 @@ export function MarketplaceExperience({
                     </select>
                   </label>
 
-                  <label className="market-form-field">
-                    <span>Location / Meetup Area *</span>
+                  <div className="market-form-field market-location-field">
+                    <label htmlFor="market-location">Location / Meetup Area *</label>
                     <input
+                      id="market-location"
                       required
                       type="text"
                       placeholder="e.g. Moremi Hall, Yaba, Ikeja, Main Gate, SUB..."
                       value={formLocation}
-                      onChange={(e) => setFormLocation(e.target.value)}
+                      role="combobox"
+                      aria-autocomplete="list"
+                      aria-expanded={locationSuggestions.length > 0}
+                      aria-controls="market-location-suggestions"
+                      onChange={(e) => {
+                        setFormLocation(e.target.value);
+                        setLocationSelected(false);
+                        setLocationSuggestions([]);
+                        setLocationSearchState('idle');
+                      }}
                     />
-                  </label>
+                    {locationSuggestions.length > 0 ? (
+                      <ul className="market-location-suggestions" id="market-location-suggestions" role="listbox">
+                        {locationSuggestions.map((suggestion) => (
+                          <li key={suggestion.id}>
+                            <button
+                              aria-selected={false}
+                              onClick={() => {
+                                setFormLocation(suggestion.label);
+                                setLocationSelected(true);
+                                setLocationSuggestions([]);
+                                setLocationSearchState('idle');
+                              }}
+                              role="option"
+                              type="button"
+                            >
+                              <span>{suggestion.name}</span>
+                              {suggestion.detail ? <small>{suggestion.detail}</small> : null}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {formLocation.trim().length >= 2 && locationSearchState === 'loading' ? (
+                      <small aria-live="polite">Searching locations…</small>
+                    ) : null}
+                    {locationSearchState === 'error' ? (
+                      <small aria-live="polite">Suggestions unavailable. You can keep the location you typed.</small>
+                    ) : null}
+                  </div>
                 </div>
 
                 <label className="market-form-field">
@@ -1099,8 +1243,30 @@ export function MarketplaceExperience({
                   />
                 </label>
 
-                <label className="market-form-field">
-                  <span>Item Photos (URL or preset)</span>
+                <div className="market-form-field">
+                  <span>Item Photos</span>
+                  <MediaUploadQueue
+                    accept="image/jpeg,image/png,image/webp"
+                    disabled={isSubmitting || formImages.length >= 6}
+                    error={uploadError}
+                    files={formFiles}
+                    maxFiles={Math.max(0, 6 - formImages.length)}
+                    multiple
+                    onClear={() => {
+                      setFormFiles([]);
+                      setUploadError('');
+                    }}
+                    onFilesSelected={addListingFiles}
+                    onRemove={(index) => setFormFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}
+                    onRetry={() => {
+                      setError('');
+                      setUploadError('');
+                      document.querySelector<HTMLFormElement>('.market-composer-modal .market-form')?.requestSubmit();
+                    }}
+                    previews={formFilePreviews}
+                    progress={uploadProgress}
+                    uploading={isSubmitting && formFiles.length > 0}
+                  />
                   <div className="market-image-add-row">
                     <input
                       type="url"
@@ -1123,7 +1289,7 @@ export function MarketplaceExperience({
                       </div>
                     ))}
                   </div>
-                </label>
+                </div>
 
                 <label className="market-form-field">
                   <span>Description *</span>
@@ -1146,7 +1312,7 @@ export function MarketplaceExperience({
                     Cancel
                   </button>
                   <button type="submit" className="market-button-primary" disabled={isSubmitting}>
-                    {isSubmitting ? 'Publishing…' : editingListing ? 'Save Changes' : 'Publish Listing'}
+                    {isSubmitting ? (uploadProgress !== null ? `Uploading ${uploadProgress}%…` : 'Publishing…') : editingListing ? 'Save Changes' : 'Publish Listing'}
                   </button>
                 </div>
               </form>

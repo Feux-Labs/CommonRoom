@@ -6,6 +6,7 @@ export type CachedProfile = {
   id: string;
   display_name: string;
   username: string | null;
+  avatar_url?: string | null;
   education_status: string;
   school: string | null;
   show_school_on_profile: boolean;

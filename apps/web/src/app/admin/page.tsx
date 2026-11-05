@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import Link from 'next/link';
+import { AppRouteShell } from '@/components/cr/AppRouteShell';
 import {
   BarChart3,
   CheckCircle,
@@ -484,83 +485,91 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <main className="admin-page">
-        <div className="admin-loading">Loading secure console…</div>
-      </main>
+      <AppRouteShell active={null}>
+        <main className="admin-page">
+          <div className="admin-loading">Loading secure console…</div>
+        </main>
+      </AppRouteShell>
     );
   }
 
   if (!configured) {
     return (
-      <main className="admin-page">
-        <section className="admin-auth-card">
-          <ShieldCheck size={28} />
-          <h1>Admin console</h1>
-          <p>Authentication is not configured for this deployment.</p>
-        </section>
-      </main>
+      <AppRouteShell active={null}>
+        <main className="admin-page">
+          <section className="admin-auth-card">
+            <ShieldCheck size={28} />
+            <h1>Admin console</h1>
+            <p>Authentication is not configured for this deployment.</p>
+          </section>
+        </main>
+      </AppRouteShell>
     );
   }
 
   if (!session) {
     return (
-      <main className="admin-page">
-        <form className="admin-auth-card" onSubmit={(event) => void signIn(event)}>
-          <span className="admin-mark">
-            <ShieldCheck size={22} />
-          </span>
-          <span className="eyebrow">PRIVATE ADMIN AREA</span>
-          <h1>Sign in to Admin</h1>
-          <p>Only the authorized Commonroom administrator can enter this console.</p>
-          <label>
-            Email
-            <input autoComplete="username" readOnly value={ADMIN_EMAIL} />
-          </label>
-          <label>
-            Password
-            <input
-              autoComplete="current-password"
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              type="password"
-              value={password}
-            />
-          </label>
-          {error ? (
-            <div className="feedback error-banner" role="alert">
-              {error}
-            </div>
-          ) : null}
-          <button className="primary-button" type="submit">
-            Sign in securely
-          </button>
-          <Link href="/">Return to Commonroom</Link>
-        </form>
-      </main>
+      <AppRouteShell active={null}>
+        <main className="admin-page">
+          <form className="admin-auth-card" onSubmit={(event) => void signIn(event)}>
+            <span className="admin-mark">
+              <ShieldCheck size={22} />
+            </span>
+            <span className="eyebrow">PRIVATE ADMIN AREA</span>
+            <h1>Sign in to Admin</h1>
+            <p>Only the authorized Commonroom administrator can enter this console.</p>
+            <label>
+              Email
+              <input autoComplete="username" readOnly value={ADMIN_EMAIL} />
+            </label>
+            <label>
+              Password
+              <input
+                autoComplete="current-password"
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                type="password"
+                value={password}
+              />
+            </label>
+            {error ? (
+              <div className="feedback error-banner" role="alert">
+                {error}
+              </div>
+            ) : null}
+            <button className="primary-button" type="submit">
+              Sign in securely
+            </button>
+            <Link href="/">Return to Commonroom</Link>
+          </form>
+        </main>
+      </AppRouteShell>
     );
   }
 
   if (!authorized) {
     return (
-      <main className="admin-page">
-        <section className="admin-auth-card">
-          <span className="admin-mark denied">
-            <ShieldCheck size={22} />
-          </span>
-          <span className="eyebrow">ACCESS RESTRICTED</span>
-          <h1>No admin access</h1>
-          <p>This signed-in account is not authorized to use the admin console.</p>
-          {error ? (
-            <div className="feedback error-banner" role="alert">
-              {error}
-            </div>
-          ) : null}
-          <button className="secondary-button" onClick={() => void signOut()} type="button">
-            <LogOut size={15} /> Sign out
-          </button>
-          <Link href="/">Return to Commonroom</Link>
-        </section>
-      </main>
+      <AppRouteShell active={null}>
+        <main className="admin-page">
+          <section className="admin-auth-card">
+            <span className="admin-mark denied">
+              <ShieldCheck size={22} />
+            </span>
+            <span className="eyebrow">ACCESS RESTRICTED</span>
+            <h1>No admin access</h1>
+            <p>This signed-in account is not authorized to use the admin console.</p>
+            {error ? (
+              <div className="feedback error-banner" role="alert">
+                {error}
+              </div>
+            ) : null}
+            <button className="secondary-button" onClick={() => void signOut()} type="button">
+              <LogOut size={15} /> Sign out
+            </button>
+            <Link href="/">Return to Commonroom</Link>
+          </section>
+        </main>
+      </AppRouteShell>
     );
   }
 
@@ -595,7 +604,8 @@ export default function AdminPage() {
   ].filter((item) => (moderationFilter === 'all' ? true : item.type === moderationFilter));
 
   return (
-    <main className="admin-page">
+    <AppRouteShell active={null}>
+      <main className="admin-page">
       <header className="admin-topbar">
         <a className="admin-brand" href="/admin">
           <span className="admin-mark">
@@ -652,21 +662,21 @@ export default function AdminPage() {
             onClick={() => setActiveTab('overview')}
             type="button"
           >
-            <BarChart3 size={15} /> Overview
+            <BarChart3 size={15} /> Analytics
           </button>
           <button
             className={`admin-tab-btn ${activeTab === 'users' ? 'active' : ''}`}
             onClick={() => setActiveTab('users')}
             type="button"
           >
-            <Users size={15} /> User Management
+            <Users size={15} /> Users
           </button>
           <button
             className={`admin-tab-btn ${activeTab === 'moderation' ? 'active' : ''}`}
             onClick={() => setActiveTab('moderation')}
             type="button"
           >
-            <ShieldAlert size={15} /> Moderation Queue
+            <ShieldAlert size={15} /> Reports
             {totalReportsCount > 0 ? (
               <span className="admin-tab-count">{totalReportsCount}</span>
             ) : null}
@@ -1638,6 +1648,7 @@ export default function AdminPage() {
           email and role-based permissions.
         </footer>
       </div>
-    </main>
+      </main>
+    </AppRouteShell>
   );
 }

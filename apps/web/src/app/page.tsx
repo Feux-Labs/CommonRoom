@@ -2,25 +2,17 @@
 
 import {
   Bell,
-  ChevronDown,
-  Compass,
-  Dices,
   Eye,
   EyeOff,
   Heart,
-  Home as HomeIcon,
   ImagePlus,
-  LogIn,
   LogOut,
-  Menu,
   MessageCircle,
   Moon,
-  MoreHorizontal,
   Play,
   Plus,
   Search,
   ShieldCheck,
-  ShoppingCart,
   Sun,
   UserCheck,
   UserPlus,
@@ -28,31 +20,44 @@ import {
   Video,
   X,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { AnonymousExperience } from '@/components/AnonymousExperience';
 import { CommunityAnnouncement } from '@/components/CommunityAnnouncement';
-import { GamesExperience } from '@/components/GamesExperience';
 import { MarketplaceExperience } from '@/components/MarketplaceExperience';
-import { MeetExperience } from '@/components/MeetExperience';
 import { OnboardingWizard } from '@/components/OnboardingWizard';
 import { PhotoReelEditor } from '@/components/PhotoReelEditor';
+import { ProfileExperience } from '@/components/ProfileExperience';
 import { RoomExperience } from '@/components/RoomExperience';
 import { ReelEditor } from '@/components/ReelEditor';
-import Image from 'next/image';
+import { MediaUploadQueue } from '@/components/cr/MediaUploadQueue';
+import {
+  Banner,
+  BottomNav,
+  Button as CRButton,
+  DotsProgress,
+  Header as CRHeader,
+  Input as CRInput,
+  type BottomNavItemLabel,
+} from '@/components/cr/primitives';
 import { usePathname } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Audience, FeedPost, MediaItem, MediaType, OnboardingProfile } from '@/lib/contracts';
 import { institutions } from '@/lib/institutions';
 import { compressMedia } from '@/lib/media-compression';
 import { getBrowserSupabase, isSupabaseConfigured } from '@/lib/supabase-browser';
 
-type AppTab = 'home' | 'create' | 'anonymous' | 'marketplace' | 'games' | 'meet' | 'profile';
+const appTabValues = ['home', 'room', 'create', 'anonymous', 'marketplace', 'profile'] as const;
+type AppTab = (typeof appTabValues)[number];
+
+function isAppTab(value: string | null): value is AppTab {
+  return appTabValues.some((tab) => tab === value);
+}
 type ProfileRecord = {
   id: string;
   displayName: string;
   username: string | null;
+  avatarUrl: string | null;
   educationStatus: OnboardingProfile['educationStatus'];
   school: string | null;
   showSchoolOnProfile: boolean;
@@ -61,10 +66,12 @@ type ProfileRecord = {
   ageEligibilityConfirmed: boolean;
   interests: string[];
 };
+
 type ProfileApiRecord = {
   id: string;
   display_name: string;
   username: string | null;
+  avatar_url?: string | null;
   education_status: OnboardingProfile['educationStatus'];
   school: string | null;
   show_school_on_profile: boolean;
@@ -78,6 +85,20 @@ type ApiFailure = { error?: { message?: string } };
 type LocationSuggestion = { id: string; name: string; detail: string; label: string };
 type AnonymousIdentity = { handle: string; created_at: string };
 type AnonymousMediaItem = { path: string; mediaType: 'photo' | 'video' };
+type PersonSearchResult = {
+  id: string;
+  display_name: string;
+  username: string | null;
+  school: string | null;
+  avatar_url: string | null;
+};
+type PersonProfileResult = PersonSearchResult & {
+  bio: string;
+  following: boolean;
+  follower_count: number;
+  interests: string[];
+  posts: FeedPost[];
+};
 const anonymousTextTemplates = [
   { id: 'blue-hour', name: 'Blue hour', className: 'create-text-card-blue', background: 'linear-gradient(145deg, #2358c9, #6f47d8)' },
   { id: 'soft-sky', name: 'Soft sky', className: 'create-text-card-sky', background: 'linear-gradient(145deg, #1ca7bd, #476fda)' },
@@ -124,6 +145,20 @@ async function apiRequest<T>(path: string, token: string, method = 'GET', body?:
   return result.data;
 }
 
+function loadRecentSearches() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = window.localStorage.getItem('commonroom:recent-searches');
+    const parsed: unknown = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((value): value is string => typeof value === 'string').slice(0, 6)
+      : [];
+  } catch (storageError) {
+    console.warn('Recent searches could not be loaded.', storageError);
+    return [];
+  }
+}
+
 function formatPostType(type: Extract<MediaType, 'photo' | 'video' | 'text' | 'poll'>) {
   if (type === 'poll') return 'Poll';
   return type === 'video' ? 'Video' : type === 'photo' ? 'Photo' : 'Text';
@@ -136,10 +171,11 @@ export default function Home() {
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [tab, setTabState] = useState<AppTab>(() => {
     if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem('commonroom_active_tab') as AppTab;
-      if (saved && ['home', 'create', 'meet', 'marketplace', 'games', 'anonymous', 'profile'].includes(saved)) {
-        return saved;
-      }
+      const requested = new URLSearchParams(window.location.search).get('tab');
+      if (requested !== null) return isAppTab(requested) ? requested : 'home';
+      const saved = sessionStorage.getItem('commonroom_active_tab');
+      if (isAppTab(saved)) return saved;
+      if (saved !== null) sessionStorage.removeItem('commonroom_active_tab');
     }
     return 'home';
   });
@@ -150,11 +186,10 @@ export default function Home() {
     }
   }, []);
   const [roomRefresh, setRoomRefresh] = useState(0);
-  const [authRoute, setAuthRoute] = useState<'welcome' | 'sign-in' | 'sign-up' | 'forgot-password'>('welcome');
+  const [authRoute, setAuthRoute] = useState<'welcome' | 'sign-in' | 'sign-up' | 'verify-email' | 'forgot-password' | 'update-password'>('welcome');
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [loginMethod, setLoginMethod] = useState<'email' | 'apple'>('email');
-  const [loading, setLoading] = useState(true);
-  const [configured, setConfigured] = useState(false);
+  const [loading, setLoading] = useState(() => isSupabaseConfigured());
+  const [configured] = useState(() => isSupabaseConfigured());
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -162,11 +197,15 @@ export default function Home() {
   const [signupName, setSignupName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [educationStatus, setEducationStatus] = useState<OnboardingProfile['educationStatus']>('currently_in_school');
   const [schoolSearch, setSchoolSearch] = useState('');
   const [school, setSchool] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [profileAvatarFile, setProfileAvatarFile] = useState<File | null>(null);
+  const [profileAvatarError, setProfileAvatarError] = useState('');
+  const [profileAvatarRemoved, setProfileAvatarRemoved] = useState(false);
   const [course, setCourse] = useState('');
   const [year, setYear] = useState('');
   const [showSchool, setShowSchool] = useState(false);
@@ -182,6 +221,9 @@ export default function Home() {
   const [anonymousIdentitySaving, setAnonymousIdentitySaving] = useState(false);
   const [anonymousTemplate, setAnonymousTemplate] = useState<(typeof anonymousTextTemplates)[number]['id']>('blue-hour');
   const [compressionProgress, setCompressionProgress] = useState<number | null>(null);
+  const [uploadError, setUploadError] = useState('');
+  const [isPublishing, setIsPublishing] = useState(false);
+  const createFormRef = useRef<HTMLFormElement | null>(null);
   const [anonymousFocusPostId, setAnonymousFocusPostId] = useState<string | null>(null);
   const [createCaption, setCreateCaption] = useState('');
   const [createLocation, setCreateLocation] = useState('');
@@ -196,22 +238,32 @@ export default function Home() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [notifications, setNotifications] = useState([
-    { id: '1', actor: 'Joyce A.', text: 'liked your lecture photo from ABU', time: '15m ago', type: 'like', read: false },
-    { id: '2', actor: 'Mide B.', text: 'commented on study group: "Library 3rd floor quiet corner is the best."', time: '1h ago', type: 'comment', read: false },
-    { id: '3', actor: 'Chidi Eze', text: 'started following you on Commonroom', time: '3h ago', type: 'follow', read: false },
-    { id: '4', actor: 'Community', text: 'Mid-term registration closes on Friday across faculties.', time: '1d ago', type: 'alert', read: true },
-  ]);
+  const [peopleResults, setPeopleResults] = useState<PersonSearchResult[]>([]);
+  const [searchState, setSearchState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [searchRetry, setSearchRetry] = useState(0);
+  const [recentSearches, setRecentSearches] = useState<string[]>(loadRecentSearches);
+  const [selectedPerson, setSelectedPerson] = useState<PersonProfileResult | null>(null);
+  const [personProfileLoading, setPersonProfileLoading] = useState(false);
+  const [personProfileError, setPersonProfileError] = useState('');
+  const personProfileRequest = useRef(0);
 
   const configuredNow = isSupabaseConfigured();
   const anonymousIdentityLoading = createDestination === 'anonymous'
     && Boolean(session)
     && anonymousIdentitySessionId !== session?.user.id;
   const createPreviewUrls = useMemo(() => createFiles.map((file) => URL.createObjectURL(file)), [createFiles]);
+  const profileAvatarPreview = useMemo(
+    () => profileAvatarFile ? URL.createObjectURL(profileAvatarFile) : null,
+    [profileAvatarFile],
+  );
 
   useEffect(() => () => {
     createPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
   }, [createPreviewUrls]);
+
+  useEffect(() => () => {
+    if (profileAvatarPreview) URL.revokeObjectURL(profileAvatarPreview);
+  }, [profileAvatarPreview]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -223,6 +275,82 @@ export default function Home() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!searchModalOpen || query.length < 2 || !session || session.user.is_anonymous) {
+      return;
+    }
+
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setSearchState('loading');
+      void apiRequest<PersonSearchResult[]>(
+        `/api/v1/people?q=${encodeURIComponent(query)}`,
+        session.access_token,
+      ).then((results) => {
+        if (!active) return;
+        setPeopleResults(results);
+        setSearchState('ready');
+      }).catch((searchError: unknown) => {
+        if (!active) return;
+        console.error('People search failed.', searchError);
+        setPeopleResults([]);
+        setSearchState('error');
+      });
+    }, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [searchModalOpen, searchQuery, searchRetry, session]);
+
+  const rememberSearch = (value: string) => {
+    const query = value.trim();
+    if (!query) return;
+    const recent = [query, ...recentSearches.filter((item) => item.toLowerCase() !== query.toLowerCase())].slice(0, 6);
+    setRecentSearches(recent);
+    try {
+      window.localStorage.setItem('commonroom:recent-searches', JSON.stringify(recent));
+    } catch (storageError) {
+      console.warn('Recent search could not be saved.', storageError);
+    }
+  };
+
+  const updateSearchQuery = (value: string) => {
+    setSearchQuery(value);
+    setPeopleResults([]);
+    setSearchState('idle');
+  };
+
+  const openPersonProfile = async (personId: string) => {
+    if (!session || session.user.is_anonymous) {
+      setAuthRoute('sign-in');
+      setAuthModalOpen(true);
+      return;
+    }
+    const requestId = ++personProfileRequest.current;
+    setPersonProfileLoading(true);
+    setPersonProfileError('');
+    setSelectedPerson(null);
+    try {
+      const person = await apiRequest<PersonProfileResult>(`/api/v1/people/${encodeURIComponent(personId)}`, session.access_token);
+      if (requestId !== personProfileRequest.current) return;
+      setSelectedPerson(person);
+    } catch (profileError) {
+      if (requestId !== personProfileRequest.current) return;
+      setPersonProfileError(profileError instanceof Error ? profileError.message : 'This profile could not be loaded.');
+    } finally {
+      if (requestId === personProfileRequest.current) setPersonProfileLoading(false);
+    }
+  };
+
+  const closePersonProfile = () => {
+    personProfileRequest.current += 1;
+    setPersonProfileLoading(false);
+    setSelectedPerson(null);
+    setPersonProfileError('');
+  };
 
   useEffect(() => {
     if (!previewFile) return;
@@ -299,6 +427,7 @@ export default function Home() {
         id: record.id,
         displayName: record.display_name,
         username: record.username,
+        avatarUrl: record.avatar_url ?? null,
         educationStatus: record.education_status,
         school: record.school,
         showSchoolOnProfile: record.show_school_on_profile,
@@ -324,9 +453,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    setConfigured(configuredNow);
     if (!configuredNow) {
-      setLoading(false);
       return;
     }
 
@@ -356,10 +483,15 @@ export default function Home() {
       }
       setLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!active) return;
       setSession(nextSession);
       setError('');
+      if (event === 'PASSWORD_RECOVERY') {
+        setAuthRoute('update-password');
+        setAuthModalOpen(true);
+        return;
+      }
       if (nextSession && !nextSession.user.is_anonymous) {
         setAuthModalOpen(false);
         queueMicrotask(() => {
@@ -395,8 +527,7 @@ export default function Home() {
           setAuthModalOpen(false);
           await loadProfile(data.session);
         } else {
-          setNotice('Check your email to confirm your account, then return here to sign in.');
-          setAuthRoute('sign-in');
+          setAuthRoute('verify-email');
         }
       } else {
         const { data, error: authError } = await supabase.auth.signInWithPassword({
@@ -427,6 +558,41 @@ export default function Home() {
       setNotice('If an account exists for that email, a password reset link has been sent.');
     } catch (resetError) {
       setError(resetError instanceof Error ? resetError.message : 'Password reset could not be requested.');
+    }
+  };
+
+  const resendSignupConfirmation = async () => {
+    setError('');
+    setNotice('');
+    try {
+      const { error: resendError } = await getBrowserSupabase().auth.resend({
+        type: 'signup',
+        email: email.trim(),
+      });
+      if (resendError) throw resendError;
+      setNotice('A new confirmation email has been sent.');
+    } catch (resendError) {
+      setError(resendError instanceof Error ? resendError.message : 'The confirmation email could not be resent.');
+    }
+  };
+
+  const updatePassword = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError('');
+    setNotice('');
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    try {
+      const { error: updateError } = await getBrowserSupabase().auth.updateUser({ password });
+      if (updateError) throw updateError;
+      setPassword('');
+      setConfirmPassword('');
+      setAuthModalOpen(false);
+      setNotice('Your password has been updated.');
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : 'Your password could not be updated.');
     }
   };
 
@@ -465,7 +631,19 @@ export default function Home() {
       setError('Add a display name, confirm age eligibility, and choose a school if you are currently studying.');
       return;
     }
+    let uploadedAvatarPath: string | null = null;
     try {
+      let avatarUrl = profileAvatarRemoved ? null : profile?.avatarUrl ?? null;
+      if (profileAvatarFile) {
+        const path = `${session.user.id}/profile-${crypto.randomUUID()}.${mediaFileExtension(profileAvatarFile)}`;
+        const { data, error: uploadError } = await getBrowserSupabase().storage.from('post-media').upload(path, profileAvatarFile, {
+          contentType: profileAvatarFile.type,
+          upsert: false,
+        });
+        if (uploadError) throw uploadError;
+        uploadedAvatarPath = data.path;
+        avatarUrl = getBrowserSupabase().storage.from('post-media').getPublicUrl(data.path).data.publicUrl;
+      }
       const saved = await apiRequest<ProfileApiRecord>('/api/v1/profile', session.access_token, 'PUT', {
         educationStatus,
         school: educationStatus === 'currently_in_school' ? school : null,
@@ -475,11 +653,13 @@ export default function Home() {
         year,
         ageEligibilityConfirmed: ageConfirmed,
         interests,
+        avatarUrl,
       });
       setProfile({
         id: saved.id,
         displayName: saved.display_name,
         username: saved.username,
+        avatarUrl: saved.avatar_url ?? avatarUrl,
         educationStatus: saved.education_status,
         school: saved.school,
         showSchoolOnProfile: saved.show_school_on_profile,
@@ -488,20 +668,61 @@ export default function Home() {
         ageEligibilityConfirmed: saved.age_eligibility_confirmed,
         interests: saved.interests,
       });
+      setProfileAvatarFile(null);
+      setProfileAvatarError('');
+      setProfileAvatarRemoved(false);
       setTab('home');
       setNotice('Your profile is saved.');
     } catch (saveError) {
+      if (uploadedAvatarPath) {
+        const { error: cleanupError } = await getBrowserSupabase().storage.from('post-media').remove([uploadedAvatarPath]);
+        if (cleanupError) setProfileAvatarError('The profile could not be saved and the uploaded photo could not be removed.');
+      }
       setError(saveError instanceof Error ? saveError.message : 'Your profile could not be saved.');
     }
   };
 
-  const completeOnboarding = async (profileDraft: OnboardingProfile) => {
+  const selectProfileAvatar = (files: File[]) => {
+    const file = files[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setProfileAvatarError('This file type isn’t supported. Use a JPG, PNG, or WebP photo.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setProfileAvatarError('Choose a photo smaller than 10 MB.');
+      return;
+    }
+    setProfileAvatarFile(file);
+    setProfileAvatarError('');
+    setProfileAvatarRemoved(false);
+    setError('');
+  };
+
+  const completeOnboarding = async (profileDraft: OnboardingProfile, avatarFile?: File | null) => {
     if (!session) throw new Error('Your session expired. Sign in again to finish setting up your profile.');
-    const saved = await apiRequest<ProfileApiRecord>('/api/v1/profile', session.access_token, 'PUT', profileDraft);
+    let uploadedAvatarPath: string | null = null;
+    let avatarUrl: string | null = null;
+    try {
+      if (avatarFile) {
+        const path = `${session.user.id}/profile-${crypto.randomUUID()}.${mediaFileExtension(avatarFile)}`;
+        const { data, error: uploadError } = await getBrowserSupabase().storage.from('post-media').upload(path, avatarFile, {
+          contentType: avatarFile.type,
+          upsert: false,
+        });
+        if (uploadError) throw uploadError;
+        uploadedAvatarPath = data.path;
+        avatarUrl = getBrowserSupabase().storage.from('post-media').getPublicUrl(data.path).data.publicUrl;
+      }
+      const saved = await apiRequest<ProfileApiRecord>('/api/v1/profile', session.access_token, 'PUT', {
+        ...profileDraft,
+        avatarUrl,
+      });
     const savedProfile: ProfileRecord = {
       id: saved.id,
       displayName: saved.display_name,
       username: saved.username,
+      avatarUrl: saved.avatar_url ?? avatarUrl,
       educationStatus: saved.education_status,
       school: saved.school,
       showSchoolOnProfile: saved.show_school_on_profile,
@@ -521,6 +742,13 @@ export default function Home() {
     setShowSchool(savedProfile.showSchoolOnProfile);
     setTab('home');
     setNotice('Your profile is ready. Welcome to Commonroom!');
+    } catch (onboardingError) {
+      if (uploadedAvatarPath) {
+        const { error: cleanupError } = await getBrowserSupabase().storage.from('post-media').remove([uploadedAvatarPath]);
+        if (cleanupError) console.error('Unable to remove profile photo after onboarding failed.', cleanupError);
+      }
+      throw onboardingError;
+    }
   };
 
   const saveAnonymousIdentity = async (event: FormEvent<HTMLFormElement>) => {
@@ -544,6 +772,35 @@ export default function Home() {
     } finally {
       setAnonymousIdentitySaving(false);
     }
+  };
+
+  const selectCreateFiles = (selectedFiles: File[], append = false) => {
+    const nextFiles = append ? [...createFiles, ...selectedFiles] : selectedFiles;
+    const maxFiles = createDestination === 'room' && createType === 'photo' ? 10 : null;
+    if (maxFiles !== null && nextFiles.length > maxFiles) {
+      const message = `Choose up to ${maxFiles} photos for a Room post.`;
+      setUploadError(message);
+      setError(message);
+      return;
+    }
+
+    const hasWrongType = nextFiles.some((file) => (
+      createType === 'photo' ? !file.type.startsWith('image/') : !file.type.startsWith('video/')
+    ));
+    const hasUnsupportedType = nextFiles.some((file) => !mediaFileExtension(file));
+    if (hasWrongType || hasUnsupportedType) {
+      const message = hasUnsupportedType
+        ? 'This file type isn’t supported. Use a JPG, PNG, WebP, MP4, MOV, or WebM file.'
+        : `Choose ${createType === 'photo' ? 'photo' : 'video'} files for this post.`;
+      setUploadError(message);
+      setError(message);
+      return;
+    }
+
+    setCreateFiles(nextFiles);
+    setUploadError('');
+    setError('');
+    setSelectedSoundName(null);
   };
 
   const publishAnonymousPost = async () => {
@@ -579,13 +836,16 @@ export default function Home() {
         if (!extension) throw new Error(`This format cannot be uploaded: ${originalFile.name}. Choose a JPG, PNG, WebP, MP4, MOV, or WebM file.`);
         const { path } = await apiRequest<{ path: string }>('/api/v1/anonymous/media-path', session.access_token, 'POST', { extension });
         uploadedPaths.push(path);
+        setCompressionProgress(Math.round(((index + 0.6) / createFiles.length) * 100));
         const { error: uploadError } = await storage.upload(path, file, {
           contentType: file.type,
           upsert: false,
         });
         if (uploadError) throw uploadError;
+        setCompressionProgress(Math.round(((index + 0.95) / createFiles.length) * 100));
         mediaItems.push({ path, mediaType: file.type.startsWith('video/') ? 'video' : 'photo' });
       }
+      setCompressionProgress(99);
       const created = await apiRequest<{ id: string }>('/api/v1/anonymous/posts', session.access_token, 'POST', {
         scope: 'all_nigerian_schools',
         title: anonymousTitle.trim() || 'Anonymous post',
@@ -596,6 +856,7 @@ export default function Home() {
       setCreateCaption('');
       setAnonymousTitle('');
       setCreateFiles([]);
+      setUploadError('');
       setSelectedSoundName(null);
       setCompressionProgress(null);
       setAnonymousFocusPostId(created.id);
@@ -604,6 +865,7 @@ export default function Home() {
       setNotice(`Your post is live in the Anonymous Feed.${savings ? ` ${savings}` : ''}`);
     } catch (publishError) {
       const message = publishError instanceof Error ? publishError.message : 'Your anonymous post could not be published.';
+      setUploadError(message);
       if (uploadedPaths.length) {
         const { error: cleanupError } = await getBrowserSupabase().storage.from('post-media').remove(uploadedPaths);
         setError(cleanupError ? `${message} Uploaded media could not be cleaned up: ${cleanupError.message}` : message);
@@ -619,11 +881,19 @@ export default function Home() {
     event.preventDefault();
     if (!session) return;
     if (createDestination === 'anonymous') {
-      await publishAnonymousPost();
+      setIsPublishing(true);
+      setUploadError('');
+      try {
+        await publishAnonymousPost();
+      } finally {
+        setIsPublishing(false);
+      }
       return;
     }
     setError('');
     setNotice('');
+    setUploadError('');
+    setIsPublishing(true);
     setCompressionProgress(createFiles.length ? 0 : null);
     try {
       const mediaItems: MediaItem[] = [];
@@ -646,14 +916,17 @@ export default function Home() {
         }
         const path = `${session.user.id}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, '_')}`;
         const supabase = getBrowserSupabase();
+        setCompressionProgress(Math.round(((index + 0.6) / createFiles.length) * 100));
         const { data, error: uploadError } = await supabase.storage.from('post-media').upload(path, file, {
           contentType: file.type,
           upsert: false,
         });
         if (uploadError) throw uploadError;
+        setCompressionProgress(Math.round(((index + 0.95) / createFiles.length) * 100));
         const { data: publicUrl } = supabase.storage.from('post-media').getPublicUrl(data.path);
         mediaItems.push({ uri: publicUrl.publicUrl, mediaType: isVideo ? 'video' : 'photo' });
       }
+      setCompressionProgress(99);
       const created = await apiRequest<FeedPost>('/api/v1/posts', session.access_token, 'POST', {
         caption: createCaption,
         mediaItems,
@@ -666,6 +939,7 @@ export default function Home() {
       setCreateCaption('');
       setCreateLocation('');
       setCreateFiles([]);
+      setUploadError('');
       setSelectedSoundName(null);
       setCreatePollOptions(['', '']);
       setCompressionProgress(null);
@@ -676,9 +950,12 @@ export default function Home() {
       const savings = mediaSavingsMessage(sourceBytes, uploadedBytes);
       setNotice(`Your post is published.${savings ? ` ${savings}` : ''}`);
     } catch (publishError) {
-      setError(publishError instanceof Error ? publishError.message : 'Your post could not be published.');
+      const message = publishError instanceof Error ? publishError.message : 'Your post could not be published.';
+      setUploadError(message);
+      setError(message);
     } finally {
       setCompressionProgress(null);
+      setIsPublishing(false);
     }
   };
 
@@ -708,26 +985,11 @@ export default function Home() {
       : [...current, interest]);
   };
 
-  const tabs: { id: AppTab; label: string; icon: LucideIcon }[] = [
-    { id: 'home', label: 'Room', icon: HomeIcon },
-    { id: 'create', label: 'Create', icon: Plus },
-    { id: 'anonymous', label: 'Anonymous', icon: MessageCircle },
-    { id: 'marketplace', label: 'Marketplace', icon: ShoppingCart },
-    { id: 'meet', label: 'Connect', icon: Users },
-  ];
-  const mobileTabs: { id: AppTab; label: string; icon: LucideIcon }[] = [
-    { id: 'home', label: 'Room', icon: HomeIcon },
-    { id: 'create', label: 'Create', icon: Plus },
-    { id: 'anonymous', label: 'Anonymous', icon: MessageCircle },
-    { id: 'marketplace', label: 'Marketplace', icon: ShoppingCart },
-    { id: 'meet', label: 'Connect', icon: Users },
-  ];
-
   if (loading) {
     return <main className="boot-screen"><div className="loader" /><span>Loading your space…</span></main>;
   }
 
-  const needsProfile = Boolean(session && !session.user.is_anonymous && !profile && configured);
+  const needsProfile = Boolean(session && !session.user.is_anonymous && !profile && configured && authRoute !== 'update-password');
   if (needsProfile) {
     return (
       <main className="onboarding-shell">
@@ -745,6 +1007,7 @@ export default function Home() {
     id: session?.user?.id ?? 'guest',
     displayName: 'Guest',
     username: null,
+    avatarUrl: null,
     school: null,
   };
 
@@ -758,89 +1021,182 @@ export default function Home() {
     if (!authModalOpen) return null;
     return (
       <div className="native-auth-overlay" role="dialog" aria-modal="true" onClick={() => setAuthModalOpen(false)}>
-        <main className="native-auth-shell" data-theme={darkMode ? 'dark' : 'light'} onClick={(e) => e.stopPropagation()}>
+        <main className="native-auth-shell" data-auth-route={authRoute} onClick={(e) => e.stopPropagation()}>
           <div className="native-auth-content">
-            <header className="native-auth-navigation">
+            <CRHeader className="native-auth-navigation">
               {authRoute !== 'welcome'
-                ? <button aria-label="Go back" className="native-auth-back" onClick={() => goToAuthRoute(authRoute === 'forgot-password' ? 'sign-in' : 'welcome')} type="button">‹</button>
-                : <span className="native-auth-back" />}
-              <button aria-label="Close" className="native-auth-close" onClick={() => setAuthModalOpen(false)} type="button">×</button>
-            </header>
-            <Image
-              alt="Commonroom"
-              className="native-auth-logo"
-              height={32}
-              priority
-              src={darkMode ? '/common-room-full-logo-white.png' : '/common-room-full-logo.png'}
-              width={140}
-            />
-            <h1 className="native-auth-title">
-              {authRoute === 'welcome' ? 'Your vibe, your people.' : authRoute === 'sign-up' ? 'Create your account' : authRoute === 'forgot-password' ? 'Reset your password' : 'Log in'}
-            </h1>
-            <p className="native-auth-subtitle">
-              {authRoute === 'welcome' ? 'A shared space for your community.' : 'Connect with your community.'}
-            </p>
-            {!configured ? (
-              <div className="native-auth-setup">
-                <ShieldCheck size={19} />
-                <span>Connect Supabase to enable real accounts and saved community data. Add the public project URL and publishable key to your Vercel environment variables.</span>
-              </div>
-            ) : null}
-            <section className="native-auth-panel">
+                ? <button aria-label="Go back" className="native-auth-back" onClick={() => goToAuthRoute(authRoute === 'forgot-password' || authRoute === 'verify-email' || authRoute === 'update-password' ? 'sign-in' : 'welcome')} type="button">‹</button>
+                : <span aria-hidden="true" className="native-auth-header-spacer" />}
               {authRoute === 'welcome' ? (
-                <div className="native-auth-actions">
-                  <button className="native-auth-primary" disabled={!configured} onClick={() => goToAuthRoute('sign-up')} type="button">Create account with email</button>
-                  <button className="native-auth-secondary" disabled={!configured} onClick={() => goToAuthRoute('sign-in')} type="button">Sign in with email</button>
-                  <button className="native-auth-secondary" disabled={!configured} onClick={signInWithApple} type="button">Continue with Apple</button>
-                  <button className="native-auth-secondary" disabled={!configured} onClick={signInWithGoogle} type="button">Continue with Google</button>
+                <div className="native-auth-brand">
+                  <DotsProgress className="native-auth-brand-dots" />
+                  <span>common room</span>
                 </div>
-              ) : null}
-              {authRoute === 'sign-up' ? (
-                <form className="native-auth-form" onSubmit={submitAuth}>
-                  <label>Full name<input required value={signupName} onChange={(event) => setSignupName(event.target.value)} autoComplete="name" placeholder="Full name" /></label>
-                  <label>Email address<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="Email address" /></label>
-                  <label>Create password<div className="native-auth-password"><input required minLength={8} type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" placeholder="Create password" /><button aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)} type="button">{showPassword ? <EyeOff aria-hidden="true" size={17} /> : <Eye aria-hidden="true" size={17} />}</button></div></label>
-                  {error ? <p className="form-error" role="alert">{error}</p> : null}
-                  {notice ? <p className="form-success" role="status">{notice}</p> : null}
-                  <button className="native-auth-primary" disabled={!configured} type="submit">Create account</button>
-                  <button className="native-auth-text-button" onClick={() => goToAuthRoute('sign-in')} type="button">Already have an account? Sign in</button>
-                </form>
-              ) : null}
-              {authRoute === 'sign-in' ? (
-                <div className="native-auth-form">
-                  <div aria-label="Sign-in method" className="native-auth-method-toggle" role="group">
-                    <button aria-pressed={loginMethod === 'email'} className={loginMethod === 'email' ? 'selected' : ''} onClick={() => setLoginMethod('email')} type="button">Email</button>
-                    <button aria-pressed={loginMethod === 'apple'} className={loginMethod === 'apple' ? 'selected' : ''} onClick={() => setLoginMethod('apple')} type="button">Apple</button>
+              ) : <span aria-hidden="true" className="native-auth-header-spacer" />}
+              <button aria-label="Close" className="native-auth-close" onClick={() => setAuthModalOpen(false)} type="button">×</button>
+            </CRHeader>
+            {authRoute === 'welcome' ? (
+              <div className="native-auth-welcome">
+                <div aria-hidden="true" className="native-auth-hero-art">
+                  <span className="native-auth-hero-circle" />
+                  <span className="native-auth-hero-square" />
+                  <span className="native-auth-hero-outline" />
+                  <span className="native-auth-hero-mark"><i /><i /></span>
+                </div>
+                <div className="native-auth-welcome-copy">
+                  <h1 className="native-auth-title">Your campus, in one room.</h1>
+                  <p className="native-auth-subtitle">Post to your campus, say things anonymously, and buy and sell with students near you.</p>
+                </div>
+                {!configured ? (
+                  <Banner className="native-auth-setup" variant="info">
+                    Connect Supabase to enable real accounts and saved community data.
+                  </Banner>
+                ) : null}
+                <section className="native-auth-panel">
+                  <div className="native-auth-actions">
+                    <CRButton className="native-auth-primary" disabled={!configured} fullWidth onClick={() => goToAuthRoute('sign-up')}>
+                      Create account
+                    </CRButton>
+                    <CRButton className="native-auth-secondary" disabled={!configured} fullWidth onClick={() => goToAuthRoute('sign-in')}>
+                      Sign in
+                    </CRButton>
                   </div>
-                  {loginMethod === 'email' ? (
+                  <p className="native-auth-terms">By continuing you agree to the <u>Terms</u> and <u>Community Guidelines</u>.</p>
+                </section>
+              </div>
+            ) : (
+              <>
+                <DotsProgress className="native-auth-page-dots" current={authRoute === 'forgot-password' || authRoute === 'verify-email' ? 2 : 1} />
+                <h1 className="native-auth-title">
+                  {authRoute === 'sign-in'
+                    ? 'Welcome back'
+                    : authRoute === 'sign-up'
+                      ? 'Create your account'
+                      : authRoute === 'verify-email'
+                        ? 'Check your email'
+                        : authRoute === 'update-password'
+                          ? 'New password'
+                          : 'Reset your password'}
+                </h1>
+                <p className="native-auth-subtitle">
+                  {authRoute === 'sign-in'
+                    ? 'Sign in to pick up where you left off.'
+                    : authRoute === 'sign-up'
+                      ? 'Use your school email if you have one.'
+                      : authRoute === 'verify-email'
+                        ? `We sent a confirmation link to ${email}. Open it to verify your account.`
+                        : authRoute === 'update-password'
+                          ? 'Choose a new password for your account.'
+                          : 'Enter your email and we will send a reset link.'}
+                </p>
+                {!configured ? (
+                  <Banner className="native-auth-setup" variant="info">
+                    Connect Supabase to enable real accounts and saved community data.
+                  </Banner>
+                ) : null}
+                <section className="native-auth-panel">
+                  {authRoute === 'sign-up' ? (
                     <form className="native-auth-form" onSubmit={submitAuth}>
-                      <label>Email address<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="Email address" /></label>
-                      <label>Password<div className="native-auth-password"><input required type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" placeholder="Password" /><button aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)} type="button">{showPassword ? <EyeOff aria-hidden="true" size={17} /> : <Eye aria-hidden="true" size={17} />}</button></div></label>
-                      {error ? <p className="form-error" role="alert">{error}</p> : null}
-                      {notice ? <p className="form-success" role="status">{notice}</p> : null}
-                      <button className="native-auth-primary" disabled={!configured} type="submit">Continue</button>
+                      <CRInput inputProps={{ autoComplete: 'name', required: true }} label="Full name" onChange={(event) => setSignupName(event.target.value)} placeholder="Full name" value={signupName} />
+                      <CRInput inputProps={{ autoComplete: 'email', required: true }} label="Email address" onChange={(event) => setEmail(event.target.value)} placeholder="you@school.edu" type="email" value={email} />
+                      <CRInput
+                        inputProps={{ autoComplete: 'new-password', minLength: 8, required: true }}
+                        label="Create password"
+                        onChange={(event) => setPassword(event.target.value)}
+                        placeholder="At least 8 characters"
+                        rightIcon={showPassword ? <EyeOff aria-hidden="true" size={17} /> : <Eye aria-hidden="true" size={17} />}
+                        rightIconLabel={showPassword ? 'Hide password' : 'Show password'}
+                        onRightIconClick={() => setShowPassword((visible) => !visible)}
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                      />
+                      {error ? <Banner>{error}</Banner> : null}
+                      {notice ? <Banner className="native-auth-success" variant="info">{notice}</Banner> : null}
+                      <CRButton className="native-auth-primary" disabled={!configured} fullWidth type="submit">Create account</CRButton>
+                      <button className="native-auth-text-button" onClick={() => goToAuthRoute('sign-in')} type="button">Already have an account? Sign in</button>
                     </form>
-                  ) : (
-                    <>
-                      <p className="native-auth-subtitle">Continue securely with your Apple account.</p>
-                      {error ? <p className="form-error" role="alert">{error}</p> : null}
-                      <button className="native-auth-primary" disabled={!configured} onClick={signInWithApple} type="button">Continue with Apple</button>
-                    </>
-                  )}
-                  <button className="native-auth-secondary" disabled={!configured} onClick={signInWithGoogle} type="button">Continue with Google</button>
-                  {loginMethod === 'email' ? <button className="native-auth-text-button" onClick={() => goToAuthRoute('forgot-password')} type="button">Forgot password?</button> : null}
-                  <button className="native-auth-text-button" onClick={() => goToAuthRoute('sign-up')} type="button">Create an account</button>
-                </div>
-              ) : null}
-              {authRoute === 'forgot-password' ? (
-                <form className="native-auth-form" onSubmit={requestPasswordReset}>
-                  <label>Email address<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="Email address" /></label>
-                  {error ? <p className="form-error" role="alert">{error}</p> : null}
-                  {notice ? <p className="form-success" role="status">{notice}</p> : null}
-                  <button className="native-auth-primary" disabled={!configured} type="submit">Request password reset</button>
-                </form>
-              ) : null}
-            </section>
+                  ) : null}
+                  {authRoute === 'sign-in' ? (
+                    <div className="native-auth-form">
+                      <form className="native-auth-form" onSubmit={submitAuth}>
+                        <CRInput inputProps={{ autoComplete: 'email', required: true }} label="Email address" onChange={(event) => setEmail(event.target.value)} placeholder="you@school.edu" type="email" value={email} />
+                        <CRInput
+                          inputProps={{ autoComplete: 'current-password', required: true }}
+                          label="Password"
+                          onChange={(event) => setPassword(event.target.value)}
+                          placeholder="Your password"
+                          rightIcon={showPassword ? <EyeOff aria-hidden="true" size={17} /> : <Eye aria-hidden="true" size={17} />}
+                          rightIconLabel={showPassword ? 'Hide password' : 'Show password'}
+                          onRightIconClick={() => setShowPassword((visible) => !visible)}
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                        />
+                        {error ? <Banner>{error}</Banner> : null}
+                        {notice ? <Banner className="native-auth-success" variant="info">{notice}</Banner> : null}
+                        <div className="native-auth-inline-link">
+                          <button className="native-auth-text-button" onClick={() => goToAuthRoute('forgot-password')} type="button">Forgot password?</button>
+                        </div>
+                        <CRButton className="native-auth-primary" disabled={!configured} fullWidth type="submit">Sign in</CRButton>
+                      </form>
+                      <div className="native-auth-social-actions">
+                        <CRButton className="native-auth-social" disabled={!configured} onClick={signInWithApple} variant="ghost">
+                          Continue with Apple
+                        </CRButton>
+                        <CRButton className="native-auth-social" disabled={!configured} onClick={signInWithGoogle} variant="ghost">
+                          Continue with Google
+                        </CRButton>
+                      </div>
+                      <button className="native-auth-text-button" onClick={() => goToAuthRoute('sign-up')} type="button">New to Common Room? Create account</button>
+                    </div>
+                  ) : null}
+                  {authRoute === 'forgot-password' ? (
+                    <form className="native-auth-form" onSubmit={requestPasswordReset}>
+                      <CRInput inputProps={{ autoComplete: 'email', required: true }} label="Email" onChange={(event) => setEmail(event.target.value)} placeholder="you@school.edu" type="email" value={email} />
+                      {error ? <Banner>{error}</Banner> : null}
+                      {notice ? <Banner className="native-auth-success" variant="info">{notice}</Banner> : null}
+                      <CRButton className="native-auth-primary" disabled={!configured} fullWidth type="submit">Send reset link</CRButton>
+                    </form>
+                  ) : null}
+                  {authRoute === 'verify-email' ? (
+                    <div className="native-auth-form">
+                      {error ? <Banner>{error}</Banner> : null}
+                      {notice ? <Banner className="native-auth-success" variant="info">{notice}</Banner> : null}
+                      <CRButton className="native-auth-primary" disabled={!configured} fullWidth onClick={() => void resendSignupConfirmation()}>
+                        Resend confirmation email
+                      </CRButton>
+                      <button className="native-auth-text-button" onClick={() => goToAuthRoute('sign-in')} type="button">
+                        Already verified? Sign in
+                      </button>
+                    </div>
+                  ) : null}
+                  {authRoute === 'update-password' ? (
+                    <form className="native-auth-form" onSubmit={updatePassword}>
+                      <CRInput
+                        inputProps={{ autoComplete: 'new-password', minLength: 8, required: true }}
+                        label="New password"
+                        onChange={(event) => setPassword(event.target.value)}
+                        placeholder="At least 8 characters"
+                        rightIcon={showPassword ? <EyeOff aria-hidden="true" size={17} /> : <Eye aria-hidden="true" size={17} />}
+                        rightIconLabel={showPassword ? 'Hide password' : 'Show password'}
+                        onRightIconClick={() => setShowPassword((visible) => !visible)}
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                      />
+                      <CRInput
+                        inputProps={{ autoComplete: 'new-password', minLength: 8, required: true }}
+                        label="Confirm password"
+                        onChange={(event) => setConfirmPassword(event.target.value)}
+                        placeholder="Enter your new password again"
+                        type="password"
+                        value={confirmPassword}
+                      />
+                      {error ? <Banner>{error}</Banner> : null}
+                      <CRButton className="native-auth-primary" disabled={!configured} fullWidth type="submit">Update password</CRButton>
+                    </form>
+                  ) : null}
+                </section>
+              </>
+            )}
           </div>
         </main>
       </div>
@@ -848,97 +1204,20 @@ export default function Home() {
   };
 
   return (
-    <main className={tab === 'games' ? 'app-shell games-app-shell' : 'app-shell'} data-theme={darkMode ? 'dark' : 'light'}>
-      <aside className="sidebar">
-        <Brand darkMode={darkMode} />
-        <div className="school-switcher">
-          <div className="school-avatar">{currentProfile.school?.slice(0, 1) ?? 'C'}</div>
-          <div><strong>{currentProfile.school ?? 'All communities'}</strong><span>{isGuest ? 'Browsing as Guest' : 'Your community'}</span></div>
-          <ChevronDown size={15} />
-        </div>
-        <nav className="primary-nav" aria-label="Main navigation">
-          {tabs.map(({ id, label, icon: Icon }) => (
-            <button className={tab === id ? 'nav-link selected' : 'nav-link'} key={id} onClick={() => { setTab(id); setError(''); }}>
-              <Icon size={19} strokeWidth={2.2} /><span>{label}</span>
-            </button>
-          ))}
-          <button className={tab === 'profile' ? 'nav-link selected' : 'nav-link'} onClick={() => { if (isGuest) { setAuthRoute('sign-in'); setAuthModalOpen(true); } else { setTab('profile'); } }}>
-            <Users size={19} /><span>{isGuest ? 'Sign in / Profile' : 'My profile'}</span>
-          </button>
-        </nav>
-        <div className="sidebar-spacer" />
-        <div className="sidebar-promo">
-          <div className="promo-icon"><Compass size={20} /></div>
-          <strong>Everything, in one place</strong>
-          <p>Catch moments, ask questions, and share what matters.</p>
-        </div>
-        {isGuest ? (
-          <div className="guest-sidebar-action">
-            <div className="guest-sidebar-actions">
-              <button
-                className="primary-button guest-signin-btn"
-                onClick={() => { setAuthRoute('sign-in'); setAuthModalOpen(true); }}
-                type="button"
-              >
-                <LogIn size={15} />
-                <span>Log in / Sign up</span>
-              </button>
-              <button
-                aria-label="Open menu"
-                className="guest-menu-button"
-                onClick={() => setMenuOpen((open) => !open)}
-                type="button"
-              >
-                <Menu size={18} />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button className="account-row" onClick={() => setMenuOpen((open) => !open)}>
-            <span className="profile-avatar">{currentProfile.displayName.slice(0, 1).toUpperCase()}</span>
-            <span><strong>{currentProfile.displayName}</strong><small>@{currentProfile.username ?? 'student'}</small></span>
-            <MoreHorizontal size={19} />
-          </button>
-        )}
-      </aside>
-
+    <main className="app-shell" data-theme={darkMode ? 'dark' : 'light'}>
       <section className="workspace">
-        {tab !== 'home' ? (
-          <header className="workspace-topbar">
-            <div className="workspace-heading">
-              <h2>{tabs.find((item) => item.id === tab)?.label ?? (tab === 'games' ? 'Games' : tab === 'profile' ? 'My profile' : 'Connect')}</h2>
-            </div>
-            <div className="topbar-actions">
-              <button className="search-button" onClick={() => setSearchModalOpen(true)} type="button">
-                <Search size={16} />
-                <span>Search</span>
-              <kbd>⌘ K</kbd>
-            </button>
-            <button
-              className="icon-button topbar-bell-btn"
-              aria-label="Notifications"
-              onClick={() => setNotificationsOpen((prev) => !prev)}
-              type="button"
-            >
-              <Bell size={18} />
-              {notifications.some((n) => !n.read) ? (
-                <span className="notification-dot" />
-              ) : null}
-            </button>
-          </div>
-        </header>
-        ) : null}
-
         <div className="content-scroll">
           {error ? <div className="feedback error-banner" role="alert"><span>{error}</span><button onClick={() => setError('')} aria-label="Dismiss error"><X size={16} /></button></div> : null}
           {notice ? <div className="feedback success-banner" role="status"><span>{notice}</span><button onClick={() => setNotice('')} aria-label="Dismiss message"><X size={16} /></button></div> : null}
           {tab !== 'home' ? <CommunityAnnouncement /> : null}
 
-          {tab === 'home' ? (
+          {tab === 'home' || tab === 'room' ? (
             <RoomExperience
+              key={tab}
+              initialFeedSection={tab === 'room' ? 'Videos' : 'For You'}
               accessToken={session?.access_token ?? ''}
               focusPostId={focusPostId}
-              hasUnreadNotifications={notifications.some((n) => !n.read)}
+              hasUnreadNotifications={false}
               isGuest={isGuest}
               onCreate={() => {
                 if (isGuest) {
@@ -958,6 +1237,7 @@ export default function Home() {
                 setNotificationsOpen((prev) => !prev);
                 setMenuOpen(false);
               }}
+              onOpenProfile={() => setTab('profile')}
               onOpenSearch={() => setSearchModalOpen(true)}
               onRequireAccount={() => {
                 setAuthRoute('sign-in');
@@ -965,16 +1245,64 @@ export default function Home() {
               }}
               profile={currentProfile}
               refreshToken={roomRefresh}
+              theme="light"
             />
           ) : null}
 
           {tab === 'create' ? (
-            <section className="standalone-column">
-              <div className="page-heading"><div><span className="eyebrow">SHARE WITH YOUR COMMUNITY</span><h1>Create a post</h1></div></div>
-              <div aria-label="Post destination" className="segmented-control create-destination-toggle" role="group">
-                <button className={createDestination === 'room' ? 'segment selected' : 'segment'} onClick={() => { setCreateDestination('room'); setCreateFiles([]); setSelectedSoundName(null); }} type="button">Room</button>
-                <button className={createDestination === 'anonymous' ? 'segment selected' : 'segment'} onClick={() => { setCreateDestination('anonymous'); setCreateType('text'); setCreateFiles([]); setSelectedSoundName(null); }} type="button">Anonymous</button>
+            <section className="standalone-column cr-ui" style={{ maxWidth: 540, margin: '0 auto', padding: '16px', background: '#fff', borderRadius: 20 }}>
+              {/* Header matching Mockup Screen 12 & 13 */}
+              <div className="hd" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 36, marginBottom: 14 }}>
+                <button
+                  type="button"
+                  onClick={() => setTab(createDestination === 'anonymous' ? 'anonymous' : 'room')}
+                  aria-label="Close"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#0b0b0b' }}
+                >
+                  <X size={20} />
+                </button>
+                <div style={{ display: 'flex', gap: 4, background: '#f0f0f0', borderRadius: 999, padding: 3 }}>
+                  <button
+                    type="button"
+                    onClick={() => { setCreateDestination('room'); setCreateFiles([]); setSelectedSoundName(null); }}
+                    style={{ border: 'none', borderRadius: 999, padding: '4px 14px', fontSize: 12, fontWeight: 500, background: createDestination === 'room' ? '#0b0b0b' : 'transparent', color: createDestination === 'room' ? '#fff' : '#6b6b6b', cursor: 'pointer' }}
+                  >
+                    Room
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setCreateDestination('anonymous'); setCreateType('text'); setCreateFiles([]); setSelectedSoundName(null); }}
+                    style={{ border: 'none', borderRadius: 999, padding: '4px 14px', fontSize: 12, fontWeight: 500, background: createDestination === 'anonymous' ? '#0b0b0b' : 'transparent', color: createDestination === 'anonymous' ? '#fff' : '#6b6b6b', cursor: 'pointer' }}
+                  >
+                    Anonymous
+                  </button>
+                </div>
+                <button
+                  disabled={isPublishing || (!createCaption.trim() && createFiles.length === 0) || (createDestination === 'anonymous' && (!anonymousIdentity || anonymousIdentityLoading))}
+                  onClick={() => createFormRef.current?.requestSubmit()}
+                  type="button"
+                  style={{
+                    background: (!isPublishing && (createCaption.trim().length > 0 || createFiles.length > 0)) ? '#0b0b0b' : '#d9d9d9',
+                    color: (!isPublishing && (createCaption.trim().length > 0 || createFiles.length > 0)) ? '#fff' : '#8a8a8a',
+                    borderRadius: 12,
+                    height: 32,
+                    padding: '0 16px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    fontSize: 12.5,
+                    fontWeight: 500,
+                    border: 'none',
+                    cursor: (!isPublishing && (createCaption.trim().length > 0 || createFiles.length > 0)) ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {isPublishing ? (compressionProgress !== null ? `${compressionProgress}%` : 'Posting…') : 'Post'}
+                </button>
               </div>
+
+              {createDestination === 'anonymous' ? (
+                <p style={{ fontSize: 11.5, color: '#6b6b6b', margin: '0 0 12px' }}>Never linked to your profile.</p>
+              ) : null}
+
               {createDestination === 'anonymous' && !anonymousIdentity ? (
                 <form className="panel anon-create-identity" onSubmit={(event) => void saveAnonymousIdentity(event)}>
                   <div><span className="anon-create-identity-icon"><ShieldCheck size={18} /></span><div><strong>Choose your Anonymous name</strong><p>This name is separate from your profile and won’t be attached to your post.</p></div></div>
@@ -1017,14 +1345,48 @@ export default function Home() {
                   </div>
                 </div>
               ) : (
-                <form className={`panel form-panel${createDestination === 'anonymous' ? ' anonymous-create-form' : ''}`} onSubmit={(event) => void publishPost(event)}>
-                <div className="segmented-control">
-                  {(createDestination === 'anonymous' ? ['text', 'photo', 'video'] as const : ['photo', 'video', 'poll', 'text'] as const).map((type) => (
-                    <button key={type} type="button" className={createType === type ? 'segment selected' : 'segment'} onClick={() => { setCreateType(type); setCreateFiles([]); setSelectedSoundName(null); setReelEditorOpen(false); setPhotoReelEditorOpen(false); }}>
-                      {type === 'video' ? <Video size={15} /> : type === 'photo' ? <ImagePlus size={15} /> : null}{formatPostType(type)}
-                    </button>
-                  ))}
-                </div>
+                <form className={`form-panel${createDestination === 'anonymous' ? ' anonymous-create-form' : ''}`} onSubmit={(event) => void publishPost(event)} ref={createFormRef} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {/* Author Row with avatar and textarea matching Mockup 12 & 13 */}
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: createDestination === 'anonymous' ? '#efefef' : '#0b0b0b', color: createDestination === 'anonymous' ? '#0b0b0b' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 13, fontWeight: 500 }}>
+                      {createDestination === 'anonymous' ? '?' : currentProfile.displayName ? currentProfile.displayName.slice(0, 1).toUpperCase() : 'Y'}
+                    </div>
+                    <textarea
+                      value={createCaption}
+                      onChange={(event) => setCreateCaption(event.target.value)}
+                      maxLength={createDestination === 'anonymous' ? 300 : 500}
+                      rows={3}
+                      placeholder={createDestination === 'anonymous' ? 'Say it anonymously...' : "What's happening on campus?"}
+                      style={{ flex: 1, minHeight: 70, border: 'none', outline: 'none', resize: 'none', background: 'transparent', fontSize: 14, lineHeight: 1.45, color: '#0b0b0b' }}
+                    />
+                  </div>
+
+                  {/* Mode / Type selectors */}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {(createDestination === 'anonymous' ? ['text', 'photo', 'video'] as const : ['photo', 'video', 'poll', 'text'] as const).map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => { setCreateType(type); setCreateFiles([]); setUploadError(''); setSelectedSoundName(null); setReelEditorOpen(false); setPhotoReelEditorOpen(false); }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '6px 12px',
+                          borderRadius: 999,
+                          border: '1px solid #e0e0e0',
+                          background: createType === type ? '#0b0b0b' : '#fff',
+                          color: createType === type ? '#fff' : '#0b0b0b',
+                          fontSize: 12,
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {type === 'video' ? <Video size={13} /> : type === 'photo' ? <ImagePlus size={13} /> : null}
+                        {formatPostType(type)}
+                      </button>
+                    ))}
+                  </div>
                 {createDestination === 'anonymous' ? (
                   <>
                     <div className="anon-create-scope-row">
@@ -1088,120 +1450,53 @@ export default function Home() {
                   </div>
                 ) : null}
                 {createType === 'photo' || createType === 'video' ? (
-                  createFiles.length === 0 ? (
-                    <label className="upload-zone">
-                      <ImagePlus size={24} />
-                      <strong>Choose {createType === 'photo' ? 'photos' : 'a video'}</strong>
-                      <span>{createDestination === 'anonymous' ? 'Media is optimized on this device before upload.' : 'Media is optimized on this device before upload.'}</span>
-                      <input
-                        accept={createType === 'photo' ? 'image/*' : 'video/*'}
-                        multiple={createType === 'photo' || createDestination === 'anonymous'}
-                        type="file"
-                        onChange={(event) => {
-                          const files = Array.from(event.target.files ?? []);
-                          if (createDestination === 'room' && createType === 'photo' && createFiles.length + files.length > 10) {
-                            setError('Choose up to 10 photos for a Room post.');
-                            event.target.value = '';
-                            return;
-                          }
-                          setCreateFiles(files);
-                          setSelectedSoundName(null);
-                          event.target.value = '';
-                        }}
-                      />
-                    </label>
-                  ) : (
-                    <div className="upload-preview-container">
-                      <div className="upload-preview-header">
-                        <span>{createFiles.length} {createType === 'video' ? 'video' : createFiles.length === 1 ? 'photo' : 'photos'} selected</span>
-                        <button
-                          type="button"
-                          className="upload-clear-all"
-                          onClick={() => {
-                            setCreateFiles([]);
-                            setPreviewFile(null);
-                            setSelectedSoundName(null);
-                            setReelEditorOpen(false);
-                          }}
-                        >
-                          Clear all
-                        </button>
+                  <>
+                    <MediaUploadQueue
+                      accept={createType === 'photo' ? 'image/jpeg,image/png,image/webp' : 'video/mp4,video/quicktime,video/webm'}
+                      disabled={isPublishing}
+                      error={uploadError}
+                      files={createFiles}
+                      maxFiles={createDestination === 'room' && createType === 'photo' ? 10 : undefined}
+                      multiple={createType === 'photo' || createDestination === 'anonymous'}
+                      uploading={isPublishing && compressionProgress === null && createFiles.length > 0}
+                      onClear={() => {
+                        setCreateFiles([]);
+                        setPreviewFile(null);
+                        setSelectedSoundName(null);
+                        setReelEditorOpen(false);
+                        setPhotoReelEditorOpen(false);
+                        setUploadError('');
+                      }}
+                      onFilesSelected={(files, append) => selectCreateFiles(files, append)}
+                      onPreview={(index) => {
+                        const file = createFiles[index];
+                        const url = createPreviewUrls[index];
+                        if (file && url) setPreviewFile({ url, file, isVideo: file.type.startsWith('video/') });
+                      }}
+                      onRemove={(index) => {
+                        const file = createFiles[index];
+                        setCreateFiles((current) => current.filter((_, fileIndex) => fileIndex !== index));
+                        if (previewFile?.file === file) setPreviewFile(null);
+                        setSelectedSoundName(null);
+                        setUploadError('');
+                      }}
+                      onRetry={() => createFormRef.current?.requestSubmit()}
+                      previews={createPreviewUrls}
+                      progress={compressionProgress}
+                    />
+                    {createType === 'video' && createFiles.length === 1 && createFiles[0] ? (
+                      <div className="reel-editor-entry">
+                        <div><strong>{selectedSoundName ? 'Edited reel ready' : 'Make it a reel'}</strong><span>{selectedSoundName ? `Soundtrack: ${selectedSoundName}` : 'Trim your clip and add your own audio.'}</span></div>
+                        <button className="secondary-button" onClick={() => setReelEditorOpen(true)} type="button"><Video size={15} /> Open editor</button>
                       </div>
-                      <div className="upload-preview-grid">
-                        {createFiles.map((file, index) => {
-                          const isVideo = file.type.startsWith('video/');
-                          const url = createPreviewUrls[index];
-                          return (
-                            <div key={`${file.name}-${index}`} className="upload-thumbnail-card">
-                              <button
-                                type="button"
-                                className="upload-thumbnail-btn"
-                                onClick={() => setPreviewFile({ url, file, isVideo })}
-                                aria-label={`View full size ${file.name}`}
-                                title="Click to view full size"
-                              >
-                                {isVideo ? (
-                                  <video src={url} className="upload-thumb-media" />
-                                ) : (
-                                  <img src={url} alt={file.name} className="upload-thumb-media" />
-                                )}
-                                {isVideo ? (
-                                  <span className="video-pill">
-                                    <Play size={9} fill="currentColor" /> Video
-                                  </span>
-                                ) : null}
-                              </button>
-                              <button
-                                type="button"
-                                className="upload-thumb-remove"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setCreateFiles((prev) => prev.filter((_, i) => i !== index));
-                                  setSelectedSoundName(null);
-                                  if (previewFile?.file === file) setPreviewFile(null);
-                                }}
-                                aria-label="Remove media"
-                                title="Remove photo"
-                              >
-                                <X size={12} />
-                              </button>
-                            </div>
-                          );
-                        })}
-
-                        {createType === 'photo' && (createDestination === 'anonymous' || createFiles.length < 10) ? (
-                          <label className="upload-add-more" aria-label="Add more photos" title="Add more photos">
-                            <Plus size={20} />
-                            <span>Add more</span>
-                            <input
-                              accept="image/*"
-                              multiple
-                              type="file"
-                              onChange={(event) => {
-                                const additional = Array.from(event.target.files ?? []);
-                                setCreateFiles((prev) => createDestination === 'anonymous'
-                                  ? [...prev, ...additional]
-                                  : [...prev, ...additional].slice(0, 10));
-                                event.target.value = '';
-                              }}
-                            />
-                          </label>
-                        ) : null}
+                    ) : null}
+                    {createType === 'photo' && createFiles.length > 0 ? (
+                      <div className="reel-editor-entry">
+                        <div><strong>Turn photos into a video</strong><span>Arrange the sequence, choose timing, and optionally add your own soundtrack.</span></div>
+                        <button className="secondary-button" onClick={() => setPhotoReelEditorOpen(true)} type="button"><Video size={15} /> Make a reel</button>
                       </div>
-                      {createType === 'video' && createFiles.length === 1 && createFiles[0] ? (
-                        <div className="reel-editor-entry">
-                          <div><strong>{selectedSoundName ? 'Edited reel ready' : 'Make it a reel'}</strong><span>{selectedSoundName ? `Soundtrack: ${selectedSoundName}` : 'Trim your clip and add your own audio.'}</span></div>
-                          <button className="secondary-button" onClick={() => setReelEditorOpen(true)} type="button"><Video size={15} /> Open editor</button>
-                        </div>
-                      ) : null}
-                      {createType === 'photo' && createFiles.length > 0 ? (
-                        <div className="reel-editor-entry">
-                          <div><strong>Turn photos into a video</strong><span>Arrange the sequence, choose timing, and optionally add your own soundtrack.</span></div>
-                          <button className="secondary-button" onClick={() => setPhotoReelEditorOpen(true)} type="button"><Video size={15} /> Make a reel</button>
-                        </div>
-                      ) : null}
-                    </div>
-                  )
+                    ) : null}
+                  </>
                 ) : null}
                 {createDestination === 'anonymous' && createType === 'text' ? (
                   <>
@@ -1276,9 +1571,15 @@ export default function Home() {
                   </div>
                   <label>Audience<select value={createAudience} onChange={(event) => setCreateAudience(event.target.value as Audience)}><option>Public</option><option>Followers</option><option>Private</option></select></label>
                 </div> : null}
-                {compressionProgress !== null ? <p className="media-compression-status" role="status">Optimizing media on this device… {compressionProgress}%</p> : null}
-                <div className="form-footnote"><ShieldCheck size={16} /><span>{createDestination === 'anonymous' ? 'Not linked.' : 'Audience permissions are enforced by the API and database policies.'}</span></div>
-                <button className="primary-button anonymous-post-submit" disabled={compressionProgress !== null || (createDestination === 'anonymous' && (!anonymousIdentity || anonymousIdentityLoading))} type="submit">{compressionProgress !== null ? 'Optimizing…' : createDestination === 'anonymous' ? 'Post anonymously' : 'Post'}</button>
+                <div className="sp" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, fontSize: 11.5, color: '#6b6b6b' }}>
+                  <span>{createDestination === 'anonymous' ? 'Follows Community Guidelines' : 'Add #tags to help people find this'}</span>
+                  <span>{createCaption.length} / {createDestination === 'anonymous' ? 300 : 500}</span>
+                </div>
+                {createDestination === 'anonymous' ? (
+                  <p style={{ fontSize: 11.5, color: '#8a8a8a', margin: '4px 0 0' }}>You can delete a post later, but not edit it.</p>
+                ) : null}
+                {compressionProgress !== null ? <p className="media-compression-status" role="status">Uploading {compressionProgress}%. You can post when it finishes.</p> : null}
+                <button className="primary-button anonymous-post-submit" disabled={isPublishing || (createDestination === 'anonymous' && (!anonymousIdentity || anonymousIdentityLoading))} type="submit" style={{ display: 'none' }}>{isPublishing ? (compressionProgress !== null ? `Uploading ${compressionProgress}%…` : 'Uploading…') : createDestination === 'anonymous' ? 'Post anonymously' : 'Post'}</button>
               </form>
             )}
           </section>
@@ -1393,90 +1694,55 @@ export default function Home() {
             <MarketplaceExperience />
           ) : null}
 
-          {tab === 'games' ? (
-            <GamesExperience
-              accessToken={session?.access_token ?? ''}
-              playerId={currentProfile.id}
-              playerName={currentProfile.displayName}
-            />
-          ) : null}
-
-          {tab === 'meet' ? (
-            <MeetExperience
-              onRequireAccount={() => {
-                setAuthRoute('sign-in');
-                setAuthModalOpen(true);
-              }}
-              profile={currentProfile}
-              session={session && profile && !session.user.is_anonymous ? session : null}
-            />
-          ) : null}
-
           {tab === 'profile' ? (
-            <section className="standalone-column">
-              <div className="page-heading">
-                <div><span className="eyebrow">YOUR ACCOUNT</span><h1>{isGuest ? 'Join Commonroom' : 'My profile'}</h1></div>
-                <button
-                  aria-label="Close profile"
-                  className="icon-button profile-close-button"
-                  onClick={() => { setError(''); setTab('home'); }}
-                  type="button"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              {isGuest ? (
-                <div className="panel guest-prompt-panel">
-                  <UserPlus size={36} className="guest-prompt-icon" />
-                  <h2>Create your student profile</h2>
-                  <p>Sign up to connect with your school community, bookmark posts, sell items, and build your profile.</p>
-                  <div className="guest-prompt-buttons">
-                    <button
-                      className="primary-button"
-                      onClick={() => { setAuthRoute('sign-up'); setAuthModalOpen(true); }}
-                      type="button"
-                    >
-                      Create an account
-                    </button>
-                    <button
-                      className="secondary-button"
-                      onClick={() => { setAuthRoute('sign-in'); setAuthModalOpen(true); }}
-                      type="button"
-                    >
-                      Sign in
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <ProfileForm
-                    ageConfirmed={ageConfirmed}
-                    course={course}
-                    displayName={displayName}
-                    educationStatus={educationStatus}
-                    filteredInstitutions={filteredInstitutions}
-                    interests={interests}
-                    school={school}
-                    schoolSearch={schoolSearch}
-                    showSchool={showSchool}
-                    year={year}
-                    onAgeConfirmed={setAgeConfirmed}
-                    onCourse={setCourse}
-                    onDisplayName={setDisplayName}
-                    onEducationStatus={setEducationStatus}
-                    onInterest={toggleInterest}
-                    onSchool={setSchool}
-                    onSchoolSearch={setSchoolSearch}
-                    onShowSchool={setShowSchool}
-                    onSubmit={saveProfile}
-                    onYear={setYear}
-                    error={error}
-                    disabled={!configured}
-                  />
-                  <button className="secondary-button signout-button" onClick={() => void signOut()}><LogOut size={16} /> Sign out</button>
-                </>
-              )}
-            </section>
+            <ProfileExperience
+              session={session}
+              profile={profile}
+              isGuest={isGuest}
+              onSignOut={() => void signOut()}
+              onRequireAccount={() => { setAuthRoute('sign-up'); setAuthModalOpen(true); }}
+              onClose={() => setTab('home')}
+              onSaveProfile={async (updated) => {
+                if (!session) return false;
+                try {
+                  let avatarUrl = updated.avatarRemoved ? null : profile?.avatarUrl ?? null;
+                  if (updated.avatarFile) {
+                    const ext = mediaFileExtension(updated.avatarFile);
+                    const path = `${session.user.id}/profile-${crypto.randomUUID()}.${ext}`;
+                    const { error: uploadError } = await getBrowserSupabase().storage.from('post-media').upload(path, updated.avatarFile, {
+                      contentType: updated.avatarFile.type,
+                      upsert: false,
+                    });
+                    if (uploadError) throw new Error(uploadError.message);
+                    const { data: pubData } = getBrowserSupabase().storage.from('post-media').getPublicUrl(path);
+                    avatarUrl = pubData.publicUrl;
+                  }
+                  const response = await fetch('/api/v1/profile', {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      Authorization: `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({
+                      displayName: updated.displayName,
+                      school: updated.school,
+                      course: updated.course,
+                      year: updated.year,
+                      interests: updated.interests,
+                      showSchoolOnProfile: updated.showSchoolOnProfile,
+                      educationStatus: profile?.educationStatus || 'currently_in_school',
+                      ageEligibilityConfirmed: true,
+                      avatarUrl,
+                    }),
+                  });
+                  if (!response.ok) return false;
+                  await loadProfile(session);
+                  return true;
+                } catch {
+                  return false;
+                }
+              }}
+            />
           ) : null}
         </div>
 
@@ -1485,7 +1751,11 @@ export default function Home() {
             <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
             <div className="account-menu">
               <div className="account-menu-header">
-                <span className="profile-avatar">{currentProfile.displayName.slice(0, 1).toUpperCase()}</span>
+                <span className="profile-avatar">
+                  {currentProfile.avatarUrl
+                    ? <img alt="" src={currentProfile.avatarUrl} />
+                    : currentProfile.displayName.slice(0, 1).toUpperCase()}
+                </span>
                 <div className="account-menu-user">
                   <strong>{currentProfile.displayName}</strong>
                   <small>{currentProfile.school ?? 'Commonroom'}</small>
@@ -1498,14 +1768,8 @@ export default function Home() {
                 <button onClick={() => { setTab('profile'); setMenuOpen(false); }} type="button">
                   <Users size={16} /> My profile
                 </button>
-                <button onClick={() => { setTab('meet'); setMenuOpen(false); }} type="button">
-                  <Heart size={16} /> Connect
-                </button>
                 <button onClick={() => { setTab('create'); setMenuOpen(false); }} type="button">
                   <Plus size={16} /> Create post
-                </button>
-                <button onClick={() => { setTab('games'); setMenuOpen(false); }} type="button">
-                  <Dices size={16} /> Games
                 </button>
                 <div className="account-menu-divider" />
                 <button className="account-menu-signout" onClick={() => void signOut()} type="button">
@@ -1524,39 +1788,14 @@ export default function Home() {
                 <div className="notifications-heading">
                   <Bell size={16} />
                   <strong>Notifications</strong>
-                  {notifications.filter((n) => !n.read).length > 0 ? (
-                    <span className="unread-pill">{notifications.filter((n) => !n.read).length} new</span>
-                  ) : null}
                 </div>
-                <button
-                  className="notifications-mark-read"
-                  onClick={() => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))}
-                  type="button"
-                >
-                  Mark all read
-                </button>
               </div>
               <div className="notifications-list">
-                {notifications.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`notification-item ${item.read ? 'read' : 'unread'}`}
-                    onClick={() => {
-                      setNotifications((prev) => prev.map((n) => n.id === item.id ? { ...n, read: true } : n));
-                      setNotificationsOpen(false);
-                      setTab('home');
-                    }}
-                  >
-                    <div className={`notification-icon-wrap ${item.type}`}>
-                      {item.type === 'like' ? <Heart size={13} fill="currentColor" /> : item.type === 'comment' ? <MessageCircle size={13} fill="currentColor" /> : item.type === 'follow' ? <UserPlus size={13} /> : <Bell size={13} />}
-                    </div>
-                    <div className="notification-content">
-                      <p><strong>{item.actor}</strong> {item.text}</p>
-                      <span className="notification-time">{item.time}</span>
-                    </div>
-                    {!item.read ? <span className="notification-dot-inline" /> : null}
-                  </div>
-                ))}
+                <div className="notification-unavailable" role="status">
+                  <Bell aria-hidden="true" size={18} />
+                  <p>Notifications aren’t connected yet.</p>
+                  <small>Your activity will appear here when notifications are available.</small>
+                </div>
               </div>
             </div>
           </>
@@ -1570,12 +1809,15 @@ export default function Home() {
                 <input
                   autoFocus
                   className="search-modal-input"
-                  placeholder="Search students, posts, schools, #topics…"
+                  placeholder="Search students or schools"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => updateSearchQuery(e.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') rememberSearch(searchQuery);
+                  }}
                 />
                 {searchQuery ? (
-                  <button className="search-modal-clear" onClick={() => setSearchQuery('')} aria-label="Clear search" type="button">
+                  <button className="search-modal-clear" onClick={() => updateSearchQuery('')} aria-label="Clear search" type="button">
                     <X size={15} />
                   </button>
                 ) : null}
@@ -1585,28 +1827,28 @@ export default function Home() {
               </div>
 
               <div className="search-modal-tags">
-                <span className="search-tags-label">Trending now:</span>
-                {['#Vibes', '#StudyTips', '#ExamSeason', '#HostelLife', '#TechStudents', '#GlowUp'].map((tag) => (
+                <span className="search-tags-label">Recent searches:</span>
+                {recentSearches.length ? recentSearches.map((recent) => (
                   <button
-                    key={tag}
+                    key={recent}
                     className="search-tag-chip"
-                    onClick={() => setSearchQuery(tag)}
+                    onClick={() => updateSearchQuery(recent)}
                     type="button"
                   >
-                    {tag}
+                    {recent}
                   </button>
-                ))}
+                )) : <span className="search-tags-label">No recent searches</span>}
               </div>
 
               <div className="search-modal-results">
                 {searchQuery.trim() ? (
                   <>
-                    <div className="search-section-title">Communities</div>
+                    <div className="search-section-title">Schools</div>
                     {institutions
                       .filter((inst) => `${inst.name} ${inst.location}`.toLowerCase().includes(searchQuery.toLowerCase()))
                       .slice(0, 4)
                       .map((inst) => (
-                        <div key={inst.name} className="search-result-item" onClick={() => setSearchModalOpen(false)}>
+                        <div key={inst.name} className="search-result-item">
                           <div className="search-result-avatar">{inst.name.slice(0, 1)}</div>
                           <div className="search-result-text">
                             <strong>{inst.name}</strong>
@@ -1615,100 +1857,129 @@ export default function Home() {
                         </div>
                       ))}
                     <div className="search-section-title">Students</div>
-                    {['Joyce A. (@real_joyce) - Ahmadu Bello University', 'Mide B. (@mide_b) - University of Lagos', 'Nana Q. (@nana_q) - FUT Minna', 'Chidi Eze (@chidi_tech) - UNN Nsukka']
-                      .filter((person) => person.toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map((person) => (
-                        <div key={person} className="search-result-item" onClick={() => { setSearchModalOpen(false); setTab('home'); }}>
-                          <div className="search-result-avatar person">{person.slice(0, 1)}</div>
-                          <div className="search-result-text">
-                            <strong>{person.split(' - ')[0]}</strong>
-                            <span>{person.split(' - ')[1]}</span>
+                    {searchQuery.trim().length < 2 ? <p className="search-empty-prompt">Enter at least 2 characters.</p> : null}
+                    {searchState === 'loading' ? <p className="search-empty-prompt" role="status">Searching students…</p> : null}
+                    {searchState === 'error' ? (
+                      <div className="search-empty-prompt" role="alert">
+                        <p>Student search couldn’t load. Try again.</p>
+                        <button className="search-tag-chip" onClick={() => setSearchRetry((value) => value + 1)} type="button">Retry search</button>
+                      </div>
+                    ) : null}
+                    {!session || session.user.is_anonymous ? (
+                      <p className="search-empty-prompt">Sign in to search students.</p>
+                    ) : null}
+                    {peopleResults.map((person) => (
+                        <button
+                          key={person.id}
+                          className="search-result-item search-result-person"
+                          onClick={() => { rememberSearch(searchQuery); void openPersonProfile(person.id); }}
+                          type="button"
+                        >
+                          <div className="search-result-avatar person">
+                            {person.avatar_url ? <img alt="" src={person.avatar_url} /> : person.display_name.slice(0, 1)}
                           </div>
-                        </div>
-                      ))}
+                          <div className="search-result-text">
+                            <strong>{person.display_name}{person.username ? ` · @${person.username}` : ''}</strong>
+                            <span>{person.school ?? 'Commonroom member'}</span>
+                          </div>
+                        </button>
+                    ))}
+                    {searchState === 'ready' && !peopleResults.length && session && !session.user.is_anonymous ? (
+                      <p className="search-empty-prompt">No students found for “{searchQuery.trim()}”.</p>
+                    ) : null}
                   </>
                 ) : (
                   <div className="search-empty-prompt">
-                    <p>Type names, tags, or topics to search your community.</p>
+                    <p>Type a student’s name or a school to search.</p>
                   </div>
                 )}
               </div>
             </div>
           </div>
         ) : null}
+        {personProfileLoading || personProfileError || selectedPerson ? (
+          <div
+            className="person-profile-overlay"
+            onClick={closePersonProfile}
+          >
+            <section
+              aria-label={selectedPerson ? `${selectedPerson.display_name} profile` : 'Student profile'}
+              aria-modal="true"
+              className="person-profile-sheet"
+              onClick={(event) => event.stopPropagation()}
+              role="dialog"
+            >
+              <button
+                aria-label="Close profile"
+                className="search-modal-close"
+                onClick={closePersonProfile}
+                type="button"
+              >
+                Close
+              </button>
+              {personProfileLoading ? <p role="status">Loading profile…</p> : null}
+              {personProfileError ? <p className="form-error" role="alert">{personProfileError}</p> : null}
+              {selectedPerson ? (
+                <>
+                  <div className="person-profile-heading">
+                    <span className="person-profile-avatar">
+                      {selectedPerson.avatar_url
+                        ? <img alt="" src={selectedPerson.avatar_url} />
+                        : selectedPerson.display_name.slice(0, 1)}
+                    </span>
+                    <div>
+                      <h2>{selectedPerson.display_name}</h2>
+                      {selectedPerson.username ? <p>@{selectedPerson.username}</p> : null}
+                    </div>
+                  </div>
+                  {selectedPerson.school ? <p className="person-profile-school">{selectedPerson.school}</p> : null}
+                  {selectedPerson.bio ? <p className="person-profile-bio">{selectedPerson.bio}</p> : null}
+                  <p className="person-profile-stats">{selectedPerson.follower_count} followers · {selectedPerson.posts.length} posts</p>
+                  {selectedPerson.interests.length ? (
+                    <div className="person-profile-interests">
+                      {selectedPerson.interests.map((interest) => <span key={interest}>{interest}</span>)}
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+            </section>
+          </div>
+        ) : null}
       </section>
 
-      <nav className="mobile-nav" aria-label="Mobile navigation">
-        {mobileTabs.map(({ id, label, icon: Icon }) => (
-          <button
-            aria-current={tab === id ? 'page' : undefined}
-            aria-label={label}
-            className={`mobile-nav-item${tab === id ? ' active' : ''}${id === 'anonymous' ? ' mobile-nav-anonymous' : ''}`}
-            key={id}
-            onClick={() => setTab(id)}
-            type="button"
-          >
-            {id === 'anonymous' ? (
-              <div className="mobile-nav-anonymous-wrap">
-                <Image
-                  alt=""
-                  aria-hidden="true"
-                  className="mobile-nav-mask"
-                  height={62}
-                  priority
-                  src="/anonymous-shushing-mask.png"
-                  width={62}
-                />
-                <svg className="mobile-nav-curved-text" viewBox="0 0 100 100" aria-hidden="true">
-                  <path id="mobile-nav-anon-arc" d="M 13 63 A 44 44 0 0 0 87 63" fill="none" />
-                  <text>
-                    <textPath href="#mobile-nav-anon-arc" startOffset="50%" textAnchor="middle">
-                      ANONYMOUS
-                    </textPath>
-                  </text>
-                </svg>
-              </div>
-            ) : (
-              <>
-                <span className="mobile-nav-icon-wrap">
-                  <Icon size={id === 'create' ? 25 : 27} strokeWidth={1.8} />
-                </span>
-                <span>{label}</span>
-              </>
-            )}
-          </button>
-        ))}
-      </nav>
+      <BottomNav
+        active={tab === 'room' ? 'Room' : tab === 'anonymous' ? 'Anonymous' : tab === 'marketplace' ? 'Market' : tab === 'profile' ? 'Me' : 'Home'}
+        onNavigate={(destination: BottomNavItemLabel) => {
+          const nextTab: AppTab = destination === 'Room'
+            ? 'room'
+            : destination === 'Anonymous'
+              ? 'anonymous'
+              : destination === 'Market'
+                ? 'marketplace'
+                : destination === 'Me'
+                  ? 'profile'
+                  : 'home';
+          if (nextTab === 'profile' && isGuest) {
+            setAuthRoute('sign-in');
+            setAuthModalOpen(true);
+            return;
+          }
+          setError('');
+          setTab(nextTab);
+        }}
+      />
       {renderAuthModal()}
     </main>
   );
 }
 
-function Brand({ darkMode = true }: { darkMode?: boolean }) {
-  return (
-    <a href="/" className="brand-link" aria-label="Commonroom home">
-      <Image
-        alt="Commonroom"
-        className="brand-logo"
-        height={28}
-        priority
-        src={darkMode ? '/common-room-full-logo-white.png' : '/common-room-full-logo.png'}
-        width={132}
-      />
-    </a>
-  );
-}
-
-function RoomMobileBrand() {
-  return (
-    <a aria-label="Commonroom home" className="room-mobile-brand" href="/">
-      CommonRoom
-    </a>
-  );
-}
-
 function ProfileForm({
   ageConfirmed,
+  avatarFile,
+  avatarPreview,
+  avatarUrl,
+  avatarRemoved,
+  avatarError,
   course,
   displayName,
   educationStatus,
@@ -1719,6 +1990,9 @@ function ProfileForm({
   showSchool,
   year,
   onAgeConfirmed,
+  onAvatarFiles,
+  onAvatarClear,
+  onAvatarRemove,
   onCourse,
   onDisplayName,
   onEducationStatus,
@@ -1732,6 +2006,11 @@ function ProfileForm({
   disabled,
 }: {
   ageConfirmed: boolean;
+  avatarFile: File | null;
+  avatarPreview: string | null;
+  avatarUrl: string | null;
+  avatarRemoved: boolean;
+  avatarError: string;
   course: string;
   displayName: string;
   educationStatus: OnboardingProfile['educationStatus'];
@@ -1742,6 +2021,9 @@ function ProfileForm({
   showSchool: boolean;
   year: string;
   onAgeConfirmed: (value: boolean) => void;
+  onAvatarFiles: (files: File[]) => void;
+  onAvatarClear: () => void;
+  onAvatarRemove: () => void;
   onCourse: (value: string) => void;
   onDisplayName: (value: string) => void;
   onEducationStatus: (value: OnboardingProfile['educationStatus']) => void;
@@ -1758,6 +2040,25 @@ function ProfileForm({
 
   return (
     <form className="panel profile-form" onSubmit={onSubmit}>
+      <div className="profile-photo-field">
+        <span className="field-label">Profile photo</span>
+        {avatarUrl && !avatarFile && !avatarRemoved ? (
+          <>
+            <img alt={`${displayName || 'Your'} profile`} className="profile-photo-current" src={avatarUrl} />
+            <button className="profile-photo-remove" onClick={onAvatarRemove} type="button">Remove current photo</button>
+          </>
+        ) : null}
+        <MediaUploadQueue
+          accept="image/jpeg,image/png,image/webp"
+          files={avatarFile ? [avatarFile] : []}
+          onClear={onAvatarClear}
+          onFilesSelected={onAvatarFiles}
+          onRemove={onAvatarClear}
+          previews={avatarPreview ? [avatarPreview] : []}
+        />
+        {avatarError ? <p className="form-error" role="alert">{avatarError}</p> : null}
+        <small>JPG, PNG, or WebP · up to 10 MB</small>
+      </div>
       <label>Education status<select value={educationStatus} onChange={(event) => onEducationStatus(event.target.value as OnboardingProfile['educationStatus'])}><option value="currently_in_school">Currently in school</option><option value="not_in_school_yet">Not in school yet</option><option value="prefer_not_to_say">Prefer not to say</option></select></label>
       {educationStatus === 'currently_in_school' ? (
         <label>School

@@ -4,6 +4,7 @@ import {
   Bell,
   Bookmark,
   Check,
+  CircleAlert,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -34,8 +35,9 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
+import { Banner, Button, EmptyState, ErrorState, Header as CRHeader, Skeleton } from '@/components/cr/primitives';
 import type { RoomComment, RoomFeedPage, RoomPerson, RoomPost, RoomProfile, RoomScope, RoomStory } from '@/lib/room-contracts';
-import { demoRoomPosts, demoRoomStories } from '@/lib/demo-content';
+import { demoRoomStories } from '@/lib/demo-content';
 
 type ApiEnvelope<T> = { data: T };
 type ApiFailure = { error?: { message?: string } };
@@ -45,8 +47,8 @@ type ViewerState =
   | { kind: 'photo'; postId: string }
   | { kind: 'reel'; postId: string };
 
-type RoomFeedSection = 'For You' | 'Videos' | 'General' | 'Trending / Conversations';
-const roomFeedSections: RoomFeedSection[] = ['For You', 'Videos', 'General', 'Trending / Conversations'];
+type RoomFeedSection = 'For You' | 'Videos' | 'General' | 'Following';
+const roomFeedSections: RoomFeedSection[] = ['For You', 'General', 'Following'];
 
 function formatCount(num: number): string {
   if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
@@ -131,6 +133,9 @@ export function RoomExperience({
   onOpenNotifications,
   onOpenAccountMenu,
   hasUnreadNotifications = false,
+  initialFeedSection = 'For You',
+  onOpenProfile,
+  theme = 'light',
 }: {
   accessToken: string;
   profile: { id: string; displayName: string; username: string | null; school: string | null };
@@ -145,8 +150,13 @@ export function RoomExperience({
   onOpenNotifications?: () => void;
   onOpenAccountMenu?: () => void;
   hasUnreadNotifications?: boolean;
+  initialFeedSection?: RoomFeedSection;
+  onOpenProfile?: () => void;
+  theme?: 'light' | 'dark';
 }) {
-  const [feedSection, setFeedSection] = useState<RoomFeedSection>('For You');
+  const isRoomFeed = initialFeedSection === 'Videos';
+  const isDarkTheme = theme === 'dark';
+  const [feedSection, setFeedSection] = useState<RoomFeedSection>(initialFeedSection);
   const [scope, setScope] = useState<RoomScope>('for_you');
   const [posts, setPosts] = useState<RoomPost[]>([]);
   const [stories, setStories] = useState<RoomStory[]>([]);
@@ -158,6 +168,8 @@ export function RoomExperience({
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [feedError, setFeedError] = useState('');
+  const [feedErrorSource, setFeedErrorSource] = useState<'feed' | 'more' | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
 
   // TikTok / Reels active post index
   const [activeIndex, setActiveIndex] = useState(0);
@@ -180,6 +192,7 @@ export function RoomExperience({
   const [storyReplyDraft, setStoryReplyDraft] = useState('');
   const [storyLiked, setStoryLiked] = useState<Record<string, boolean>>({});
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const loadMoreMarkerRef = useRef<HTMLDivElement | null>(null);
 
   const mentionSuggestions = useMemo(() => {
     if (mentionQuery === null) return [];
@@ -236,14 +249,7 @@ export function RoomExperience({
         const items = postMedia(p);
         return items.some((it) => it.mediaType === 'video') || p.mediaType === 'video';
       });
-      return v.length > 0 ? v : posts;
-    }
-    if (feedSection === 'Trending / Conversations') {
-      return [...posts].sort((a, b) => {
-        const scoreA = (a.likes || 0) + (a.comments || 0) * 2 + (a.shares || 0) * 3;
-        const scoreB = (b.likes || 0) + (b.comments || 0) * 2 + (b.shares || 0) * 3;
-        return scoreB - scoreA;
-      });
+      return v;
     }
     return posts;
   }, [feedSection, posts]);
@@ -268,6 +274,7 @@ export function RoomExperience({
     setLoading(true);
     setLoadingMore(false);
     setFeedError('');
+    setFeedErrorSource(null);
     setHasMore(false);
     setNextCursor(null);
     try {
@@ -282,15 +289,14 @@ export function RoomExperience({
           onError('That shared post is unavailable.');
         }
       }
-      const finalPosts = nextPosts.length ? nextPosts : demoRoomPosts;
-      setPosts(finalPosts);
+      setPosts(nextPosts);
       setHasMore(result.hasMore && result.nextCursor !== null);
       setNextCursor(result.nextCursor);
       setActiveIndex(0);
     } catch (error) {
       if (generation === generationRef.current) {
-        setPosts(demoRoomPosts);
         setFeedError(error instanceof Error ? error.message : 'Your feed could not be loaded.');
+        setFeedErrorSource('feed');
       }
     } finally {
       if (generation === generationRef.current) setLoading(false);
@@ -303,6 +309,7 @@ export function RoomExperience({
     loadingMoreRef.current = true;
     setLoadingMore(true);
     setFeedError('');
+    setFeedErrorSource(null);
     try {
       const result = await roomRequest<RoomFeedPage>(
         `/api/v1/posts?scope=${scope}&cursor=${encodeURIComponent(nextCursor)}`,
@@ -311,19 +318,36 @@ export function RoomExperience({
       if (generation !== generationRef.current) return;
       setPosts((current) => {
         const ids = new Set(current.map((post) => post.id));
-        return [...current, ...result.posts.filter((post) => !ids.has(post.id))];
+        const newPosts = result.posts.filter((post) => {
+          if (ids.has(post.id)) return false;
+          ids.add(post.id);
+          return true;
+        });
+        return [...current, ...newPosts];
       });
       setHasMore(result.hasMore && result.nextCursor !== null);
       setNextCursor(result.nextCursor);
     } catch (error) {
       if (generation === generationRef.current) {
         setFeedError(error instanceof Error ? error.message : 'More posts could not be loaded.');
+        setFeedErrorSource('more');
       }
     } finally {
       loadingMoreRef.current = false;
       if (generation === generationRef.current) setLoadingMore(false);
     }
   }, [accessToken, hasMore, nextCursor, scope]);
+
+  useEffect(() => {
+    const updateOnlineStatus = () => setIsOnline(navigator.onLine);
+    updateOnlineStatus();
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    return () => {
+      window.removeEventListener('online', updateOnlineStatus);
+      window.removeEventListener('offline', updateOnlineStatus);
+    };
+  }, []);
 
   const loadStories = useCallback(async () => {
     try {
@@ -380,6 +404,16 @@ export function RoomExperience({
   }, [loadFeed, refreshToken]);
 
   useEffect(() => {
+    if ((isRoomFeed && displayedPosts.length > 0) || !hasMore || loading || loadingMore || feedError || !loadMoreMarkerRef.current) return;
+    const marker = loadMoreMarkerRef.current;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) void loadMore();
+    }, { rootMargin: '400px' });
+    observer.observe(marker);
+    return () => observer.disconnect();
+  }, [displayedPosts.length, feedError, hasMore, isRoomFeed, loadMore, loading, loadingMore]);
+
+  useEffect(() => {
     void loadStories();
     void loadInvite();
   }, [loadInvite, loadStories, refreshToken]);
@@ -422,6 +456,7 @@ export function RoomExperience({
 
   // Keyboard navigation for reels flow (TikTok / Instagram style)
   useEffect(() => {
+    if (!isRoomFeed) return;
     const onKey = (event: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA'].includes((event.target as HTMLElement)?.tagName)) return;
       if (viewer) return; // Story viewer handles its own keys
@@ -437,7 +472,7 @@ export function RoomExperience({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [advancePost, viewer]);
+  }, [advancePost, isRoomFeed, viewer]);
 
   // Mouse wheel navigation with debounce
   const handleReelWheel = (e: React.WheelEvent) => {
@@ -810,7 +845,7 @@ export function RoomExperience({
   };
 
   const showProfile = async (userId: string) => {
-    const authorPost = posts.find((p) => p.authorId === userId) || demoRoomPosts.find((p) => p.authorId === userId);
+    const authorPost = posts.find((p) => p.authorId === userId);
     if (!accessToken) {
       if (authorPost) {
         setOpenProfile({
@@ -852,8 +887,7 @@ export function RoomExperience({
 
   const showProfileByUsername = async (username: string) => {
     const clean = username.replace(/^@/, '').toLowerCase();
-    const existing = posts.find((p) => p.authorUsername.toLowerCase() === clean)
-      || demoRoomPosts.find((p) => p.authorUsername.toLowerCase() === clean);
+    const existing = posts.find((p) => p.authorUsername.toLowerCase() === clean);
     if (existing) {
       void showProfile(existing.authorId);
       return;
@@ -933,11 +967,20 @@ export function RoomExperience({
   const handleSelectSection = (section: RoomFeedSection) => {
     setFeedSection(section);
     setActiveIndex(0);
-    if (section === 'General') {
-      setScope('general');
-    } else {
-      setScope('for_you');
+    const nextScope: RoomScope = section === 'General'
+      ? 'general'
+      : section === 'Following'
+        ? 'following'
+        : 'for_you';
+    if (nextScope !== scope) {
+      setPosts([]);
+      setFeedError('');
+      setFeedErrorSource(null);
+      setNextCursor(null);
+      setHasMore(false);
+      setLoading(true);
     }
+    setScope(nextScope);
   };
 
   const REPORT_REASONS = [
@@ -948,106 +991,58 @@ export function RoomExperience({
   ];
 
   return (
-    <div className="room-layout-container">
+    <div
+      className="room-layout-container cr-ui"
+      data-feed-mode={isRoomFeed ? 'room' : 'home'}
+      data-theme={theme}
+    >
       <div className="room-feed-main">
-        {/* Top Header Bar matching mobile TopBar */}
-        <header className="room-topbar">
-          <div className="room-topbar-brand-wrap">
-            <h1 className="room-brand-title instagram-brand-font">Commonroom</h1>
-          </div>
-          <div className="room-topbar-actions">
-            <button
-              aria-label="Search"
-              className="room-topbar-btn"
-              onClick={onOpenSearch}
-              type="button"
-            >
-              <Search size={22} strokeWidth={2} />
-            </button>
-            <button
-              aria-label="Notifications"
-              className="room-topbar-btn"
-              onClick={onOpenNotifications}
-              type="button"
-            >
-              <Bell size={22} strokeWidth={2} />
-              {hasUnreadNotifications ? <span className="room-topbar-dot" /> : null}
-            </button>
+        {/* Top Header Bar matching mockup Screen 3 & 4 */}
+        <CRHeader className="room-topbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: '#fff', borderBottom: '1px solid #f0f0f0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
               aria-label="Account menu"
               className="room-topbar-avatar-btn"
               onClick={onOpenAccountMenu}
               type="button"
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
             >
-              <span className="room-topbar-avatar-circle">
+              <span className="a36 s" style={{ width: 32, height: 32, borderRadius: '50%', background: '#0b0b0b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>
                 {profile.displayName ? profile.displayName.slice(0, 1).toUpperCase() : 'Y'}
               </span>
             </button>
+            <span style={{ fontSize: 18, fontWeight: 500, color: '#0b0b0b', letterSpacing: '-0.2px' }}>
+              {isRoomFeed ? 'Room' : 'Common Room'}
+            </span>
           </div>
-        </header>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button
+              aria-label="Search"
+              onClick={onOpenSearch}
+              type="button"
+              style={{ background: 'none', border: 'none', color: '#0b0b0b', cursor: 'pointer', padding: 4 }}
+            >
+              <Search size={18} strokeWidth={1.8} />
+            </button>
+            <button
+              aria-label="Notifications"
+              onClick={onOpenNotifications}
+              type="button"
+              style={{ background: 'none', border: 'none', color: '#0b0b0b', cursor: 'pointer', padding: 4, position: 'relative' }}
+            >
+              <Bell size={18} strokeWidth={1.8} />
+              {hasUnreadNotifications ? (
+                <span style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: '#b3261e' }} />
+              ) : null}
+            </button>
+          </div>
+        </CRHeader>
 
-        {/* Stories Bar (RoomStoriesBar) */}
-        <div aria-label="Stories" className="room-stories-rail">
-          {/* Your Story */}
-          <button
-            className="room-story-node add-story"
-            onClick={() => (isGuest ? onRequireAccount?.() : ownStoryIndex >= 0 ? openStory(ownStoryIndex) : onCreate())}
-            type="button"
-          >
-            <div className="room-story-circle your-story">
-              <div className="room-story-avatar-inner">
-                {profile.displayName ? profile.displayName.slice(0, 1).toUpperCase() : 'Y'}
-              </div>
-              <span className="room-story-plus">
-                <Plus size={11} strokeWidth={3} />
-              </span>
-            </div>
-            <span className="room-story-name">Your Story</span>
-          </button>
-
-          {/* Following / Classmate Stories */}
-          {stories.filter((story) => story.authorId !== profile.id).map((story) => {
-            const storyIndex = stories.findIndex((item) => item.authorId === story.authorId);
-            return (
-              <button
-                className={`room-story-node ${story.seen ? 'seen' : ''}`}
-                key={story.authorId}
-                onClick={() => openStory(storyIndex)}
-                type="button"
-              >
-                <div className={`room-story-circle ${story.seen ? 'seen-ring' : 'gradient-ring'}`}>
-                  <div className="room-story-avatar-inner">
-                    {story.authorAvatar ? (
-                      <img alt={story.authorName} height={58} src={story.authorAvatar} width={58} />
-                    ) : (
-                      <span>{initials(story.authorName)}</span>
-                    )}
-                  </div>
-                </div>
-                <span className="room-story-name">@{story.authorUsername || story.authorName.toLowerCase().replace(/\s+/g, '_')}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Filter Tabs / Pills */}
-        <div aria-label="Feed sections" className="room-filter-tabs" role="tablist">
-          {roomFeedSections.map((section) => {
-            const isActive = feedSection === section;
-            return (
-              <button
-                aria-selected={isActive}
-                className={`room-filter-pill ${isActive ? 'active' : ''}`}
-                key={section}
-                onClick={() => handleSelectSection(section)}
-                role="tab"
-                type="button"
-              >
-                {section}
-              </button>
-            );
-          })}
-        </div>
+        {!isOnline ? (
+          <Banner className="room-offline-banner" variant="info">
+            You’re offline. {posts.length ? 'Showing what you saw last.' : 'Check your connection and try again.'}
+          </Banner>
+        ) : null}
 
         {/* Skeleton Loading State */}
         {loading ? (
@@ -1055,356 +1050,409 @@ export function RoomExperience({
             {[1, 2].map((k) => (
               <div className="room-skeleton-card" key={k}>
                 <div className="room-skeleton-header">
-                  <div className="room-skeleton-avatar skeleton-shimmer" />
+                  <Skeleton className="room-skeleton-avatar" />
                   <div className="room-skeleton-col">
-                    <div className="room-skeleton-line short skeleton-shimmer" />
-                    <div className="room-skeleton-line tiny skeleton-shimmer" />
+                    <Skeleton className="room-skeleton-line short" />
+                    <Skeleton className="room-skeleton-line tiny" />
                   </div>
                 </div>
-                <div className="room-skeleton-media skeleton-shimmer" />
+                <Skeleton className="room-skeleton-media" />
                 <div className="room-skeleton-footer">
-                  <div className="room-skeleton-line medium skeleton-shimmer" />
-                  <div className="room-skeleton-line full skeleton-shimmer" />
+                  <Skeleton className="room-skeleton-line medium" />
+                  <Skeleton className="room-skeleton-line full" />
                 </div>
               </div>
             ))}
           </div>
         ) : null}
-        {!loading && displayedPosts.length === 0 && !feedError ? (
-          <div className="empty-state">
-            <span className="empty-icon"><Users size={24} /></span>
-            <h2>{isGuest ? 'Nothing here just yet' : 'Your feed is ready for its first moment'}</h2>
-            <p>{isGuest ? 'Sign in to follow classmates and share campus moments.' : 'Follow people or share a photo so Room has something to show.'}</p>
-            <button className="secondary-button" onClick={onCreate} type="button">{isGuest ? 'Sign in to post' : 'Create a post'}</button>
-          </div>
+        {!loading && displayedPosts.length === 0 && feedError && feedErrorSource !== 'more' ? (
+          <ErrorState
+            className="room-feed-state"
+            description="Check your connection and try again."
+            icon={<CircleAlert size={20} />}
+            onRetry={() => void loadFeed()}
+            title="Couldn’t load your feed"
+          />
+        ) : null}
+        {!loading && !loadingMore && !hasMore && displayedPosts.length === 0 && !feedError ? (
+          <EmptyState
+            action={(
+              <div className="room-empty-actions">
+                <Button onClick={isGuest ? onRequireAccount : onOpenProfile} variant="ghost">
+                  Pick interests
+                </Button>
+                <Button onClick={isGuest ? onRequireAccount : onOpenSearch} variant="pill">
+                  Find people
+                </Button>
+              </div>
+            )}
+            className="room-feed-state"
+            description={isGuest ? 'Sign in to follow people and fill your feed.' : 'Follow people or pick interests to fill your feed.'}
+            icon={<Users size={20} />}
+            title="Nothing here yet"
+          />
         ) : null}
 
-        {/* =========================================================================
-            TIKTOK / INSTAGRAM REELS VIEWER STAGE
-            Continuous vertical scroll / swipe flow with smooth transitions
-            ========================================================================= */}
-        {displayedPosts.length > 0 ? (
-          <div
-            className="room-reels-stage"
-            onTouchCancel={handleTouchEnd}
-            onTouchEnd={handleTouchEnd}
-            onTouchMove={handleTouchMove}
-            onTouchStart={handleTouchStart}
-            onWheel={handleReelWheel}
-          >
-            {/* Reels scroll container — translateY with real-time dragOffset drives TikTok smooth swiping */}
-            <div
-              className="room-reels-track"
-              style={{
-                transform: `translateY(calc(-${activeIndex * 100}% + ${dragOffset}px))`,
-                transition: isDragging ? 'none' : 'transform 0.38s cubic-bezier(0.2, 0.85, 0.32, 1)',
-              }}
-            >
-              {displayedPosts.map((post, postIndex) => {
-                const isActive = postIndex === activeIndex;
-                const items = postMedia(post);
-                const itemIndex = Math.min(mediaIndex[post.id] ?? 0, Math.max(0, items.length - 1));
-                const currentMedia = items[itemIndex] ?? null;
+        {/* Normal vertical card scroll matching Sprint 7 and Screens 3 & 4 */}
+        {!loading && displayedPosts.length > 0 ? (
+          <div className="room-vertical-feed" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+            {displayedPosts.map((post) => {
+              const items = postMedia(post);
+              const itemIndex = Math.min(mediaIndex[post.id] ?? 0, Math.max(0, items.length - 1));
+              const currentMedia = items[itemIndex] ?? null;
 
-                return (
-                  <article
-                    className={`room-reel-card ${isActive ? 'active' : ''}`}
-                    key={post.id}
-                  >
-                    {/* Header Row: Author Badge + Time + Sliders */}
-                    <div className="reel-header-row">
-                      <button
-                        className="reel-author-badge"
-                        onClick={() => void showProfile(post.authorId)}
-                        type="button"
+              return (
+                <article
+                  key={post.id}
+                  className="room-post-card"
+                  style={{
+                    padding: '14px 16px',
+                    borderBottom: '1px solid #f0f0f0',
+                    background: '#ffffff',
+                  }}
+                >
+                  {/* Header: Author + Time + Options */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <button
+                      className="room-author-btn"
+                      onClick={() => void showProfile(post.authorId)}
+                      type="button"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <div
+                        className="a36 s"
+                        style={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: '50%',
+                          background: '#0b0b0b',
+                          color: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 13,
+                          overflow: 'hidden',
+                          flexShrink: 0,
+                        }}
                       >
-                        <div className="reel-avatar">
-                          {post.authorAvatar ? (
-                            <img alt={post.authorName} height={38} src={post.authorAvatar} width={38} />
-                          ) : (
-                            <span>{initials(post.authorName)}</span>
-                          )}
-                        </div>
-                        <div className="reel-identity-col">
-                          <span className="reel-username">@{post.authorUsername}</span>
-                          {post.school ? <span className="reel-school-subtitle">{post.school}</span> : null}
-                        </div>
-                      </button>
-
-                      <div className="reel-header-right">
-                        <span className="reel-time">{post.time}</span>
-                        <button
-                          aria-label="Post options"
-                          className="reel-more-btn"
-                          onClick={() => setMenuPostId(post.id)}
-                          type="button"
-                        >
-                          <SlidersHorizontal size={17} />
-                        </button>
+                        {post.authorAvatar ? (
+                          <img alt={post.authorName} height={34} src={post.authorAvatar} width={34} style={{ objectFit: 'cover' }} />
+                        ) : (
+                          <span>{initials(post.authorName)}</span>
+                        )}
                       </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: '#0b0b0b', lineHeight: 1.3 }}>
+                          {post.authorName}
+                        </div>
+                        <div style={{ fontSize: 11.5, color: '#6b6b6b' }}>
+                          @{post.authorUsername} · {post.time}
+                        </div>
+                      </div>
+                    </button>
+
+                    <button
+                      aria-label="Post options"
+                      onClick={() => setMenuPostId(post.id)}
+                      type="button"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#6b6b6b',
+                        cursor: 'pointer',
+                        padding: 6,
+                        borderRadius: 6,
+                      }}
+                    >
+                      <SlidersHorizontal size={15} />
+                    </button>
+                  </div>
+
+                  {/* Caption */}
+                  {post.caption ? (
+                    <p
+                      style={{
+                        fontSize: 13,
+                        lineHeight: 1.45,
+                        color: '#0b0b0b',
+                        margin: '6px 0 8px',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {renderWithMentions(post.caption, showProfileByUsername)}
+                    </p>
+                  ) : null}
+
+                  {/* Hashtags */}
+                  {post.tags && post.tags.length > 0 ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                      {post.tags.map((tag) => (
+                        <span key={tag} style={{ fontSize: 11.5, color: '#6b6b6b' }}>
+                          #{tag.replace(/^#/, '')}
+                        </span>
+                      ))}
                     </div>
+                  ) : null}
 
-                    {/* Media Container with Floating Action Rail */}
-                    <div className="reel-media-box" onClick={() => handleMediaTap(post)}>
-                      {post.pollOptions && post.pollOptions.length > 0 ? (
-                        <div className="reel-poll-card" onClick={(e) => e.stopPropagation()}>
-                          <div className="reel-poll-header">
-                            <span className="reel-poll-badge">Poll</span>
-                            <span className="reel-poll-total">
-                              {post.totalPollVotes ?? post.pollVotes?.reduce((a, b) => a + b, 0) ?? 0} {((post.totalPollVotes ?? 1) === 1 ? 'vote' : 'votes')}
-                            </span>
-                          </div>
-                          <p className="reel-poll-question">{renderWithMentions(post.caption, showProfileByUsername)}</p>
-                          <div className="reel-poll-options">
-                            {post.pollOptions.map((option, idx) => {
-                              const total = post.totalPollVotes ?? post.pollVotes?.reduce((a, b) => a + b, 0) ?? 0;
-                              const votes = post.pollVotes?.[idx] ?? 0;
-                              const pct = total > 0 ? Math.round((votes / total) * 100) : 0;
-                              const hasVoted = post.userPollVote !== null && post.userPollVote !== undefined;
-                              const isSelected = post.userPollVote === idx;
+                  {/* Location badge if any */}
+                  {post.location ? (
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: 11.5,
+                        color: '#6b6b6b',
+                        background: '#f7f7f7',
+                        padding: '3px 8px',
+                        borderRadius: 8,
+                        marginBottom: 10,
+                      }}
+                    >
+                      <MapPin size={11} />
+                      <span>{post.location}</span>
+                    </div>
+                  ) : null}
 
-                              return (
-                                <button
-                                  key={idx}
-                                  className={`reel-poll-option-btn ${hasVoted ? 'voted' : ''} ${isSelected ? 'selected' : ''}`}
-                                  disabled={hasVoted && isSelected}
-                                  onClick={() => void votePoll(post, idx)}
-                                  type="button"
-                                >
-                                  {hasVoted ? (
-                                    <div
-                                      className="reel-poll-progress-fill"
-                                      style={{ width: `${pct}%` }}
-                                    />
-                                  ) : null}
-                                  <div className="reel-poll-option-content">
-                                    <span className="reel-poll-option-text">
-                                      <span className={`reel-poll-radio ${isSelected ? 'checked' : ''}`}>
-                                        {isSelected ? <Check size={8} strokeWidth={3} /> : null}
-                                      </span>
-                                      <span>{option}</span>
-                                    </span>
-                                    {hasVoted ? (
-                                      <span className="reel-poll-stats">
-                                        <b>{votes}</b> ({pct}%)
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ) : !currentMedia ? (
-                        <div className="reel-placeholder-media">
-                          <p>{renderWithMentions(post.caption, showProfileByUsername)}</p>
-                        </div>
-                      ) : currentMedia.mediaType === 'video' ? (
-                        <div className="reel-video-container">
-                          {/* Only autoplay the active reel video */}
-                          {isActive ? (
-                            <video
-                              autoPlay
-                              loop
-                              muted={isMuted}
-                              playsInline
-                              preload="auto"
-                              ref={(el) => {
-                                if (!el) return;
-                                if (pausedPosts[post.id]) {
-                                  el.pause();
-                                } else {
-                                  void el.play().catch(() => {});
-                                }
-                              }}
-                              src={currentMedia.uri}
-                            />
-                          ) : (
-                            <video
-                              loop
-                              muted
-                              playsInline
-                              preload={Math.abs(postIndex - activeIndex) <= 1 ? 'auto' : 'metadata'}
-                              src={currentMedia.uri}
-                            />
-                          )}
-                          <button
-                            aria-label={isMuted ? 'Unmute video' : 'Mute video'}
-                            className="reel-sound-toggle"
-                            onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
-                            type="button"
-                          >
-                            {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
-                          </button>
-
-                          {/* "Watch Reel" pill button — explicit 1-click option to expand */}
-                          <button
-                            aria-label="Watch full screen reel"
-                            className="reel-watch-full-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setViewer({ kind: 'reel', postId: post.id });
-                            }}
-                            type="button"
-                          >
-                            <Maximize2 size={12} strokeWidth={2.4} />
-                            <span>Watch Reel</span>
-                          </button>
-                        </div>
+                  {/* Media Content (Photo or Video) */}
+                  {currentMedia ? (
+                    <div
+                      style={{
+                        borderRadius: 14,
+                        overflow: 'hidden',
+                        background: '#0b0b0b',
+                        marginBottom: 10,
+                        maxHeight: 460,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {currentMedia.mediaType === 'video' ? (
+                        <video
+                          controls
+                          playsInline
+                          preload="metadata"
+                          src={currentMedia.uri}
+                          style={{
+                            width: '100%',
+                            maxHeight: 460,
+                            display: 'block',
+                            objectFit: 'contain',
+                          }}
+                        />
                       ) : (
                         <img
                           alt=""
-                          className="reel-img"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
                           src={currentMedia.uri}
+                          style={{
+                            width: '100%',
+                            maxHeight: 460,
+                            display: 'block',
+                            objectFit: 'contain',
+                          }}
                         />
                       )}
-
-                      {/* Paused Indicator Overlay */}
-                      {pausedPosts[post.id] && currentMedia?.mediaType === 'video' ? (
-                        <div className="reel-play-paused-overlay">
-                          <div className="reel-play-icon-circle">
-                            <Play color="#ffffff" fill="#ffffff" size={32} style={{ marginLeft: 3 }} />
-                          </div>
-                        </div>
-                      ) : null}
-
-                      {/* Double Tap Heart Burst Animation */}
-                      {heartBurst?.id === post.id ? (
-                        <div className="reel-heart-burst" key={heartBurst.key}>
-                          <Heart color="#ef4444" fill="#ef4444" size={88} strokeWidth={0} />
-                        </div>
-                      ) : null}
-
-                      {/* Location Badge Overlay */}
-                      {post.location ? (
-                        <div className="reel-location-overlay" onClick={(e) => e.stopPropagation()}>
-                          <MapPin size={11} strokeWidth={2.4} />
-                          <span>{post.location}</span>
-                        </div>
-                      ) : null}
-
-                      {/* Floating Vertical Action Rail (TikTok / Instagram Right Edge) */}
-                      <div className="reel-action-rail">
-                        {/* Like Button */}
-                        <button
-                          aria-label="Like moment"
-                          className={`reel-action-btn ${post.liked ? 'liked' : ''}`}
-                          onClick={(e) => { e.stopPropagation(); void toggleLike(post); }}
-                          type="button"
-                        >
-                          <Heart
-                            color={post.liked ? '#ef4444' : '#ffffff'}
-                            fill={post.liked ? '#ef4444' : 'none'}
-                            size={24}
-                            strokeWidth={1.9}
-                          />
-                          <span className="reel-action-count">{formatCount(post.likes)}</span>
-                        </button>
-
-                        {/* Comments Button -> Hidden on polls per user request */}
-                        {!(post.pollOptions && post.pollOptions.length > 0) ? (
-                          <button
-                            aria-label="Open comments"
-                            className={`reel-action-btn ${commentsOpen === post.id ? 'active' : ''}`}
-                            onClick={(e) => { e.stopPropagation(); void openComments(post.id); }}
-                            type="button"
-                          >
-                            <MessageCircle color="#ffffff" size={24} strokeWidth={1.9} />
-                            <span className="reel-action-count">{formatCount(post.comments)}</span>
-                          </button>
-                        ) : null}
-
-                        {/* Bookmark Button */}
-                        <button
-                          aria-label="Save moment"
-                          className={`reel-action-btn ${post.saved ? 'saved' : ''}`}
-                          onClick={(e) => { e.stopPropagation(); void toggleSave(post); }}
-                          type="button"
-                        >
-                          <Bookmark
-                            color={post.saved ? '#f59e0b' : '#ffffff'}
-                            fill={post.saved ? '#f59e0b' : 'none'}
-                            size={24}
-                            strokeWidth={1.9}
-                          />
-                          <span className="reel-action-count">{formatCount(post.saves || 112)}</span>
-                        </button>
-
-                        {/* Share Button */}
-                        <button
-                          aria-label="Share moment"
-                          className="reel-action-btn"
-                          onClick={(e) => { e.stopPropagation(); void sharePost(post); }}
-                          type="button"
-                        >
-                          <Send className="reel-share-icon" color="#ffffff" size={24} strokeWidth={1.9} />
-                          <span className="reel-action-count">{formatCount(post.shares || 34)}</span>
-                        </button>
-                      </div>
-
-                      {/* Micro Swipe Hint — only on the first post */}
-                      {postIndex === 0 && activeIndex === 0 ? (
-                        <div className="reel-swipe-indicator">
-                          <span>Swipe up or press ↓ for next moment</span>
-                        </div>
-                      ) : null}
                     </div>
+                  ) : null}
 
-                    {/* Caption & Info Section */}
-                    <div className="reel-caption-wrap">
-                      <button
-                        className="reel-display-name-btn"
-                        onClick={() => void showProfile(post.authorId)}
-                        type="button"
+                  {/* Poll if any */}
+                  {post.pollOptions && post.pollOptions.length > 0 ? (
+                    <div
+                      style={{
+                        background: '#f8f8f8',
+                        borderRadius: 14,
+                        padding: 12,
+                        marginBottom: 10,
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: 11.5,
+                          color: '#6b6b6b',
+                          marginBottom: 8,
+                        }}
                       >
-                        <strong className="reel-display-name">{post.authorName}</strong>
-                      </button>
-                      {post.caption ? <p className="reel-caption-text">{renderWithMentions(post.caption, showProfileByUsername)}</p> : null}
-                      {post.tags && post.tags.length > 0 ? (
-                        <div className="reel-hashtags">
-                          {post.tags.map((tag) => (
-                            <span className="reel-hashtag" key={tag}>{tag}</span>
-                          ))}
-                        </div>
-                      ) : null}
+                        <span style={{ fontWeight: 600 }}>Poll</span>
+                        <span>
+                          {post.totalPollVotes ?? post.pollVotes?.reduce((a, b) => a + b, 0) ?? 0} votes
+                        </span>
+                      </div>
+                      <div style={{ display: 'grid', gap: 6 }}>
+                        {post.pollOptions.map((option, idx) => {
+                          const total = post.totalPollVotes ?? post.pollVotes?.reduce((a, b) => a + b, 0) ?? 0;
+                          const votes = post.pollVotes?.[idx] ?? 0;
+                          const pct = total > 0 ? Math.round((votes / total) * 100) : 0;
+                          const hasVoted = post.userPollVote !== null && post.userPollVote !== undefined;
+                          const isSelected = post.userPollVote === idx;
+
+                          return (
+                            <button
+                              key={idx}
+                              className={`reel-poll-option-btn ${hasVoted ? 'voted' : ''} ${isSelected ? 'selected' : ''}`}
+                              disabled={hasVoted && isSelected}
+                              onClick={() => void votePoll(post, idx)}
+                              type="button"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '9px 12px',
+                                borderRadius: 10,
+                                border: '1px solid #e5e5e5',
+                                background: isSelected ? '#0b0b0b' : '#fff',
+                                color: isSelected ? '#fff' : '#0b0b0b',
+                                fontSize: 12.5,
+                                cursor: 'pointer',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                width: '100%',
+                                textAlign: 'left',
+                              }}
+                            >
+                              {hasVoted ? (
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    bottom: 0,
+                                    left: 0,
+                                    width: `${pct}%`,
+                                    background: isSelected ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.06)',
+                                    pointerEvents: 'none',
+                                  }}
+                                />
+                              ) : null}
+                              <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {isSelected ? <Check size={12} strokeWidth={2.5} /> : null}
+                                <span>{option}</span>
+                              </span>
+                              {hasVoted ? (
+                                <span style={{ position: 'relative', zIndex: 1, fontSize: 11, opacity: 0.8 }}>
+                                  {pct}%
+                                </span>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </article>
-                );
-              })}
-            </div>
+                  ) : null}
 
-            {/* Desktop Floating Up / Down Navigation Controls */}
-            <div className="room-reel-nav-controls" aria-label="Reel navigation">
-              <button
-                aria-label="Previous reel moment"
-                className="room-reel-nav-btn prev"
-                disabled={activeIndex === 0}
-                onClick={() => advancePost(-1)}
-                title="Previous (Up Arrow)"
-                type="button"
-              >
-                <ChevronUp size={22} strokeWidth={2.5} />
-              </button>
-
-              <span className="room-reel-counter">
-                {activeIndex + 1} / {displayedPosts.length}
-              </span>
-
-              <button
-                aria-label="Next reel moment"
-                className="room-reel-nav-btn next"
-                disabled={activeIndex >= displayedPosts.length - 1}
-                onClick={() => advancePost(1)}
-                title="Next (Down Arrow)"
-                type="button"
-              >
-                <ChevronDown size={22} strokeWidth={2.5} />
-              </button>
-            </div>
+                  {/* Actions Footer: Likes, Comments, Share */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 18,
+                      paddingTop: 4,
+                      fontSize: 12,
+                      color: '#6b6b6b',
+                    }}
+                  >
+                    <button
+                      aria-label="Like post"
+                      onClick={() => void toggleLike(post)}
+                      type="button"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        background: 'none',
+                        border: 'none',
+                        color: post.liked ? '#ef4444' : '#6b6b6b',
+                        cursor: 'pointer',
+                        padding: 0,
+                        fontSize: 12,
+                      }}
+                    >
+                      <Heart size={16} fill={post.liked ? '#ef4444' : 'none'} />
+                      <span>{formatCount(post.likes)}</span>
+                    </button>
+                    <button
+                      aria-label="Open comments"
+                      onClick={() => openComments(post.id)}
+                      type="button"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        background: 'none',
+                        border: 'none',
+                        color: '#6b6b6b',
+                        cursor: 'pointer',
+                        padding: 0,
+                        fontSize: 12,
+                      }}
+                    >
+                      <MessageCircle size={16} />
+                      <span>{formatCount(post.comments)}</span>
+                    </button>
+                    <button
+                      aria-label="Share post"
+                      onClick={() => void sharePost(post)}
+                      type="button"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        background: 'none',
+                        border: 'none',
+                        color: '#6b6b6b',
+                        cursor: 'pointer',
+                        padding: 0,
+                        fontSize: 12,
+                        marginLeft: 'auto',
+                      }}
+                    >
+                      <Send size={15} />
+                      <span>Share</span>
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
+        ) : null}
+        {!loading && hasMore ? (
+          <div aria-hidden="true" className="room-load-more-marker" ref={loadMoreMarkerRef} />
+        ) : null}
+        {loadingMore ? (
+          <div className="room-load-more-status" role="status">
+            <Skeleton style={{ width: 18, height: 18 }} />
+            <span>Loading more posts…</span>
+          </div>
+        ) : null}
+        {!loading && feedError && (displayedPosts.length > 0 || feedErrorSource === 'more') ? (
+          <ErrorState
+            className="room-feed-more-error"
+            description="Check your connection and try again."
+            onRetry={() => void (feedErrorSource === 'more' ? loadMore() : loadFeed())}
+            title={feedErrorSource === 'more' ? 'Couldn’t load more posts' : 'Couldn’t refresh your feed'}
+          />
+        ) : null}
+        {!isOnline && posts.length > 0 ? (
+          <div className="room-offline-retry">
+            <Button onClick={() => void loadFeed()} variant="ghost">Retry</Button>
+          </div>
+        ) : null}
+        {!isRoomFeed && !loading && displayedPosts.length > 0 ? (
+          <button aria-label="Create a post" className="room-home-create" onClick={onCreate} type="button">
+            <Plus size={22} />
+          </button>
         ) : null}
       </div>
 
@@ -1412,25 +1460,25 @@ export function RoomExperience({
           SLIDE-OVER COMMENTS SHEET (Matches mobile RoomCommentsSheet)
           ========================================================================= */}
       {commentsOpen && activePost ? (
-        <div className="room-comments-backdrop" onClick={() => setCommentsOpen(null)}>
-          <div className="room-comments-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Comments">
-            <div className="room-sheet-drag-handle" />
-            <div className="room-sheet-header">
-              <h3>
-                Comments <span className="room-sheet-count">({activePost.comments})</span>
-              </h3>
+        <div className="room-comments-backdrop" onClick={() => setCommentsOpen(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+          <div className="room-comments-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Comments" style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '12px 16px 16px', maxHeight: '82vh', display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 540, margin: '0 auto', boxShadow: '0 -4px 20px rgba(0,0,0,0.15)' }}>
+            <div className="grab" style={{ width: 36, height: 4, borderRadius: 4, background: '#d4d4d4', margin: '0 auto 12px' }} />
+            <div className="sp" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span className="sh" style={{ fontSize: 14, fontWeight: 500, color: '#0b0b0b' }}>
+                Comments · {activePost.comments}
+              </span>
               <button
                 aria-label="Close comments"
-                className="room-sheet-close-btn"
                 onClick={() => setCommentsOpen(null)}
                 type="button"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#0b0b0b' }}
               >
                 <X size={18} />
               </button>
             </div>
 
             {/* Scrollable comments list */}
-            <div className="room-comments-scroll">
+            <div className="room-comments-scroll" style={{ flex: 1, overflowY: 'auto', minHeight: 120, paddingBottom: 10 }}>
               {(() => {
                 const thread = comments[activePost.id] ?? [];
                 const roots = thread.filter((c) => !c.parent_id);
@@ -1438,49 +1486,48 @@ export function RoomExperience({
 
                 if (roots.length === 0) {
                   return (
-                    <div className="room-comments-empty">
-                      <MessageCircle size={32} strokeWidth={1.5} />
-                      <strong>No comments yet</strong>
-                      <p>Start the conversation with your campus!</p>
+                    <div style={{ textAlign: 'center', padding: '32px 16px', color: '#6b6b6b', fontSize: 13 }}>
+                      <p style={{ margin: 0, fontWeight: 500, color: '#0b0b0b' }}>No comments yet</p>
+                      <p style={{ margin: '4px 0 0', fontSize: 12 }}>Be the first to join the conversation.</p>
                     </div>
                   );
                 }
 
                 return roots.map((comment) => (
-                  <div className="room-comment-thread" key={comment.id}>
-                    <div className="room-comment-row">
-                      <div className="room-comment-avatar">
-                        <span>{initials(comment.author_name)}</span>
+                  <div key={comment.id} style={{ marginBottom: 12 }}>
+                    <div className="cm" style={{ display: 'flex', gap: 10, fontSize: 12.5, lineHeight: 1.4 }}>
+                      <div className="a36 s" style={{ width: 28, height: 28, borderRadius: '50%', background: '#9e9e9e', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}>
+                        {initials(comment.author_name)}
                       </div>
-                      <div className="room-comment-body-col">
-                        <div className="room-comment-meta">
-                          <strong className="room-comment-name">{comment.author_name}</strong>
-                          <span className="room-comment-handle">@{comment.author_username}</span>
+                      <div style={{ flex: 1 }}>
+                        <div>
+                          <b style={{ fontWeight: 500, color: '#0b0b0b' }}>{comment.author_name}</b>{' '}
+                          <span className="m" style={{ color: '#6b6b6b', fontSize: 11.5 }}>@{comment.author_username}</span>
                         </div>
-                        <p className="room-comment-text">{renderWithMentions(comment.body, showProfileByUsername)}</p>
-                        <div className="room-comment-actions-bar">
+                        <div style={{ color: '#0b0b0b', marginTop: 2 }}>{renderWithMentions(comment.body, showProfileByUsername)}</div>
+                        <div className="act" style={{ display: 'flex', gap: 14, color: '#6b6b6b', fontSize: 11.5, marginTop: 4, alignItems: 'center' }}>
                           <button
-                            className="room-comment-reply-btn"
+                            aria-label="Like comment"
+                            onClick={() => toggleCommentLike(comment.id)}
+                            type="button"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', gap: 4, color: commentLikes[comment.id] ? '#b3261e' : 'inherit', fontSize: 'inherit' }}
+                          >
+                            <Heart
+                              color={commentLikes[comment.id] ? '#b3261e' : 'currentColor'}
+                              fill={commentLikes[comment.id] ? '#b3261e' : 'none'}
+                              size={12}
+                            />
+                            {commentLikes[comment.id] ? <span>1</span> : null}
+                          </button>
+                          <button
                             onClick={() => {
                               setReplyTo((cur) => ({ ...cur, [activePost.id]: comment }));
                               setCommentDrafts((cur) => ({ ...cur, [activePost.id]: `@${comment.author_username} ` }));
                             }}
                             type="button"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'inherit', fontSize: 'inherit' }}
                           >
                             Reply
-                          </button>
-                          <button
-                            aria-label="Like comment"
-                            className={`room-comment-like-btn ${commentLikes[comment.id] ? 'liked' : ''}`}
-                            onClick={() => toggleCommentLike(comment.id)}
-                            type="button"
-                          >
-                            <Heart
-                              color={commentLikes[comment.id] ? '#ef4444' : 'currentColor'}
-                              fill={commentLikes[comment.id] ? '#ef4444' : 'none'}
-                              size={14}
-                            />
-                            <span>{commentLikes[comment.id] ? 1 : 0}</span>
                           </button>
                         </div>
                       </div>
@@ -1488,29 +1535,29 @@ export function RoomExperience({
 
                     {/* Child replies */}
                     {repliesFor(comment.id).map((reply) => (
-                      <div className="room-comment-row reply" key={reply.id}>
-                        <div className="room-comment-avatar sm">
-                          <span>{initials(reply.author_name)}</span>
+                      <div key={reply.id} className="cm r" style={{ display: 'flex', gap: 10, fontSize: 12.5, lineHeight: 1.4, marginLeft: 38, marginTop: 8 }}>
+                        <div className="a36 s" style={{ width: 24, height: 24, borderRadius: '50%', background: '#b0bec5', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, flexShrink: 0 }}>
+                          {initials(reply.author_name)}
                         </div>
-                        <div className="room-comment-body-col">
-                          <div className="room-comment-meta">
-                            <strong className="room-comment-name">{reply.author_name}</strong>
-                            <span className="room-comment-handle">@{reply.author_username}</span>
+                        <div style={{ flex: 1 }}>
+                          <div>
+                            <b style={{ fontWeight: 500, color: '#0b0b0b' }}>{reply.author_name}</b>{' '}
+                            <span className="m" style={{ color: '#6b6b6b', fontSize: 11.5 }}>@{reply.author_username}</span>
                           </div>
-                          <p className="room-comment-text">{renderWithMentions(reply.body, showProfileByUsername)}</p>
-                          <div className="room-comment-actions-bar">
+                          <div style={{ color: '#0b0b0b', marginTop: 2 }}>{renderWithMentions(reply.body, showProfileByUsername)}</div>
+                          <div className="act" style={{ display: 'flex', gap: 14, color: '#6b6b6b', fontSize: 11.5, marginTop: 4, alignItems: 'center' }}>
                             <button
                               aria-label="Like reply"
-                              className={`room-comment-like-btn ${commentLikes[reply.id] ? 'liked' : ''}`}
                               onClick={() => toggleCommentLike(reply.id)}
                               type="button"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', gap: 4, color: commentLikes[reply.id] ? '#b3261e' : 'currentColor', fontSize: 'inherit' }}
                             >
                               <Heart
-                                color={commentLikes[reply.id] ? '#ef4444' : 'currentColor'}
-                                fill={commentLikes[reply.id] ? '#ef4444' : 'none'}
-                                size={13}
+                                color={commentLikes[reply.id] ? '#b3261e' : 'currentColor'}
+                                fill={commentLikes[reply.id] ? '#b3261e' : 'none'}
+                                size={12}
                               />
-                              <span>{commentLikes[reply.id] ? 1 : 0}</span>
+                              {commentLikes[reply.id] ? <span>1</span> : null}
                             </button>
                           </div>
                         </div>
@@ -1523,12 +1570,12 @@ export function RoomExperience({
 
             {/* Reply Target Notice */}
             {replyTo[activePost.id] ? (
-              <div className="room-reply-banner">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#f5f5f5', borderRadius: 8, fontSize: 12, marginBottom: 8 }}>
                 <span>Replying to <strong>@{replyTo[activePost.id]?.author_username}</strong></span>
                 <button
-                  className="room-reply-cancel"
                   onClick={() => setReplyTo((cur) => ({ ...cur, [activePost.id]: null }))}
                   type="button"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b3261e', fontSize: 11 }}
                 >
                   Cancel
                 </button>
@@ -1537,24 +1584,20 @@ export function RoomExperience({
 
             {/* Mention Autocomplete Menu */}
             {mentionSuggestions.length > 0 ? (
-              <div className="mention-autocomplete-menu" role="listbox">
+              <div className="mention-autocomplete-menu" role="listbox" style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, padding: 4, marginBottom: 6, maxHeight: 140, overflowY: 'auto' }}>
                 {mentionSuggestions.map((user) => (
                   <button
                     key={user.id}
                     className="mention-autocomplete-item"
                     onClick={() => insertMention(activePost.id, user.username)}
                     type="button"
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 8px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', borderRadius: 6 }}
                   >
-                    <div className="mention-autocomplete-avatar">
-                      {user.avatar ? (
-                        <img alt={user.name} src={user.avatar} />
-                      ) : (
-                        <span>{initials(user.name)}</span>
-                      )}
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#0b0b0b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, flexShrink: 0 }}>
+                      {user.avatar ? <img alt={user.name} src={user.avatar} style={{ width: '100%', height: '100%', borderRadius: '50%' }} /> : initials(user.name)}
                     </div>
-                    <div className="mention-autocomplete-info">
-                      <span className="mention-autocomplete-name">{user.name}</span>
-                      <span className="mention-autocomplete-handle">@{user.username}</span>
+                    <div style={{ fontSize: 12 }}>
+                      <strong style={{ fontWeight: 500 }}>{user.name}</strong> <span style={{ color: '#6b6b6b' }}>@{user.username}</span>
                     </div>
                   </button>
                 ))}
@@ -1562,8 +1605,8 @@ export function RoomExperience({
             ) : null}
 
             {/* Comment Form */}
-            <form className="room-comment-input-form" onSubmit={(e) => void submitComment(e, activePost.id)}>
-              <div className="room-comment-my-avatar">
+            <form onSubmit={(e) => void submitComment(e, activePost.id)} style={{ display: 'flex', gap: 8, alignItems: 'center', paddingTop: 10, borderTop: '1px solid #ececec' }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#0b0b0b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}>
                 {profile.displayName ? profile.displayName.slice(0, 1).toUpperCase() : 'Y'}
               </div>
               <input
@@ -1581,16 +1624,17 @@ export function RoomExperience({
                     setMentionQuery(null);
                   }
                 }}
-                placeholder={replyTo[activePost.id] ? `Reply to @${replyTo[activePost.id]?.author_username}…` : 'Add a comment… (type @ to mention)'}
+                placeholder={replyTo[activePost.id] ? `Reply to @${replyTo[activePost.id]?.author_username}…` : 'Add a comment…'}
                 value={commentDrafts[activePost.id] ?? ''}
+                style={{ flex: 1, height: 36, borderRadius: 999, border: '1px solid #d4d4d4', padding: '0 12px', fontSize: 12.5, outline: 'none' }}
               />
               <button
                 aria-label="Send comment"
-                className="room-comment-submit-btn"
                 disabled={!(commentDrafts[activePost.id] ?? '').trim()}
                 type="submit"
+                style={{ width: 34, height: 34, borderRadius: '50%', background: (commentDrafts[activePost.id] ?? '').trim() ? '#0b0b0b' : '#e0e0e0', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (commentDrafts[activePost.id] ?? '').trim() ? 'pointer' : 'default', flexShrink: 0 }}
               >
-                <Send size={16} />
+                <Send size={15} />
               </button>
             </form>
           </div>

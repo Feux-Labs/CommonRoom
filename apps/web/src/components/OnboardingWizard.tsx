@@ -1,12 +1,13 @@
 'use client';
 
 import { ChevronLeft } from 'lucide-react';
-import Image from 'next/image';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Button as CRButton, Chip } from '@/components/cr/primitives';
+import { MediaUploadQueue } from '@/components/cr/MediaUploadQueue';
 import type { EducationStatus, OnboardingProfile } from '@/lib/contracts';
 import { institutions } from '@/lib/institutions';
 
-type Step = 'school' | 'profile' | 'interests';
+type Step = 'school' | 'profile' | 'photo' | 'interests';
 type InstitutionFilter = 'all' | 'university' | 'polytechnic' | 'college_of_education';
 
 const interestOptions = [
@@ -39,7 +40,7 @@ export function OnboardingWizard({
   onSignOut,
 }: {
   initialName: string;
-  onComplete: (profile: OnboardingProfile) => Promise<void>;
+  onComplete: (profile: OnboardingProfile, avatarFile?: File | null) => Promise<void>;
   onSignOut: () => void;
 }) {
   const [step, setStep] = useState<Step>('school');
@@ -55,6 +56,8 @@ export function OnboardingWizard({
   const [year, setYear] = useState('');
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [interests, setInterests] = useState<string[]>([]);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarError, setAvatarError] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -66,6 +69,14 @@ export function OnboardingWizard({
       return matchesType && searchableText.includes(query);
     });
   }, [institutionFilter, schoolSearch]);
+  const avatarPreview = useMemo(
+    () => avatarFile ? URL.createObjectURL(avatarFile) : null,
+    [avatarFile],
+  );
+
+  useEffect(() => () => {
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+  }, [avatarPreview]);
 
   function chooseEducationStatus(status: EducationStatus) {
     setEducationStatus(status);
@@ -98,7 +109,23 @@ export function OnboardingWizard({
       return;
     }
     setError('');
-    setStep('interests');
+    setStep('photo');
+  }
+
+  function selectAvatar(files: File[]) {
+    const file = files[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setAvatarError('This file type isn’t supported. Use a JPG, PNG, or WebP photo.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setAvatarError('Choose a photo smaller than 10 MB.');
+      return;
+    }
+    setAvatarFile(file);
+    setAvatarError('');
+    setError('');
   }
 
   async function finishOnboarding() {
@@ -118,7 +145,7 @@ export function OnboardingWizard({
         year: educationStatus === 'currently_in_school' ? year.trim() : '',
         ageEligibilityConfirmed: ageConfirmed,
         interests,
-      });
+      }, avatarFile);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Your profile could not be saved. Please try again.');
     } finally {
@@ -132,7 +159,7 @@ export function OnboardingWizard({
       : [...current, interest]);
   }
 
-  const stepNumber = step === 'school' ? 1 : step === 'profile' ? 2 : 3;
+  const stepNumber = step === 'school' ? 1 : step === 'profile' ? 2 : step === 'photo' ? 3 : 4;
   const selectedSchool = manualSchoolName.trim() || school;
 
   return (
@@ -142,7 +169,7 @@ export function OnboardingWizard({
         <div className="onboarding-school-screen">
           <header className="onboarding-selector-topbar">
             <button aria-label="Back to sign in" className="onboarding-back" onClick={onSignOut} type="button"><ChevronLeft size={17} /></button>
-            <span className="onboarding-progress">ACCOUNT SETUP · 1 OF 3</span>
+            <span className="onboarding-progress">ACCOUNT SETUP · 1 OF 4</span>
             <button className="onboarding-exit" onClick={onSignOut} type="button">Exit</button>
           </header>
           <h1 id="onboarding-title">Are you a student?</h1>
@@ -230,7 +257,7 @@ export function OnboardingWizard({
           {error ? <p className="onboarding-error" role="alert">{error}</p> : null}
           <div className="onboarding-selector-footer">
             <p className="onboarding-selection-summary">{selectedSchool}</p>
-            <button className="onboarding-native-button" disabled={!educationStatus || (educationStatus === 'currently_in_school' && !selectedSchool)} onClick={continueFromSchool} type="button">Continue</button>
+            <CRButton className="onboarding-native-button" disabled={!educationStatus || (educationStatus === 'currently_in_school' && !selectedSchool)} onClick={continueFromSchool}>Continue</CRButton>
           </div>
         </div>
       ) : null}
@@ -241,7 +268,7 @@ export function OnboardingWizard({
             <button className="onboarding-exit-button" onClick={onSignOut} type="button">Exit</button>
             <span className="brand-wordmark" style={{ fontSize: 24 }}>Commonroom</span>
           </header>
-          <p className="onboarding-progress">ACCOUNT SETUP · {stepNumber} OF 3</p>
+          <p className="onboarding-progress">ACCOUNT SETUP · {stepNumber} OF 4</p>
           <h1 id="onboarding-title">Set up your profile</h1>
           <p className="onboarding-subtitle">Complete your profile to personalize your community.</p>
           {selectedSchool ? <p className="onboarding-school-summary">School: {selectedSchool}</p> : null}
@@ -264,8 +291,33 @@ export function OnboardingWizard({
             </div>
           </div>
           {error ? <p className="onboarding-error" role="alert">{error}</p> : null}
-          <button className="onboarding-native-button" onClick={continueFromProfile} type="button">Continue</button>
+          <CRButton className="onboarding-native-button" fullWidth onClick={continueFromProfile}>Continue</CRButton>
           <button className="onboarding-text-button" onClick={() => { setError(''); setStep('school'); }} type="button">Back to education status</button>
+        </div>
+      ) : null}
+
+      {step === 'photo' ? (
+        <div className="onboarding-content">
+          <header className="onboarding-content-top">
+            <button className="onboarding-exit-button" onClick={onSignOut} type="button">Exit</button>
+            <span className="brand-wordmark" style={{ fontSize: 24 }}>Commonroom</span>
+          </header>
+          <p className="onboarding-progress">ACCOUNT SETUP · {stepNumber} OF 4</p>
+          <h1 id="onboarding-title">Add a profile photo</h1>
+          <p className="onboarding-subtitle">Help your community recognize you. This step is optional.</p>
+          <MediaUploadQueue
+            accept="image/jpeg,image/png,image/webp"
+            files={avatarFile ? [avatarFile] : []}
+            onClear={() => { setAvatarFile(null); setAvatarError(''); }}
+            onFilesSelected={selectAvatar}
+            onRemove={() => { setAvatarFile(null); setAvatarError(''); }}
+            previews={avatarPreview ? [avatarPreview] : []}
+          />
+          {avatarError ? <p className="onboarding-error" role="alert">{avatarError}</p> : null}
+          {error ? <p className="onboarding-error" role="alert">{error}</p> : null}
+          <CRButton className="onboarding-native-button" disabled={saving} fullWidth onClick={() => { setError(''); setStep('interests'); }}>Continue</CRButton>
+          <button className="onboarding-text-button" disabled={saving} onClick={() => { setAvatarFile(null); setAvatarError(''); setError(''); setStep('interests'); }} type="button">Skip for now</button>
+          <button className="onboarding-text-button" disabled={saving} onClick={() => { setError(''); setStep('profile'); }} type="button">Back to profile</button>
         </div>
       ) : null}
 
@@ -275,26 +327,24 @@ export function OnboardingWizard({
             <button className="onboarding-exit-button" onClick={onSignOut} type="button">Exit</button>
             <span className="brand-wordmark" style={{ fontSize: 24 }}>Commonroom</span>
           </header>
-          <p className="onboarding-progress">ACCOUNT SETUP · {stepNumber} OF 3</p>
+          <p className="onboarding-progress">ACCOUNT SETUP · {stepNumber} OF 4</p>
           <h1 id="onboarding-title">Choose your interests</h1>
           <p className="onboarding-subtitle">Pick any that sound interesting, or skip to finish setup.</p>
           <div aria-label="Choose your interests" className="onboarding-interests">
             {interestOptions.map((interest) => (
-              <button
-                aria-pressed={interests.includes(interest)}
-                className={interests.includes(interest) ? 'selected' : ''}
+              <Chip
+                active={interests.includes(interest)}
                 key={interest}
+                label={interest}
                 onClick={() => toggleInterest(interest)}
-                type="button"
-              >
-                {interest}
-              </button>
+              />
             ))}
           </div>
           {error ? <p className="onboarding-error" role="alert">{error}</p> : null}
-          <button className="onboarding-native-button" disabled={saving} onClick={() => void finishOnboarding()} type="button">
+          <CRButton className="onboarding-native-button" disabled={saving} fullWidth onClick={() => void finishOnboarding()}>
             {saving ? 'Saving your profile…' : 'Finish setup'}
-          </button>
+          </CRButton>
+          <button className="onboarding-text-button" disabled={saving} onClick={() => { setError(''); setStep('photo'); }} type="button">Back to profile photo</button>
           <button className="onboarding-text-button" disabled={saving} onClick={() => { setError(''); setStep('profile'); }} type="button">Back to profile</button>
         </div>
       ) : null}

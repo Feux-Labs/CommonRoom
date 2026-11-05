@@ -2,7 +2,7 @@ import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, isRe
 import type { EducationStatus } from '@/lib/contracts';
 import { readProfileCache, writeProfileCache, type CachedProfile } from '@/lib/profile-cache';
 
-const profileFields = 'id, display_name, username, education_status, school, show_school_on_profile, course, year, age_eligibility_confirmed, interests';
+const profileFields = 'id, display_name, username, avatar_url, education_status, school, show_school_on_profile, course, year, age_eligibility_confirmed, interests';
 const educationStatuses: EducationStatus[] = [
   'currently_in_school',
   'not_in_school_yet',
@@ -69,6 +69,7 @@ export async function PUT(request: Request) {
   const year = typeof body.year === 'string' ? body.year.trim() : '';
   const ageConfirmed = body.ageEligibilityConfirmed === true;
   const showSchool = body.showSchoolOnProfile === true;
+  const avatarUrl = body.avatarUrl;
   const interests = Array.isArray(body.interests)
     ? body.interests.filter((value): value is string => typeof value === 'string').map((value) => value.trim()).filter(Boolean)
     : [];
@@ -88,6 +89,17 @@ export async function PUT(request: Request) {
   if (interests.length > 20 || interests.some((interest) => interest.length > 50)) {
     return apiError('invalid_interests', 'Choose up to 20 interests, each no longer than 50 characters.', 422);
   }
+  if (avatarUrl !== undefined && avatarUrl !== null && (typeof avatarUrl !== 'string' || avatarUrl.length > 2048)) {
+    return apiError('invalid_avatar', 'Choose a valid profile photo.', 422);
+  }
+  if (typeof avatarUrl === 'string') {
+    try {
+      const protocol = new URL(avatarUrl).protocol;
+      if (protocol !== 'https:' && protocol !== 'http:') throw new Error('Unsupported protocol.');
+    } catch {
+      return apiError('invalid_avatar', 'Profile photo must be a valid HTTP or HTTPS URL.', 422);
+    }
+  }
 
   const profilePayload = {
     id: auth.user.id,
@@ -100,6 +112,7 @@ export async function PUT(request: Request) {
     year: year.slice(0, 40),
     age_eligibility_confirmed: ageConfirmed,
     interests: [...new Set(interests)],
+    ...(avatarUrl !== undefined ? { avatar_url: avatarUrl } : {}),
   };
 
   try {

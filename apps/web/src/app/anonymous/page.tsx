@@ -1,5 +1,10 @@
 import { AnonymousExperience } from '@/components/AnonymousExperience';
+import { AppRouteShell } from '@/components/cr/AppRouteShell';
 
 export default function AnonymousPage() {
-  return <AnonymousExperience />;
+  return (
+    <AppRouteShell active="Anonymous">
+      <AnonymousExperience />
+    </AppRouteShell>
+  );
 }
