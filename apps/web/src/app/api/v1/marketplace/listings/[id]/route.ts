@@ -1,6 +1,7 @@
+import { parseListingFields } from '@/lib/listing-validation';
 import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, parseJson, requireRegisteredUser } from '@/lib/supabase-server';
 import { INITIAL_MARKETPLACE_LISTINGS } from '@/lib/marketplace-seed';
-import type { MarketplaceListing, UpdateListingInput } from '@/lib/marketplace-contracts';
+import type { MarketplaceListing } from '@/lib/marketplace-contracts';
 
 // In Next.js 15/16 App Router, params is a Promise
 type RouteContext = { params: Promise<{ id: string }> };
@@ -57,6 +58,7 @@ export async function GET(request: Request, context: RouteContext) {
           location: dbItem.location,
           school: dbItem.school,
           images: Array.isArray(dbItem.images) ? dbItem.images : [],
+          images_sensitive: dbItem.images_sensitive === true,
           status: dbItem.status,
           likes_count: 0,
           views_count: (dbItem.views_count || 0) + 1,
@@ -88,8 +90,10 @@ export async function GET(request: Request, context: RouteContext) {
 
 export async function PUT(request: Request, context: RouteContext) {
   const { id } = await context.params;
-  const body = (await parseJson(request)) as UpdateListingInput | null;
-  if (!body) return apiError('invalid_body', 'Invalid update data.', 400);
+  const rawBody = await parseJson(request);
+  if (!rawBody || typeof rawBody !== 'object' || Array.isArray(rawBody)) return apiError('invalid_body', 'Invalid update data.', 400);
+  const parsed = parseListingFields(rawBody as Record<string, unknown>, true);
+  if (!parsed.ok) return apiError(parsed.code, parsed.message, parsed.status);
 
   const authResult = await authenticateRequest(request);
   if (!isAuthenticatedRequest(authResult)) return authResult;
@@ -98,7 +102,7 @@ export async function PUT(request: Request, context: RouteContext) {
   const { supabase, user } = authResult;
   const { data: existing, error: readError } = await supabase
     .from('marketplace_listings')
-    .select('seller_id')
+    .select('seller_id, status')
     .eq('id', id)
     .maybeSingle();
   if (readError) return apiError('listing_update_failed', 'This listing could not be updated.', 500);
@@ -106,20 +110,17 @@ export async function PUT(request: Request, context: RouteContext) {
   if (existing.seller_id !== user.id) {
     return apiError('forbidden', 'You can only update your own listings.', 403);
   }
+  // Moderators remove listings; sellers must not be able to put them back.
+  if (existing.status === 'removed') {
+    return apiError('listing_removed', 'This listing was removed by a moderator.', 403);
+  }
 
+  const { school: _ignoredSchool, ...changes } = parsed.data;
+  void _ignoredSchool;
   const updateData: Record<string, unknown> = {
+    ...changes,
     updated_at: new Date().toISOString(),
   };
-  if (body.title) updateData.title = body.title.trim();
-  if (body.description) updateData.description = body.description.trim();
-  if (body.price !== undefined) updateData.price = body.price;
-  if (body.category) updateData.category = body.category;
-  if (body.condition) updateData.condition = body.condition;
-  if (body.location) updateData.location = body.location.trim();
-  if (body.status) updateData.status = body.status;
-  if (body.images) updateData.images = body.images;
-  if (body.contact_phone !== undefined) updateData.contact_phone = body.contact_phone;
-
   const { data: updatedDb, error: updateError } = await supabase
     .from('marketplace_listings')
     .update(updateData)

@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500&display=swap");
-
 :root {
   --cr-page: #f3f3f3;
   --cr-surface: #fff;
@@ -11,7 +9,7 @@
   --cr-subtle: #f0f0f0;
   --cr-error: #b3261e;
   --cr-success: #1a7f37;
-  --cr-font-family: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --cr-font-family: var(--font-hanken), "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
   --cr-font-size-xs: 10.5px;
   --cr-font-size-sm: 11.5px;
   --cr-font-size-base: 12.5px;
@@ -101,6 +99,8 @@
   font: inherit;
 }
 
+/* Stroke icons (<Icon />) are used everywhere, not only inside .cr-ui. */
+.i,
 .cr-ui .i {
   width: 20px;
   height: 20px;
@@ -277,8 +277,16 @@
 }
 
 .cr-input input {
+  flex: 1;
+  width: 100%;
   min-width: 0;
   min-height: 40px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
 }
 
 .cr-input input::placeholder {
@@ -548,34 +556,35 @@ button.cr-chip {
 
 .cr-bottom-nav {
   position: fixed;
-  z-index: 20;
-  right: auto;
+  z-index: 50;
   bottom: 0;
   left: 50%;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  width: min(100%, 520px);
+  width: min(100%, 560px);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   transform: translateX(-50%);
   border-top: 1px solid var(--cr-soft-border);
   background: var(--cr-surface);
-  padding: 7px 8px max(7px, env(safe-area-inset-bottom));
+  font-family: var(--cr-font-family);
+  padding: 0 4px env(safe-area-inset-bottom);
 }
 
 .cr-bottom-nav__item {
+  position: relative;
   display: grid;
   min-width: 0;
   justify-items: center;
-  gap: 2px;
+  gap: 3px;
   color: var(--cr-muted);
-  font-size: var(--cr-font-size-xs);
-  line-height: 1.3;
-  padding: 3px 1px;
+  font-size: 10.5px;
+  line-height: 1.2;
+  padding: 10px 1px 9px;
   text-decoration: none;
 }
 
-.cr-bottom-nav__item svg {
-  width: 19px;
-  height: 19px;
+.cr-bottom-nav__item .i {
+  width: 20px;
+  height: 20px;
 }
 
 .cr-bottom-nav__item--active {
@@ -583,12 +592,15 @@ button.cr-chip {
   font-weight: 500;
 }
 
-@media (min-width: 521px) {
-  .cr-bottom-nav {
-    border: 1px solid var(--cr-soft-border);
-    border-bottom: 0;
-    border-radius: var(--cr-radius-control) var(--cr-radius-control) 0 0;
-  }
+.cr-bottom-nav__item--active::before {
+  position: absolute;
+  top: -1px;
+  right: 14%;
+  left: 14%;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--cr-text);
+  content: "";
 }
 
 .cr-showcase {

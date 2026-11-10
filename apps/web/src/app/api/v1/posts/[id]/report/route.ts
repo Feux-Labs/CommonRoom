@@ -1,10 +1,13 @@
 import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, isRecord, parseJson, requireRegisteredUser } from '@/lib/supabase-server';
+import { rateLimit } from '@/lib/rate-limit';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, { params }: RouteContext) {
   const auth = await authenticateRequest(request);
   if (!isAuthenticatedRequest(auth)) return auth;
+  const limited = await rateLimit(auth.supabase, 'room_report', 30, 3600);
+  if (limited) return limited;
   const accountError = requireRegisteredUser(auth);
   if (accountError) return accountError;
   const { id } = await params;

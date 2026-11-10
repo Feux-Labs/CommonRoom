@@ -3,12 +3,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { apiError, authenticateRequest, isAuthenticatedRequest, isRecord, parseJson } from '@/lib/supabase-server';
 
 type AnonymousRequestContext =
-  | { supabase: SupabaseClient }
+  | { supabase: SupabaseClient; userId: string }
   | { response: NextResponse };
 
 export async function authenticateAnonymousRequest(request: Request): Promise<AnonymousRequestContext> {
   const result = await authenticateRequest(request);
-  return isAuthenticatedRequest(result) ? { supabase: result.supabase } : { response: result };
+  return isAuthenticatedRequest(result) ? { supabase: result.supabase, userId: result.user.id } : { response: result };
 }
 
 export async function parseAnonymousBody(request: Request) {

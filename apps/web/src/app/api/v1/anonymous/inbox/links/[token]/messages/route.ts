@@ -1,10 +1,13 @@
 import { apiSuccess } from '@/lib/supabase-server';
 import { anonymousInvalidBody, anonymousRpcError, authenticateAnonymousRequest, parseAnonymousBody } from '@/lib/anonymous-api';
+import { rejectUnsafeAnonymousText } from '@/lib/text-filter';
 
 export async function POST(request: Request, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
   const body = await parseAnonymousBody(request);
   if (!body || typeof body.body !== 'string') return anonymousInvalidBody('Write a message to send anonymously.');
+  const unsafe = rejectUnsafeAnonymousText(body.body);
+  if (unsafe) return unsafe;
   const auth = await authenticateAnonymousRequest(request);
   if ('response' in auth) return auth.response;
   const { data, error } = await auth.supabase.rpc('send_anonymous_inbox_message', {

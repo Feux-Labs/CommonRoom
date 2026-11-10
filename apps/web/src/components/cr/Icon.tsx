@@ -3,6 +3,9 @@ import React from "react";
 export function CommonRoomIconSymbols() {
   return (
     <svg style={{ display: "none" }}>
+      <symbol id="eyeoff" viewBox="0 0 24 24">
+        <path d="M3 3l18 18M10.6 6.2A9.6 9.6 0 0112 6c5 0 8.5 4 9.5 6a12 12 0 01-2.7 3.4M6.4 7.7A12.3 12.3 0 002.5 12c1 2 4.500 6 9.500 6a9 9 0 003.600-.8"/><path d="M9.900 9.900a3 3 0 004.200 4.200"/>
+      </symbol>
       <symbol id="x" viewBox="0 0 24 24">
         <path d="M6 6l12 12M18 6L6 18"/>
       </symbol>
@@ -108,11 +111,51 @@ export function CommonRoomIconSymbols() {
       <symbol id="copy" viewBox="0 0 24 24">
         <rect x="8" y="8" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/>
       </symbol>
+      <symbol id="eye" viewBox="0 0 24 24">
+        <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>
+      </symbol>
+      <symbol id="eye-off" viewBox="0 0 24 24">
+        <path d="M3 3l18 18"/><path d="M10.6 5.1A10.6 10.6 0 0112 5c6 0 10 7 10 7a17 17 0 01-3.2 3.9M6.6 6.6C3.9 8.4 2 12 2 12s4 7 10 7a9.7 9.7 0 005.4-1.6"/><path d="M9.9 9.9a3 3 0 004.2 4.2"/>
+      </symbol>
+      <symbol id="cmt" viewBox="0 0 24 24">
+        <path d="M5 5h14a1 1 0 011 1v10a1 1 0 01-1 1H10l-4 3v-3H5a1 1 0 01-1-1V6a1 1 0 011-1z"/>
+      </symbol>
+      <symbol id="save" viewBox="0 0 24 24">
+        <path d="M7 4h10a1 1 0 011 1v15l-6-4-6 4V5a1 1 0 011-1z"/>
+      </symbol>
+      <symbol id="inbox" viewBox="0 0 24 24">
+        <path d="M4 13l2.5-7h11l2.5 7v5a1 1 0 01-1 1H5a1 1 0 01-1-1z"/><path d="M4 13h5l1 2h4l1-2h5"/>
+      </symbol>
+      <symbol id="sliders" viewBox="0 0 24 24">
+        <path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>
+      </symbol>
+      <symbol id="wifi-off" viewBox="0 0 24 24">
+        <path d="M3 3l18 18"/><path d="M8.5 16.5a5 5 0 017 0M5 12.5a10 10 0 015.2-2.8M19 12.5a10 10 0 00-3-2.2M2 8.8A15 15 0 016.9 6M22 8.8A15 15 0 0011.5 5"/><circle cx="12" cy="20" r=".6"/>
+      </symbol>
+      <symbol id="trash" viewBox="0 0 24 24">
+        <path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/>
+      </symbol>
+      <symbol id="home" viewBox="0 0 24 24">
+        <path d="M4 10.5L12 4l8 6.5V19a1 1 0 01-1 1h-4.5v-6h-5v6H5a1 1 0 01-1-1z"/>
+      </symbol>
+      <symbol id="room" viewBox="0 0 24 24">
+        <rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="16" height="7" rx="2"/>
+      </symbol>
+      <symbol id="play" viewBox="0 0 24 24">
+        <rect x="3.5" y="4.5" width="17" height="15" rx="3.5"/><path d="M10 9.2v5.6l4.6-2.8z"/>
+      </symbol>
+      <symbol id="bag" viewBox="0 0 24 24">
+        <path d="M5 8h14l-1 12H6z"/><path d="M9 8V6.5a3 3 0 016 0V8"/>
+      </symbol>
+      <symbol id="edit" viewBox="0 0 24 24">
+        <path d="M4 20h4L19 9l-4-4L4 16z"/>
+      </symbol>
     </svg>
   );
 }
 
 export type IconName =
+  | "eyeoff"
   | "x"
   | "img"
   | "vid"
@@ -147,21 +190,40 @@ export type IconName =
   | "trophy"
   | "blk"
   | "refresh"
-  | "copy";
+  | "copy"
+  | "eye"
+  | "eye-off"
+  | "cmt"
+  | "save"
+  | "inbox"
+  | "sliders"
+  | "wifi-off"
+  | "trash"
+  | "edit"
+  | "home"
+  | "play"
+  | "room"
+  | "bag";
 
+/** Decorative by default; wrap it in a labelled button when it is an action. */
 export function Icon({
   name,
   className = "i",
   style,
-  onClick,
+  filled = false,
 }: {
   name: IconName;
   className?: string;
   style?: React.CSSProperties;
-  onClick?: () => void;
+  filled?: boolean;
 }) {
   return (
-    <svg className={className} style={style} onClick={onClick}>
+    <svg
+      aria-hidden="true"
+      className={className}
+      focusable="false"
+      style={filled ? { fill: "currentColor", ...style } : style}
+    >
       <use href={`#${name}`} />
     </svg>
   );

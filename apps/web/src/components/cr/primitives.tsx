@@ -1,13 +1,6 @@
 import React, { useId, useRef } from "react";
 import { Icon, IconName } from "./Icon";
 import Link from "next/link";
-import {
-  Home,
-  MessageCircle,
-  PanelsTopLeft,
-  ShoppingBag,
-  UserRound,
-} from "lucide-react";
 
 export function Frame({
   children,
@@ -180,8 +173,9 @@ export function Input({
   style?: React.CSSProperties;
 }) {
   const generatedId = useId();
-  const inputId = `cr-input-${generatedId}`;
+  const inputId = inputProps?.id ?? `cr-input-${generatedId}`;
   const messageId = message ? `${inputId}-message` : undefined;
+  const describedBy = [inputProps?.["aria-describedby"], messageId].filter(Boolean).join(" ") || undefined;
   const hasValue = Boolean(value && value.length > 0);
   const inputContainerClass = [
     "in",
@@ -204,15 +198,7 @@ export function Input({
           onChange={onChange}
           placeholder={placeholder}
           aria-invalid={error || undefined}
-          aria-describedby={messageId}
-          style={{
-            border: "none",
-            outline: "none",
-            background: "transparent",
-            width: "100%",
-            color: "inherit",
-            font: "inherit",
-          }}
+          aria-describedby={describedBy}
         />
         {rightIcon && onRightIconClick ? (
           <button
@@ -626,17 +612,16 @@ export function ProgressBar({
 }
 
 const bottomNavItems = [
-  { label: "Home", href: "/?tab=home", icon: Home },
-  { label: "Room", href: "/?tab=room", icon: PanelsTopLeft },
-  { label: "Anonymous", href: "/anonymous", icon: MessageCircle },
-  { label: "Market", href: "/marketplace", icon: ShoppingBag },
-  { label: "Me", href: "/?tab=profile", icon: UserRound },
+  { label: "Anonymous", href: "/anonymous", icon: "anon" },
+  { label: "Room", href: "/room", icon: "room" },
+  { label: "Market", href: "/marketplace", icon: "bag" },
+  { label: "Me", href: "/me", icon: "user" },
 ] as const;
 
 export type BottomNavItemLabel = (typeof bottomNavItems)[number]["label"];
 
 export function BottomNav({
-  active = "Home",
+  active = "Anonymous",
   onNavigate,
 }: {
   active?: BottomNavItemLabel | null;
@@ -644,7 +629,7 @@ export function BottomNav({
 }) {
   return (
     <nav className="cr-bottom-nav" aria-label="Main navigation">
-      {bottomNavItems.map(({ label, href, icon: NavIcon }) => (
+      {bottomNavItems.map(({ label, href, icon }) => (
         <Link
           key={label}
           href={href}
@@ -665,7 +650,7 @@ export function BottomNav({
             onNavigate(label);
           }}
         >
-          <NavIcon size={19} strokeWidth={1.6} aria-hidden="true" />
+          <Icon name={icon} />
           <span>{label}</span>
         </Link>
       ))}

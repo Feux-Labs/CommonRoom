@@ -1,4 +1,6 @@
 import { apiError, apiSuccess, authenticateRequest, createPublicSupabase, isAuthenticatedRequest, isRecord, parseJson, requireRegisteredUser } from '@/lib/supabase-server';
+import { mediaKeyFromUrl, scheduleMediaScan, scheduleTextScan } from '@/lib/moderation/media-scan';
+import { isOwnStorageUrl } from '@/lib/media-url';
 import type { Audience, MediaItem, MediaType } from '@/lib/contracts';
 import type { RoomScope } from '@/lib/room-contracts';
 import { attachRoomViewerFields, decodeRoomCursor, encodeRoomCursor, mapRoomPost } from '@/lib/room-map';
@@ -160,14 +162,8 @@ export async function POST(request: Request) {
   if (!audiences.includes(audience as Audience)) {
     return apiError('invalid_audience', 'Choose Public, Followers, or Private visibility.', 422);
   }
-  if (mediaItems.length > 10 || mediaItems.some((item) => {
-    try {
-      return new URL(item.uri).protocol !== 'https:' && new URL(item.uri).protocol !== 'http:';
-    } catch {
-      return true;
-    }
-  })) {
-    return apiError('invalid_media', 'Upload up to 10 media items and use their secure public URLs.', 422);
+  if (mediaItems.length > 10 || mediaItems.some((item) => !isOwnStorageUrl(item.uri) || (item.poster !== undefined && !isOwnStorageUrl(item.poster)))) {
+    return apiError('invalid_media', 'Upload up to 10 media items through the app and use their URLs.', 422);
   }
   if (mediaType === 'video' && (mediaItems.length !== 1 || mediaItems[0]?.mediaType !== 'video')) {
     return apiError('invalid_video', 'A video post must contain exactly one uploaded video.', 422);
@@ -209,5 +205,7 @@ export async function POST(request: Request) {
     liked_by_me: false,
     saved_by_me: false,
   });
+  scheduleTextScan('room_post', String(mapped.id), caption);
+  scheduleMediaScan(auth.user.id, mediaItems.map((item) => mediaKeyFromUrl(item.uri)).filter((key): key is string => key !== null));
   return apiSuccess(mapped, 201);
 }

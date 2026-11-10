@@ -1,15 +1,22 @@
 import { Suspense } from 'react';
-import { AnonymousExperience } from '@/components/AnonymousExperience';
+import type { Metadata } from 'next';
+import { PublicMessagePage } from '@/features/anonymous/PublicMessagePage';
+import { BootScreen } from '@/features/app/AppShell';
 
-async function InboxLinkContent({ params }: { params: Promise<{ token: string }> }) {
+export const metadata: Metadata = {
+  title: 'Send an anonymous message · Common Room',
+  robots: { index: false, follow: false },
+};
+
+async function PublicLink({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  return <AnonymousExperience initialInboxToken={token} />;
+  return <PublicMessagePage token={token} />;
 }
 
-export default function AnonymousInboxLinkPage({ params }: { params: Promise<{ token: string }> }) {
+export default function PublicLinkPage({ params }: { params: Promise<{ token: string }> }) {
   return (
-    <Suspense fallback={<main aria-busy="true">Opening anonymous inbox…</main>}>
-      <InboxLinkContent params={params} />
+    <Suspense fallback={<BootScreen label="Opening link" />}>
+      <PublicLink params={params} />
     </Suspense>
   );
 }

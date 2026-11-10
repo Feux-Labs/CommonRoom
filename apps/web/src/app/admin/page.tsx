@@ -244,11 +244,13 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!authorized) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- legacy admin page, rebuilt as its own app in plan phase 5
     void loadDashboard();
   }, [authorized, loadDashboard]);
 
   useEffect(() => {
     if (!authorized || activeTab !== 'users') return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- legacy admin page, rebuilt as its own app in plan phase 5
     void loadUsers(1);
   }, [authorized, activeTab, loadUsers]);
 

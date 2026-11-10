@@ -16,7 +16,8 @@ export async function authenticateAdmin(request: Request): Promise<AdminAuth | N
   const userEmail = auth.user.email?.trim().toLowerCase();
   const emailIsVerified = Boolean(auth.user.email_confirmed_at);
 
-  if (emailIsVerified && userEmail === 'ibitoyrgideon79@gmail.com') {
+  const adminEmail = (process.env.ADMIN_EMAIL || 'ibitoyrgideon79@gmail.com').trim().toLowerCase();
+  if (emailIsVerified && userEmail === adminEmail) {
     return { supabase: auth.supabase, user: auth.user };
   }
 

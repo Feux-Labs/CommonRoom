@@ -1,5 +1,6 @@
 import { apiSuccess } from '@/lib/supabase-server';
 import { anonymousInvalidBody, anonymousRpcError, authenticateAnonymousRequest, parseAnonymousBody } from '@/lib/anonymous-api';
+import { rejectUnsafeAnonymousText } from '@/lib/text-filter';
 
 const commentIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -20,6 +21,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       && (typeof body.parentCommentId !== 'string' || !commentIdPattern.test(body.parentCommentId)))) {
     return anonymousInvalidBody('Add a comment and choose a valid parent comment.');
   }
+  const unsafe = rejectUnsafeAnonymousText(body.body);
+  if (unsafe) return unsafe;
   const auth = await authenticateAnonymousRequest(request);
   if ('response' in auth) return auth.response;
   const { data, error } = await auth.supabase.rpc('create_anonymous_comment', {

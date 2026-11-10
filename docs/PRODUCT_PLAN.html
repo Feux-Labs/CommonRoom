@@ -1,0 +1,1056 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Common Room Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Hanken+Grotesk:wght@400;500;600&display=swap">
+<style>
+/* Layout concept: one long scroll of illustrated sections on a cool-grey ground; ink-black type, one ultramarine accent, amber "decision" chips. */
+:root{
+  --bg:#f3f4f8; --surface:#ffffff; --ink:#0e1116; --muted:#586072; --line:#dde0e9;
+  --accent:#3347ff; --accent-soft:#e7eaff; --on-accent:#ffffff;
+  --decide:#9a4a06; --decide-bg:#fff0dc;
+  --ok:#0f6e45; --ok-bg:#dff5ea;
+  --bad:#b3261e; --bad-bg:#fdeae8;
+  --img-a:#c9cfe8; --img-b:#8e98c8; --gold:#b7791f;
+  --font-display:"Bricolage Grotesque","Hanken Grotesk",system-ui,sans-serif;
+  --font-body:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b0d12; --surface:#141822; --ink:#eef0f6; --muted:#9aa2b3; --line:#262b38;
+  --accent:#8c98ff; --accent-soft:#1d2348; --on-accent:#0b0d12;
+  --decide:#f4b673; --decide-bg:#352411;
+  --ok:#63d99c; --ok-bg:#0f2e20;
+  --bad:#ff8b82; --bad-bg:#381a18;
+  --img-a:#3a4268; --img-b:#222845; --gold:#f2c14e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b0d12; --surface:#141822; --ink:#eef0f6; --muted:#9aa2b3; --line:#262b38;
+  --accent:#8c98ff; --accent-soft:#1d2348; --on-accent:#0b0d12;
+  --decide:#f4b673; --decide-bg:#352411;
+  --ok:#63d99c; --ok-bg:#0f2e20;
+  --bad:#ff8b82; --bad-bg:#381a18;
+  --img-a:#3a4268; --img-b:#222845; --gold:#f2c14e; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.55;
+  padding-block:0 72px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1040px;margin:0 auto}
+h1,h2,h3{font-family:var(--font-display);line-height:1.12;margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:clamp(2.3rem,6vw,3.9rem);font-weight:700}
+h2{font-size:clamp(1.6rem,3.6vw,2.2rem);font-weight:700}
+h3{font-size:1.12rem;font-weight:700}
+p{margin:0}
+strong{font-weight:600}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.eyebrow{font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.lead{font-size:1.1rem;color:var(--muted);max-width:62ch}
+.small{font-size:.88rem;color:var(--muted)}
+.tabnum{font-variant-numeric:tabular-nums}
+
+/* header */
+.hero{padding-block:48px 28px;display:grid;gap:18px}
+.hero .lead{font-size:1.2rem}
+.changed{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));margin-top:6px}
+.changed div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;font-size:.95rem}
+.changed b{display:block;font-family:var(--font-display);font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+.toc{display:flex;flex-wrap:wrap;gap:8px;padding-block:14px 8px}
+.toc a{font-size:.88rem;text-decoration:none;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 13px}
+.toc a:hover{border-color:var(--accent);color:var(--accent)}
+
+/* sections */
+section{padding-block:56px 8px;scroll-margin-top:12px}
+.sec-head{display:grid;gap:10px;margin-bottom:26px}
+.g2,.g3,.g4{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))}
+.stack{display:grid;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px;min-width:0}
+.card h3{margin-bottom:6px}
+.card p+p{margin-top:8px}
+.plain{min-width:0}
+ul.tick{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}
+ul.tick li{padding-left:24px;position:relative}
+ul.tick li::before{content:"";position:absolute;left:0;top:.5em;width:12px;height:12px;border-radius:50%;background:var(--accent-soft);border:2px solid var(--accent)}
+ul.no li::before{background:var(--bad-bg);border-color:var(--bad)}
+ul.yes li::before{background:var(--ok-bg);border-color:var(--ok)}
+.chip{display:inline-block;font-size:.76rem;font-weight:600;letter-spacing:.03em;border-radius:999px;padding:3px 10px;vertical-align:middle}
+.chip.decide{background:var(--decide-bg);color:var(--decide)}
+.chip.ok{background:var(--ok-bg);color:var(--ok)}
+.chip.bad{background:var(--bad-bg);color:var(--bad)}
+.chip.info{background:var(--accent-soft);color:var(--accent)}
+.callout{border-radius:14px;padding:14px 16px;border:1px solid var(--line);background:var(--surface);display:grid;gap:4px}
+.callout.warn{background:var(--decide-bg);border-color:transparent;color:var(--ink)}
+.callout.warn b{color:var(--decide)}
+.callout.risk{background:var(--bad-bg);border-color:transparent}
+.callout.risk b{color:var(--bad)}
+.callout b{font-family:var(--font-display);font-size:1.02rem}
+figure{margin:0}
+figcaption{font-size:.84rem;color:var(--muted);margin-top:8px}
+svg{display:block;max-width:100%;height:auto}
+.svgbox{overflow-x:auto}
+.f-ink{fill:var(--ink)} .f-surface{fill:var(--surface)} .f-bg{fill:var(--bg)} .f-accent{fill:var(--accent)} .f-soft{fill:var(--accent-soft)} .f-muted{fill:var(--muted)} .f-line{fill:var(--line)} .f-ok{fill:var(--ok-bg)} .f-bad{fill:var(--bad-bg)}
+.s-ink{stroke:var(--ink)} .s-line{stroke:var(--line)} .s-accent{stroke:var(--accent)} .s-muted{stroke:var(--muted)}
+.t{font-family:var(--font-body);font-size:13px;fill:var(--ink)} .t-m{fill:var(--muted)} .t-b{font-weight:600} .t-d{font-family:var(--font-display);font-weight:700}
+
+/* phone mock */
+.phone{width:230px;background:var(--surface);border:2px solid var(--ink);border-radius:30px;padding:14px 12px 0;overflow:hidden;display:flex;flex-direction:column;min-height:420px;margin-inline:auto}
+.phone .bar{display:flex;justify-content:space-between;align-items:center;font-family:var(--font-display);font-weight:700;font-size:1.05rem;padding:0 4px 8px}
+.phone .row{display:flex;gap:8px;align-items:flex-start;padding:9px 4px;border-top:1px solid var(--line);font-size:.78rem;line-height:1.35}
+.dot{width:26px;height:26px;border-radius:50%;background:var(--accent-soft);flex:none;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:600;color:var(--accent)}
+.dot.ink{background:var(--ink);color:var(--bg)}
+.nav{margin:auto -12px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding:7px 4px 9px;font-size:.62rem;text-align:center;color:var(--muted)}
+.nav span{display:grid;justify-items:center;gap:2px}
+.nav .on{color:var(--ink);font-weight:600}
+.nav svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.sponsored{display:inline-block;font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;font-weight:600;border:1px solid var(--muted);color:var(--muted);border-radius:4px;padding:0 4px}
+.adcard{margin:6px 0;border:1px solid var(--line);border-radius:12px;padding:8px;background:var(--accent-soft);font-size:.74rem}
+.adcard .btn{display:inline-block;margin-top:6px;background:var(--accent);color:var(--on-accent);border-radius:8px;padding:3px 9px;font-weight:600;font-size:.7rem}
+
+/* timelines */
+.timeline{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(120px,1fr);gap:0;overflow-x:auto;padding-bottom:4px}
+.tl{padding:0 10px 0 0;position:relative;font-size:.86rem}
+.tl::before{content:"";display:block;height:4px;background:var(--accent);border-radius:4px;margin-bottom:10px}
+.tl:nth-child(odd)::before{opacity:.55}
+.tl b{display:block;font-family:var(--font-display);font-size:1.4rem;color:var(--accent);line-height:1}
+.tl span{display:block;margin-top:4px}
+
+/* strike steps */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:end;min-height:190px}
+.step{border-radius:14px 14px 0 0;padding:14px 14px 12px;color:var(--ink);display:grid;gap:3px;align-content:start}
+.step b{font-family:var(--font-display);font-size:1.35rem}
+.s1{background:var(--accent-soft);min-height:110px}.s2{background:var(--decide-bg);min-height:150px}.s3{background:var(--bad-bg);min-height:190px}
+.s3 b{color:var(--bad)}.s2 b{color:var(--decide)}.s1 b{color:var(--accent)}
+
+/* sensitive demo */
+.shot{position:relative;border-radius:16px;overflow:hidden;aspect-ratio:4/3;max-width:320px;background:linear-gradient(135deg,var(--img-a),var(--img-b))}
+.shot .pic{position:absolute;inset:0;background:radial-gradient(circle at 30% 35%,var(--surface) 0 18%,transparent 19%),radial-gradient(circle at 70% 65%,var(--ink) 0 22%,transparent 23%);opacity:.85;transition:filter .2s}
+.shot.hidden .pic{filter:blur(18px)}
+.shot button{position:absolute;inset:0;width:100%;border:0;background:transparent;color:#fff;cursor:pointer;display:grid;place-content:center;gap:6px;justify-items:center;font:inherit;font-size:.9rem;font-weight:600}
+.shot:not(.hidden) button{opacity:0;}
+.shot:not(.hidden) button:focus-visible{opacity:1;background:rgba(0,0,0,.35)}
+.shot.hidden button{background:rgba(10,12,18,.35)}
+.shot svg{width:34px;height:34px;stroke:#fff;fill:none;stroke-width:1.6;stroke-linecap:round}
+
+/* tiers */
+.bars{display:grid;gap:10px}
+.bar{display:grid;grid-template-columns:110px 1fr auto;gap:12px;align-items:center;font-size:.92rem}
+.track{height:14px;background:var(--line);border-radius:999px;overflow:hidden}
+.fill{height:100%;background:var(--accent);border-radius:999px}
+.range{position:relative;height:14px;background:var(--line);border-radius:999px}
+.range i{position:absolute;top:0;bottom:0;background:var(--accent);border-radius:999px;min-width:6px}
+.scale{display:flex;justify-content:space-between;font-size:.74rem;color:var(--muted);margin-top:6px}
+
+/* promo weeks */
+.weeks{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.weeks div{padding:10px 6px;text-align:center;border-radius:10px;background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:.86rem}
+.weeks div.free{background:var(--ok-bg);color:var(--ok)}
+
+/* tables */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:.92rem}
+th,td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+tr:last-child td{border-bottom:0}
+
+
+/* levels */
+.phases{display:grid;gap:12px}
+.phase-card{display:grid;grid-template-columns:minmax(150px,210px) 1fr;gap:12px 20px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px;align-items:start}
+.phase-card h3{font-size:1.08rem}
+.phase-card .pn{font-family:var(--font-display);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:2px;display:block}
+.phase-card .note{font-size:.86rem;color:var(--muted);margin-top:4px}
+.ranks{display:flex;flex-wrap:wrap;gap:6px 4px;align-items:center;min-width:0}
+.rank{font-size:.86rem;font-weight:600;border-radius:999px;padding:5px 12px;background:color-mix(in srgb,var(--accent) var(--tint,14%),var(--surface));color:var(--ink);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
+.sep{color:var(--muted);font-size:.9rem;padding:0 1px}
+.phase-card.p1{--tint:10%}.phase-card.p2{--tint:20%}.phase-card.p3{--tint:32%}.phase-card.p4{--tint:48%}
+.phase-card.p5{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.phase-card.p5 h3,.phase-card.p5 .pn{color:var(--bg)}
+.phase-card.p5 .note{color:var(--bg);opacity:.75}
+.phase-card.p5 .rank{background:transparent;color:var(--bg);border-color:color-mix(in srgb,var(--bg) 45%,transparent)}
+.phase-card.p5 .sep{color:var(--bg);opacity:.6}
+.down{text-align:center;color:var(--muted);font-size:.8rem;line-height:1}
+@media (max-width:640px){.phase-card{grid-template-columns:1fr}}
+
+
+/* names + badges */
+.namebox{font-family:var(--font-display);font-size:clamp(1.3rem,4vw,1.7rem);font-weight:700;padding:14px 16px;background:var(--accent-soft);color:var(--accent);border-radius:12px;margin:10px 0;overflow-wrap:anywhere}
+.btn-s{border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);border-radius:999px;padding:7px 18px;font:inherit;font-weight:600;cursor:pointer}
+.btn-s:hover{filter:brightness(1.08)}
+.samples{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.samples span{font-size:.84rem;border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:var(--surface)}
+.badges{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:10px;margin-top:12px}
+.badge{text-align:center;font-size:.8rem;color:var(--muted)}
+.badge svg{width:64px;height:64px;margin:0 auto 4px}
+.badge b{display:block;color:var(--ink);font-size:.84rem}
+.b-s{stroke:var(--ink);fill:none;stroke-width:2.5}.b-f{fill:var(--ink)}.b-a{fill:var(--accent)}.b-g{fill:var(--gold)}.b-gs{stroke:var(--gold);fill:none;stroke-width:3}
+.compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px}
+.compare>div{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--surface)}
+.compare h3{margin-bottom:4px}
+
+/* roadmap */
+.road{display:grid;gap:0}
+.phase{display:grid;grid-template-columns:44px 1fr;gap:14px;position:relative;padding-bottom:18px}
+.phase::before{content:"";position:absolute;left:21px;top:40px;bottom:0;width:2px;background:var(--line)}
+.phase:last-child::before{display:none}
+.phase .n{width:44px;height:44px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-content:center;font-family:var(--font-display);font-weight:700}
+.phase.later .n{background:var(--surface);color:var(--muted);border:2px solid var(--line)}
+.phase h3{margin-bottom:2px}
+.phase p{color:var(--muted);font-size:.94rem}
+
+/* decisions */
+.decide-list{display:grid;gap:8px}
+.decide-list label{display:grid;grid-template-columns:24px 1fr;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;align-items:start}
+.decide-list input{width:18px;height:18px;margin-top:3px;accent-color:var(--accent)}
+.decide-list label:has(input:checked){border-color:var(--ok);background:var(--ok-bg)}
+.decide-list small{display:block;color:var(--muted);margin-top:2px}
+
+/* hint bubble */
+.bubble{background:var(--accent-soft);border-radius:16px 16px 16px 4px;padding:10px 14px;max-width:340px;font-size:.92rem}
+.hintrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.hintrow span{font-size:.74rem;font-weight:600;border:1px dashed var(--accent);color:var(--accent);border-radius:999px;padding:2px 9px}
+
+.roomcard{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--surface);display:grid;gap:8px}
+.roomcard .top{display:flex;gap:10px;align-items:center}
+.roomcard .cover{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--img-a),var(--img-b));flex:none}
+.roomcard b{display:block;line-height:1.2}
+.roomcard .join{justify-self:start;font-size:.78rem;font-weight:600;border:1px solid var(--ink);border-radius:999px;padding:3px 12px}
+.storycard{width:200px;aspect-ratio:9/16;border-radius:20px;background:linear-gradient(160deg,var(--ink),#2a3050);color:#fff;padding:18px 16px;display:grid;align-content:space-between;margin-inline:auto}
+.storycard .q{font-family:var(--font-display);font-size:1.12rem;line-height:1.25}
+.storycard small{font-size:.7rem;opacity:.75}
+.storycard .mark{display:flex;gap:5px;align-items:center;font-size:.74rem;font-weight:600}
+.storycard .mark i{width:7px;height:7px;border-radius:50%;background:#fff;display:inline-block}
+.share{display:flex;flex-wrap:wrap;gap:8px}
+.share span{font-size:.82rem;border:1px solid var(--line);border-radius:999px;padding:5px 12px;background:var(--surface)}
+.metric{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.metric b{display:block;font-family:var(--font-display);font-size:1.6rem}
+.metric span{font-size:.8rem;color:var(--muted)}
+footer{padding-block:48px 0;color:var(--muted);font-size:.9rem;display:grid;gap:8px}
+@media (max-width:520px){.bar{grid-template-columns:76px 1fr auto}.steps{gap:6px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+
+<header class="hero">
+  <p class="eyebrow">Plan for review · 9 November 2026</p>
+  <h1>Common Room, the plan</h1>
+  <p class="lead">An anonymous campus app that spreads through links. This page is the whole plan in pictures. Read it, tick the decisions you agree with at the bottom, and tell me what to change.</p>
+  <div class="changed">
+    <div><b>Changed</b>Sign-in is <strong>email, Google, TikTok and Apple</strong>. Instagram is removed.</div>
+    <div><b>New</b><strong>Pro</strong> tier, with an honest version of “see who sent it”.</div>
+    <div><b>New</b>Levels are <strong>five phases with ranks inside</strong>: Rookie, Ultimate, Legend, Immortal, Sages and Gods.</div>
+    <div><b>New</b><strong>Auto-assigned names</strong> like quietfox4821, and <strong>paid climbing</strong>, one step a day.</div>
+    <div><b>New</b><strong>People you may know</strong>, with contact import and strict privacy rules.</div>
+  </div>
+  <nav class="toc" aria-label="Sections">
+    <a href="#loop">The loop</a><a href="#app">App map</a><a href="#signin">Sign-in</a><a href="#onboarding">30 seconds</a><a href="#identity">Who can do what</a><a href="#media">Photo &amp; video</a><a href="#rooms">Rooms</a><a href="#people">People</a><a href="#market">Market</a><a href="#share">Sharing</a><a href="#safety">Safety</a><a href="#pro">Pro</a><a href="#levels">Levels</a><a href="#ads">Ads</a><a href="#data">Analytics</a><a href="#admin">Admin</a><a href="#logo">Logo</a><a href="#targets">Targets</a><a href="#roadmap">Build order</a><a href="#decide">Your decisions</a>
+  </nav>
+</header>
+
+<section id="loop">
+  <div class="sec-head">
+    <p class="eyebrow">The idea</p>
+    <h2>One loop does the growing</h2>
+    <p class="lead">NGL spread because the link page asks for nothing. Someone shares a link, a friend opens it, sends a message, then wants their own link. Every other feature supports that loop.</p>
+  </div>
+  <div class="g2">
+    <figure class="card svgbox">
+      <svg viewBox="0 0 560 290" role="img" aria-label="Loop: share link, friends open it without login, they send a message, they want their own link, and back to share">
+        <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="f-accent"/></marker></defs>
+        <rect x="20" y="20" width="220" height="70" rx="14" class="f-soft"/><text x="36" y="50" class="t t-b">You share your link</text><text x="36" y="70" class="t t-m">story, status, group chat</text>
+        <rect x="320" y="20" width="220" height="70" rx="14" class="f-soft"/><text x="336" y="50" class="t t-b">Friends open it</text><text x="336" y="70" class="t t-m">no login, no wall</text>
+        <rect x="320" y="200" width="220" height="70" rx="14" class="f-soft"/><text x="336" y="230" class="t t-b">They send a message</text><text x="336" y="250" class="t t-m">get an Anonymous ID, done</text>
+        <rect x="20" y="200" width="220" height="70" rx="14" class="f-soft"/><text x="36" y="230" class="t t-b">They want their own</text><text x="36" y="250" class="t t-m">one tap with Google</text>
+        <g class="s-accent" fill="none" stroke-width="2.5" marker-end="url(#ah)">
+          <path d="M244 55H314"/><path d="M430 94V194"/><path d="M316 235H246"/><path d="M130 196V96"/>
+        </g>
+        <text x="280" y="150" text-anchor="middle" class="t t-d" style="font-size:15px">The loop</text>
+      </svg>
+      <figcaption>Each person who owns a link brings new visitors. If each one converts one more, growth feeds itself.</figcaption>
+    </figure>
+    <div class="stack">
+      <div class="card"><h3>Reading needs nothing</h3><p>Anyone with a link lands on the content. No account, no wall.</p></div>
+      <div class="card"><h3>Anonymous actions need an auto-made name</h3><p>Something like quietfox4821. We assign it, you can re-roll. One tap, no email. Enough to comment and like.</p></div>
+      <div class="card"><h3>Real-person actions need a real account</h3><p>Posting under your name in Room, selling in Market, creating Rooms, running ads.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="app">
+  <div class="sec-head">
+    <p class="eyebrow">Navigation</p>
+    <h2>Four tabs. Room replaces Home.</h2>
+    <p class="lead">Room is where normal posts, anonymous posts and communities meet. The old vertical video viewer is kept as a <strong>Watch</strong> mode inside Room, not deleted.</p>
+  </div>
+  <div class="g2">
+    <figure class="card">
+      <div class="phone" aria-label="Phone mock of the Room tab">
+        <div class="bar"><span>Room</span><span class="small">search</span></div>
+        <div class="row"><span class="dot ink">A</span><div><b>Amara</b> · 12m<br>Finished my first week of internship hunting.</div></div>
+        <div class="row"><span class="dot">?</span><div><b>Anonymous</b> · 1h<br>Third-floor lights on at 3am, we see you.</div></div>
+        <div class="row"><span class="dot ink">I</span><div><b>Ife</b> · 2h<br>How I revised Data Structures in a weekend.</div></div>
+        <div class="nav"><span><svg viewBox="0 0 24 24"><path d="M5 9c0-2 2-3 7-3s7 1 7 3v4c0 3-3 5-7 5s-7-2-7-5z"/></svg>Anonymous</span><span class="on"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="16" height="7" rx="2"/></svg>Room</span><span><svg viewBox="0 0 24 24"><path d="M5 8h14l-1 12H6z"/><path d="M9 8V6.5a3 3 0 016 0V8"/></svg>Market</span><span><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-4 3-6 7-6s7 2 7 6"/></svg>Me</span></div>
+      </div>
+      <figcaption>Room feed: real profiles and anonymous posts side by side, labelled.</figcaption>
+    </figure>
+    <div class="stack">
+      <div class="card"><h3>Anonymous</h3><p>The anonymous feed and your Inbox. This is where link visitors land first.</p></div>
+      <div class="card"><h3>Room</h3><p>One feed with normal and anonymous posts, plus small cards for communities you can join. Watch mode for video.</p></div>
+      <div class="card"><h3>Market</h3><p>Listings. Selling needs a real profile.</p></div>
+      <div class="card"><h3>Me</h3><p>Profile, your Rooms, settings, level, Pro.</p></div>
+      <p><span class="chip decide">Decision</span> Which tab should returning logged-in users land on, Anonymous or Room?</p>
+    </div>
+  </div>
+</section>
+
+<section id="signin">
+  <div class="sec-head">
+    <p class="eyebrow">Sign-in</p>
+    <h2>Email, Google, TikTok and Apple</h2>
+  </div>
+  <div class="g4">
+    <div class="card"><h3>Email</h3><p>Built. Email and password, with a 6-digit code sent to the inbox. Works for everyone, including people without a Google account.</p><p class="small">Needs ZeptoMail set up as the sender.</p></div>
+    <div class="card"><h3>Google</h3><p>Built. A native button, so the screen says your domain, not Supabase.</p><p class="small">Needs a Google client ID.</p></div>
+    <div class="card"><h3>TikTok</h3><p>We build a small server route. TikTok gives no email, so these users add one later for password reset.</p><p class="small">Needs a TikTok developer app and an https redirect.</p></div>
+    <div class="card"><h3>Apple</h3><p>Required by the App Store if you offer other social logins in an iOS app. The button exists, switched off.</p><p class="small">Needs an Apple Developer account.</p></div>
+    <div class="card"><h3>Instagram</h3><p><span class="chip bad">Removed</span></p><p>Meta only allows business and creator accounts. Most students could not use it.</p></div>
+  </div>
+  <p style="margin-top:14px"><strong>After any social login:</strong> ask one question, <em>I’m a student</em> or <em>I’m not a student</em>, then pick a school if yes. Editable in profile, with a congratulations screen when someone moves to a new school.</p>
+</section>
+
+<section id="onboarding">
+  <div class="sec-head">
+    <p class="eyebrow">Onboarding</p>
+    <h2>First useful action in 30 seconds</h2>
+    <p class="lead">A visitor from a shared link should be commenting before the half-minute is up.</p>
+  </div>
+  <div class="card">
+    <div class="timeline">
+      <div class="tl"><b>0s</b><span>Link opens the content</span></div>
+      <div class="tl"><b>5s</b><span>Get an auto name, tap to re-roll</span></div>
+      <div class="tl"><b>10s</b><span>Comment or send a message</span></div>
+      <div class="tl"><b>20s</b><span>“Get my own link”, one tap with Google</span></div>
+      <div class="tl"><b>25s</b><span>Student or not, pick school</span></div>
+      <div class="tl"><b>30s</b><span>In. Link ready to share.</span></div>
+    </div>
+  </div>
+  <div class="g3" style="margin-top:14px">
+    <div class="card"><h3>Age</h3><p>The checkbox changes to <strong>“I am 18 or older”</strong>. A self-declaration, not verification.</p></div>
+    <div class="card"><h3>Email code</h3><p>Let people in straight away. Ask for the 6-digit code only before posting in Room, selling, or buying ads.</p></div>
+    <div class="card"><h3>Cut from today’s flow</h3><p>Forced interests and the photo step. Both become optional prompts later.</p></div>
+  </div>
+  <p style="margin-top:14px"><span class="chip decide">Decision</span> OK to drop forced interests, make the photo optional and delay email verification?</p>
+</section>
+
+<section id="identity">
+  <div class="sec-head">
+    <p class="eyebrow">Identity</p>
+    <h2>Three kinds of person, and names we hand out</h2>
+  </div>
+  <div class="g3">
+    <div class="card"><span class="chip info">Visitor</span><h3 style="margin-top:8px">No login</h3>
+      <ul class="tick"><li>Read posts</li><li>Open a message link</li><li>Send an anonymous message</li></ul></div>
+    <div class="card"><span class="chip info">Anonymous identity</span><h3 style="margin-top:8px">Auto-named, one tap</h3>
+      <ul class="tick"><li>Everything a visitor can do</li><li>Comment and like</li><li>Post anonymously, earn an Anonymous rank</li></ul></div>
+    <div class="card"><span class="chip info">Real account</span><h3 style="margin-top:8px">Signed up, 18+</h3>
+      <ul class="tick"><li>Everything above</li><li>Post under their profile in Room</li><li>Create and join Rooms</li><li>Follow people and get followers</li><li>Sell in Market, run ads</li></ul></div>
+  </div>
+
+  <div class="g2" style="margin-top:14px">
+    <div class="card"><h3>Names are assigned for you</h3>
+      <p class="small">Tap to roll. These are examples, not real accounts.</p>
+      <div class="namebox" id="nameout" aria-live="polite">quietfox4821</div>
+      <button class="btn-s" type="button" id="roll">Roll another</button>
+      <div class="samples" id="samples" aria-label="More examples"></div>
+      <ul class="tick" style="margin-top:14px">
+        <li>Built from word lists plus digits, 3 to 20 characters (the database already allows up to 24)</li>
+        <li><strong>Never</strong> built from your real name, school, email, phone or sign-up time</li>
+        <li>Unique across the whole app, ignoring capital letters</li>
+        <li>Re-roll as often as you like at sign-up, then change it once every 30 days</li>
+      </ul></div>
+    <div class="stack">
+      <div class="callout risk"><b>Two traps in names like the ones you listed</b>
+        <p><strong>Real people and brands.</strong> “mrbeast” is a real creator. The generator must never make names that match celebrities, brands or official-sounding accounts (admin, support, commonroom), or people will be impersonated.</p>
+        <p><strong>Numbers with a meaning.</strong> The “88” in ghost88human3909 is a hate-group code, and 1488, 69, 420 and 666 are memes or worse. We skip those digit runs.</p></div>
+      <div class="card"><h3>Filtering</h3><p>Every generated name is checked against an offensive-word list after removing digits and swapped letters (0 for o, 1 for i). English, Pidgin, Yoruba, Igbo and Hausa lists need reviewers who speak them.</p></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>Two ways to post anonymously</h3>
+    <div class="compare" style="margin-top:10px">
+      <div><span class="chip info">A. No name</span><p style="margin-top:8px">Shows only “Anonymous”. No handle, no rank. Best for confessions and the message-link inbox.</p></div>
+      <div><span class="chip info">B. Your auto name</span><p style="margin-top:8px">Shows quietfox4821 and its Anonymous rank. Builds a small reputation and makes moderation easier, like Reddit.</p></div>
+    </div>
+    <p class="small" style="margin-top:10px">The auto name belongs to the anonymous identity. It is never linked to a real profile.</p>
+    <p style="margin-top:10px"><span class="chip decide">Decision</span> Offer both with a switch in the composer? And which one is the default? I suggest B for feed posts and comments, and A for the message-link inbox.</p>
+  </div>
+
+  <div class="card" style="margin-top:14px"><h3>Commenting as anonymous inside Room</h3><p>Allowed but tucked away, behind a small option after tapping comment. A guest’s first prompt on Room is to sign in or sign up, so we collect real details.</p></div>
+</section>
+
+<section id="media">
+  <div class="sec-head">
+    <p class="eyebrow">Photo &amp; video</p>
+    <h2>Photos now. Video short and small.</h2>
+  </div>
+  <div class="g2">
+    <div class="card"><h3>Photos</h3>
+      <ul class="tick"><li>Up to 4 per anonymous post, compressed on the device (built)</li><li><strong>Strip location data from every photo.</strong> Not done yet, and critical on an anonymous app.</li></ul></div>
+    <div class="card"><h3>Video: 15 seconds</h3>
+      <p>WhatsApp Status moved from 30 to 60 seconds, with reports of 90 now rolling out (secondary sources; check the app). Ours should be our own number, and I suggest <strong>15 seconds</strong>: cheap to store, quick to review, hard to abuse. We can raise it once moderation works.</p></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>Why not 500&nbsp;KB?</h3>
+    <p class="small">My own arithmetic, so test it before promising it: 500&nbsp;KB over 15&nbsp;s is about 270&nbsp;kbps. That is only watchable at roughly 360p.</p>
+    <div class="bars" style="margin-top:14px" role="img" aria-label="Estimated size of a 15 second clip: 360p about 500 kilobytes, 480p about 800, 540p about 1500">
+      <div class="bar"><span>360p</span><div class="track"><div class="fill" style="width:33%"></div></div><span class="tabnum">~500 KB</span></div>
+      <div class="bar"><span>480p</span><div class="track"><div class="fill" style="width:53%"></div></div><span class="tabnum">~800 KB</span></div>
+      <div class="bar"><span>540p</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="tabnum">~1.5 MB</span></div>
+    </div>
+    <p style="margin-top:14px"><strong>Suggestion:</strong> cap at 1.5&nbsp;MB, aim for about 1&nbsp;MB. Compress on the phone, then check duration and size again on the server. Videos from new accounts wait for an automatic scan before anyone sees them.</p>
+  </div>
+  <p style="margin-top:14px"><span class="chip decide">Decision</span> Ship v1 with photo and text, and add video once the scanner works? Video is the biggest abuse risk.</p>
+</section>
+
+<section id="rooms">
+  <div class="sec-head">
+    <p class="eyebrow">Communities</p>
+    <h2>Rooms anyone can create</h2>
+    <p class="lead">A fixed room per school would limit you later. So schools get a Room automatically, and anyone with a real account can start their own: Computer Science, Nigerian Devs, a hostel.</p>
+  </div>
+  <div class="g2">
+    <div class="g2" style="gap:10px">
+      <div class="roomcard"><div class="top"><span class="cover"></span><div><b>AAUA Room</b><span class="small">12.4k members</span></div></div><span class="join">Join</span></div>
+      <div class="roomcard"><div class="top"><span class="cover"></span><div><b>UNILAG Room</b><span class="small">31k members</span></div></div><span class="join">Join</span></div>
+      <div class="roomcard"><div class="top"><span class="cover"></span><div><b>Computer Science</b><span class="small">2.1k members</span></div></div><span class="join">Join</span></div>
+      <div class="roomcard"><div class="top"><span class="cover"></span><div><b>Nigerian Devs</b><span class="small">860 members</span></div></div><span class="join">Join</span></div>
+    </div>
+    <div class="card"><h3>How it works</h3>
+      <ul class="tick"><li><strong>Seeded:</strong> one Room per school from the directory</li><li><strong>User-made:</strong> name, cover, public or private</li><li><strong>Link cards:</strong> shareable, with a preview for people who are not signed in yet</li><li><strong>General:</strong> the main feed gathers posts from the public Rooms you joined</li><li><strong>Roles:</strong> owner, moderator, member</li><li>Room posts use the author’s real profile</li><li>New accounts can create one Room per day</li></ul></div>
+  </div>
+</section>
+
+<section id="people">
+  <div class="sec-head">
+    <p class="eyebrow">People</p>
+    <h2>People you may know</h2>
+    <p class="lead">A suggestion row, like Facebook’s, that helps students find their friends fast. It uses <strong>real accounts only</strong>. It never touches anyone’s anonymous identity.</p>
+  </div>
+
+  <div class="g2">
+    <figure class="card svgbox">
+      <svg viewBox="0 0 520 310" role="img" aria-label="You in the centre, linked to five signals: in your contacts, mutual followers, same Rooms, same school, same city. Thicker lines count more.">
+        <g class="s-accent" fill="none" stroke-linecap="round">
+          <path d="M260 150L100 55" stroke-width="7"/>
+          <path d="M260 150L420 55" stroke-width="5.5"/>
+          <path d="M260 150L455 175" stroke-width="4"/>
+          <path d="M260 150L370 265" stroke-width="3"/>
+          <path d="M260 150L110 260" stroke-width="2"/>
+        </g>
+        <circle cx="260" cy="150" r="40" class="f-ink"/><text x="260" y="155" text-anchor="middle" class="t t-d" style="font-size:16px;fill:var(--bg)">You</text>
+        <rect x="35" y="35" width="130" height="40" rx="12" class="f-soft"/><text x="100" y="60" text-anchor="middle" class="t t-b">In your contacts</text>
+        <rect x="355" y="35" width="130" height="40" rx="12" class="f-soft"/><text x="420" y="60" text-anchor="middle" class="t t-b">Mutual followers</text>
+        <rect x="390" y="155" width="130" height="40" rx="12" class="f-soft"/><text x="455" y="180" text-anchor="middle" class="t t-b">Same Rooms</text>
+        <rect x="305" y="245" width="130" height="40" rx="12" class="f-soft"/><text x="370" y="270" text-anchor="middle" class="t t-b">Same school</text>
+        <rect x="45" y="240" width="130" height="40" rx="12" class="f-soft"/><text x="110" y="265" text-anchor="middle" class="t t-b">Same city</text>
+      </svg>
+      <figcaption>Thicker line, stronger signal. Example weights, tuned once we have real data.</figcaption>
+    </figure>
+
+    <div class="stack">
+      <div class="card"><h3>The pop-up</h3>
+        <div class="bubble" style="max-width:none;margin-top:6px"><b>Find your friends on Common Room</b><br>See which of your contacts are already here, and invite the rest.
+          <div class="hintrow" style="margin-top:10px"><span style="background:var(--accent);color:var(--on-accent);border-style:solid">Import contacts</span><span>Not now</span></div></div>
+        <p class="small" style="margin-top:10px">Offered after sign up, then at most once a week. “Not now” is remembered.</p></div>
+      <div class="card"><h3>Where suggestions show</h3>
+        <ul class="tick"><li>A “People you may know” row at the top of Room</li><li>An optional “find friends” step after sign up</li><li>On your profile, next to followers</li><li>An Invite button that shares your link, for friends not here yet</li></ul></div>
+    </div>
+  </div>
+
+  <div class="g3" style="margin-top:14px">
+    <div class="card"><h3>Contacts on the web</h3>
+      <p>Browsers can only open the phone’s contact list on <strong>Chrome for Android</strong>. iPhones and desktop browsers can’t (sources differ on a Safari flag, so treat it as unsupported). For everyone else: upload a contacts file, type numbers in, or send your invite link. A native app can read contacts directly later.</p></div>
+    <div class="card"><h3>Learning, in stages</h3>
+      <ul class="tick"><li><strong>Now:</strong> a weighted score from the signals above. It works with little data.</li><li><strong>Next:</strong> friends-of-friends as candidates, then a ranking model trained on “followed” versus “dismissed”.</li><li><strong>Later:</strong> embeddings, once there are thousands of examples.</li></ul>
+      <p class="small" style="margin-top:8px">A fancy model with no data is worse than simple weights. We switch when the accept rate says it is worth it.</p></div>
+    <div class="card"><h3>Always</h3>
+      <ul class="tick"><li>“Not interested” on every card, and we learn from it</li><li>Blocked and reported people are never suggested</li><li>All suggestions are 18+ real accounts</li></ul></div>
+  </div>
+
+  <div class="callout risk" style="margin-top:14px"><b>Privacy rules this feature must follow</b>
+    <p><strong>Anonymous stays separate.</strong> A suggestion must never reveal that someone has an Anonymous ID, and anonymous activity never feeds the model. Otherwise this feature can unmask people.</p>
+    <p><strong>Contacts are other people’s data.</strong> Store phone numbers only as a keyed hash, drop numbers that match nobody after 30 days, show people what they uploaded, and let them delete it in one tap. Never message a contact without the user tapping Invite. Never build a profile for someone who didn’t join. Phone numbers are easy to guess, so a hash is not real protection and the data must be handled as personal data (check Nigerian data protection rules).</p>
+    <p><strong>Never show “you both have X’s number”.</strong> That exposes someone’s address book.</p>
+    <p><strong>Location stays coarse:</strong> school and city only. No GPS and no “near you right now”.</p></div>
+  <p style="margin-top:14px"><span class="chip ok">Chosen</span> “People who already have my number can find me” <strong>starts on</strong>, with a clear notice at sign-up and a one-tap switch-off in Settings. A lawyer should confirm the wording. <span class="chip decide">Still open</span> How often the pop-up appears.</p>
+</section>
+
+<section id="market">
+  <div class="sec-head">
+    <p class="eyebrow">Marketplace</p>
+    <h2>Built, and tied to real profiles</h2>
+  </div>
+  <div class="g2">
+    <div class="card"><h3>Already built</h3><p>Browse, search, filters and sort, campus picker, saved items, my listings, listing detail, sold state, owner controls, and the sell form with 4 photos.</p></div>
+    <div class="card"><h3>Rules to add</h3>
+      <ul class="tick"><li>Selling needs a real name, a verified email and 18+</li><li>Seller profile and “member since” on every listing</li><li>Listings expire after 30 days with a renewal reminder</li><li>Contact by WhatsApp or call (no in-app chat in v1)</li><li>Sponsored listings rank first in related searches</li></ul></div>
+  </div>
+</section>
+
+<section id="share">
+  <div class="sec-head">
+    <p class="eyebrow">Sharing</p>
+    <h2>Make every post easy to put on a story</h2>
+    <p class="lead">This is the real growth lever. The web can share a picture or link through the phone’s own share sheet, but it cannot post straight into TikTok or Instagram.</p>
+  </div>
+  <div class="g2">
+    <figure class="card">
+      <div class="storycard" role="img" aria-label="Example share card with a quote and the Common Room link">
+        <div class="mark"><i></i><i style="opacity:.55"></i><i style="opacity:.3"></i> common room</div>
+        <p class="q">“Is it just me or does every 8am lecture feel scheduled by someone who hates us?”</p>
+        <small>commonroom.com/m/k7x2q9</small>
+      </div>
+      <figcaption>A 9:16 card for stories, drawn per post. Example text.</figcaption>
+    </figure>
+    <div class="stack">
+      <div class="card"><h3>Share sheet</h3><div class="share"><span>Copy link</span><span>WhatsApp</span><span>X</span><span>Facebook</span><span>Telegram</span><span>Messages</span><span>More</span><span>Save image</span></div>
+        <p class="small" style="margin-top:10px">“More” opens the phone’s own sheet with the card attached. TikTok and Instagram show up there only if installed and willing to take the file.</p></div>
+      <div class="card"><h3>Link previews</h3><p>Every public link gets a preview image for WhatsApp, X, Facebook and Telegram.</p></div>
+      <div class="card"><h3>Tracking</h3><p>Each shared link carries where it was shared and who shared it, so analytics can credit sign-ups.</p></div>
+      <p><span class="chip decide">Decision</span> A small link line on the card (that is how new people find us), or a fully clean card?</p>
+    </div>
+  </div>
+</section>
+
+<section id="safety">
+  <div class="sec-head">
+    <p class="eyebrow">Safety</p>
+    <h2>Moderation from day one</h2>
+    <p class="lead">Anonymous apps attract bullying, explicit content and spam. Google Play also requires in-app reporting and blocking for users and content, filtering of sexual content, and ongoing moderation. This ships before public launch.</p>
+  </div>
+
+  <div class="g4">
+    <div class="card"><h3>Before posting</h3><p>Photos and videos need a choice: <strong>mark as sensitive</strong> (eye icon). Text filter for slurs, threats, spam and phone numbers.</p></div>
+    <div class="card"><h3>Automatic scan</h3><p>An image and video classifier on every upload. Explicit is hidden until reviewed. Unsure is blurred first.</p></div>
+    <div class="card"><h3>Community reports</h3><p>Report on posts, comments, messages, listings and Rooms. Many reports from different people hide the content automatically.</p></div>
+    <div class="card"><h3>Human review</h3><p>A queue in admin, worst first, with one-click actions and an audit log.</p></div>
+  </div>
+
+  <div class="g2" style="margin-top:14px">
+    <div class="card">
+      <h3>Your three strikes</h3>
+      <div class="steps" style="margin-top:12px" role="img" aria-label="Strike one: 3 days. Strike two: 7 days. Strike three: ban">
+        <div class="step s1"><b>3 days</b><span>no posting or commenting. Reading still works.</span></div>
+        <div class="step s2"><b>7 days</b><span>no posting or commenting.</span></div>
+        <div class="step s3"><b>Ban</b><span>account and device.</span></div>
+      </div>
+      <p class="small" style="margin-top:10px">Severe cases (child safety, credible threats, doxxing) skip straight to a ban. Every strike shows which rule, which content, and how to appeal.</p>
+    </div>
+    <figure class="card">
+      <h3>How a sensitive post looks</h3>
+      <div class="shot hidden" id="shot" style="margin-top:12px">
+        <div class="pic"></div>
+        <button type="button" id="shotbtn" aria-pressed="false" aria-label="Sensitive content. Tap to view">
+          <svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span id="shotlabel">Sensitive content. Tap to view</span>
+        </button>
+      </div>
+      <figcaption>Try it. Tagged or detected media is blurred until the viewer chooses to look. Sensitive video never autoplays.</figcaption>
+    </figure>
+  </div>
+
+  <div class="g2" style="margin-top:14px">
+    <div class="callout risk"><b>“Ban their device” is weaker than it sounds</b><p>On the web there is no reliable device ID. We can ban the account and flag a mix of browser, IP and cookie signals, but people can clear data or switch browsers. A real device ban needs the native app. Requiring a verified email to post makes new accounts cost effort.</p></div>
+    <div class="callout risk"><b>Child safety is a legal line</b><p>Hosting images on an anonymous app brings duties around illegal content and reporting. That needs a lawyer and a vetted scanning vendor. <strong>No public image uploads until this is settled.</strong></p></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>The community rules document</h3>
+    <p class="small">A long, specific document, written before launch. The outline:</p>
+    <div class="share" style="margin-top:10px"><span>Who can use it (18+)</span><span>Never allowed</span><span>Must be tagged sensitive</span><span>Anonymous rules</span><span>Market rules</span><span>Room rules</span><span>Ad rules</span><span>Strikes and appeals</span><span>Reporting and response times</span><span>What we store about anonymous users</span></div>
+    <p class="small" style="margin-top:10px">Plus Terms, Privacy Policy and an Ad Policy. Anonymous means anonymous to other users, not to Common Room, and the Privacy Policy must say so.</p>
+  </div>
+  <p style="margin-top:14px"><span class="chip decide">Decision</span> Do strikes expire after 90 days of good behaviour? Who reviews reports in month one: you, volunteers, or a moderation partner?</p>
+</section>
+
+<section id="pro">
+  <div class="sec-head">
+    <p class="eyebrow">Pro</p>
+    <h2>Pay for more control, never for someone’s identity</h2>
+    <p class="lead">You want paying users to learn something about who messaged them. I can build a strong version of that. The version that quietly reveals senders breaks the promise on your own public page and has already cost a competitor money.</p>
+  </div>
+
+  <div class="callout warn">
+    <b>What happened to NGL</b>
+    <p>The FTC and the Los Angeles District Attorney took action against NGL Labs. The complaint said NGL sent fake messages that looked like they came from real people, and told users a paid subscription would reveal who sent them. Subscribers got vague hints such as send time, phone type and rough location. The case settled for millions of dollars and NGL was barred from offering the app to under-18s. Details are in the sources at the bottom.</p>
+  </div>
+
+  <div class="g2" style="margin-top:14px">
+    <div class="card"><h3>What Pro will not do</h3>
+      <ul class="tick no"><li>Reveal who sent a message without that sender agreeing</li><li>Send fake messages, ever</li><li>Imply it can unmask people</li><li>Hide a recurring charge or make it hard to cancel</li></ul></div>
+    <div class="card"><h3>What Pro does instead</h3>
+      <ul class="tick yes"><li><strong>Ask the sender to reveal.</strong> The sender gets a private request and can accept or ignore it.</li><li><strong>Sender-chosen hints.</strong> A sender can attach “same school” or “same level”. Pro shows them all in one place.</li><li>Message insights: how many opened your link, where from</li><li>Unlimited links and prompt themes</li><li>Pro badge, ad-free, 2× level points and the Ultimate Pass (see Levels)</li></ul></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>How the opt-in hint works</h3>
+    <div class="g2" style="margin-top:10px">
+      <div>
+        <p class="small" style="margin-bottom:8px">What the owner sees:</p>
+        <div class="bubble">Your presentation today was actually really good.
+          <div class="hintrow"><span>Same school</span><span>Same level</span></div></div>
+        <p class="small" style="margin-top:8px">The sender ticked those two boxes while writing. Nothing else was collected.</p>
+      </div>
+      <div>
+        <p class="small" style="margin-bottom:8px">What the sender is told before sending:</p>
+        <div class="bubble" style="background:var(--surface);border:1px solid var(--line)">Show them: <div class="hintrow"><span>Same school</span><span>Same level</span><span>My name</span></div><p class="small" style="margin-top:8px">All off by default. You choose.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="g3" style="margin-top:14px">
+    <div class="card"><h3>Price and billing</h3><p>Clear weekly or monthly price, shown before paying, with one-tap cancel and a reminder before renewal. 18+ only.</p></div>
+    <div class="card"><h3>Public page promise</h3><p>The sender page keeps saying their identity is never shared <em>unless they choose to share it</em>. We update the wording so it stays true.</p></div>
+    <div class="card"><h3>Name</h3><p>“Common Pro”, with a verified badge for real accounts that confirm their email and school.</p></div>
+  </div>
+  <p style="margin-top:14px"><span class="chip ok">Agreed</span> Opt-in hints and ask-to-reveal, not true unmasking. <span class="chip decide">Still open</span> The price, and whether ad-free is part of Pro.</p>
+</section>
+
+<section id="levels">
+  <div class="sec-head">
+    <p class="eyebrow">Levels</p>
+    <h2>Five phases, with ranks inside each one</h2>
+    <p class="lead">A phase is a stage of the journey with its own fresh progress bar. Inside each phase sit the ranks, and every rank has three steps (I, II, III). The top of the ladder is rare on purpose, and everyone can see what it looks like.</p>
+  </div>
+
+  <div class="phases" role="list" aria-label="Phases and the ranks inside them, lowest to highest">
+    <div class="phase-card p1" role="listitem">
+      <div><span class="pn">Phase 1</span><h3>Rookie</h3><p class="note">Everyone starts here.</p></div>
+      <div class="ranks"><span class="rank">Novice</span><span class="sep">›</span><span class="rank">Amateur</span><span class="sep">›</span><span class="rank">Regular</span></div>
+    </div>
+    <div class="down" aria-hidden="true">▼</div>
+    <div class="phase-card p2" role="listitem">
+      <div><span class="pn">Phase 2</span><h3>Ultimate</h3><p class="note">The long middle. Ends at the trainer, Doctore.</p></div>
+      <div class="ranks"><span class="rank">Chief</span><span class="sep">›</span><span class="rank">Prodigy</span><span class="sep">›</span><span class="rank">Senator</span><span class="sep">›</span><span class="rank">Sensei</span><span class="sep">›</span><span class="rank">Shifu</span><span class="sep">›</span><span class="rank">Doctore</span></div>
+    </div>
+    <div class="down" aria-hidden="true">▼</div>
+    <div class="phase-card p3" role="listitem">
+      <div><span class="pn">Phase 3</span><h3>Legend</h3><p class="note">Four ranks to earn before you can be called a Legend.</p></div>
+      <div class="ranks"><span class="rank">Hero</span><span class="sep">›</span><span class="rank">Champion</span><span class="sep">›</span><span class="rank">Paragon</span><span class="sep">›</span><span class="rank">Legend</span></div>
+    </div>
+    <div class="down" aria-hidden="true">▼</div>
+    <div class="phase-card p4" role="listitem">
+      <div><span class="pn">Phase 4</span><h3>Immortal</h3><p class="note">Past legend. A handful of people.</p></div>
+      <div class="ranks"><span class="rank">Awakening</span><span class="sep">›</span><span class="rank">Immortal</span></div>
+    </div>
+    <div class="down" aria-hidden="true">▼</div>
+    <div class="phase-card p5" role="listitem">
+      <div><span class="pn">Phase 5</span><h3>Sages and Gods</h3><p class="note">The very top. A few people, ever.</p></div>
+      <div class="ranks"><span class="rank">Sage</span><span class="sep">›</span><span class="rank">Great Sage</span><span class="sep">›</span><span class="rank">God</span><span class="sep">›</span><span class="rank">True God</span><span class="sep">›</span><span class="rank">Ancient God</span></div>
+    </div>
+  </div>
+  <p class="small" style="margin-top:10px">20 ranks, 60 steps. (Last time I wrote 20 when there were actually 21. With Commoner removed, 20 is correct.)</p>
+
+  <div class="g2" style="margin-top:18px">
+    <div class="card"><h3>Changes since last time</h3>
+      <ul class="tick"><li><strong>Baby Immortal is now Awakening.</strong></li><li><strong>Commoner is removed.</strong> Ultimate now starts at Chief.</li><li>“Pro” stays renamed <strong>Prodigy</strong>, so it does not clash with the paid plan.</li></ul></div>
+    <div class="card"><h3>How I ordered the top ranks</h3>
+      <p>No standard exists, so this is my choice: <strong>Awakening</strong>, then <strong>Immortal</strong>; then <strong>Sage</strong> and <strong>Great Sage</strong> (mastery); then <strong>God</strong>, <strong>True God</strong>, <strong>Ancient God</strong> (divine power, oldest at the top).</p>
+      <p class="small" style="margin-top:8px">Alternative: Great Sage at the very top. Tell me which you want.</p></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>How long it takes (targets, not promises)</h3>
+    <p class="small">You said a year or three years is too slow. This is a wide spread: a power user can reach the end of Ultimate in about 3 months, a casual user in about 10. Every number is a dial we turn using real data.</p>
+    <div class="tablewrap" style="margin-top:10px"><table>
+      <thead><tr><th>Rank</th><th>Power user (daily)</th><th>Casual user</th></tr></thead>
+      <tbody>
+        <tr><td>Amateur</td><td>1 day</td><td>2 days</td></tr>
+        <tr><td>Chief</td><td>2 weeks</td><td>1 month</td></tr>
+        <tr><td>Sensei</td><td>2 months</td><td>4 months</td></tr>
+        <tr><td>Doctore (end of Ultimate)</td><td>3 months</td><td>10 months</td></tr>
+        <tr><td>Legend</td><td>8 months</td><td>2 years</td></tr>
+        <tr><td>Immortal</td><td>1 year</td><td>3 years</td></tr>
+        <tr><td>Great Sage</td><td>1.5 years</td><td>4 years</td></tr>
+        <tr><td>Ancient God</td><td>2 years</td><td>5 years or more</td></tr>
+      </tbody></table></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>Let them see the summit</h3>
+    <p>People chase what they can picture. So every rank is visible from day one, locked, with its badge and what it unlocks.</p>
+    <div class="badges" role="img" aria-label="Badge for each phase, getting more elaborate toward the Gods, which is gold with rays">
+      <div class="badge"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="20" class="b-s"/></svg><b>Rookie</b>plain ring</div>
+      <div class="badge"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="22" class="b-f"/><circle cx="32" cy="32" r="12" class="b-s" style="stroke:var(--bg)"/></svg><b>Ultimate</b>solid + ring</div>
+      <div class="badge"><svg viewBox="0 0 64 64"><polygon points="32,6 39,25 59,25 43,37 49,57 32,45 15,57 21,37 5,25 25,25" class="b-a"/></svg><b>Legend</b>star</div>
+      <div class="badge"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="14" class="b-a"/><g class="b-s" style="stroke:var(--accent);stroke-width:3" stroke-linecap="round"><path d="M32 6v8M32 50v8M6 32h8M50 32h8M13.6 13.6l5.6 5.6M44.8 44.8l5.6 5.6M13.6 50.4l5.6-5.6M44.8 19.2l5.6-5.6"/></g></svg><b>Immortal</b>radiant</div>
+      <div class="badge"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="24" class="b-gs"/><circle cx="32" cy="32" r="13" class="b-g"/><g class="b-gs" stroke-linecap="round" style="stroke-width:2.5"><path d="M32 2v6M32 56v6M2 32h6M56 32h6M10.8 10.8l4.2 4.2M49 49l4.2 4.2M10.8 53.2l4.2-4.2M49 15l4.2-4.2"/></g></svg><b>Gods</b>gold, animated</div>
+    </div>
+    <ul class="tick" style="margin-top:14px">
+      <li><strong>Rank gallery:</strong> all 20 ranks, what each looks like and unlocks. Locked ones stay visible.</li>
+      <li><strong>Glimpse:</strong> once per phase, you wear the next phase’s badge and profile frame for 10 minutes. Then it goes back, and you want it.</li>
+      <li><strong>Ancient God, shown off:</strong> a gold animated badge, a glowing name, a profile frame, and a place on the Hall of Fame wall.</li>
+      <li><strong>Hall of Fame:</strong> a public page of the top people, so the summit has real faces (with their consent).</li>
+      <li><strong>Rank-up moments:</strong> a short celebration every step, and a bigger one at each new phase.</li>
+    </ul>
+  </div>
+
+  <div class="g2" style="margin-top:14px">
+    <div class="card"><h3>Pay to climb, one step a day</h3>
+      <ul class="tick">
+        <li>Buy a <strong>boost</strong> to move up <strong>one step</strong> (I to II to III to the next rank).</li>
+        <li><strong>Only one boost every 24 hours.</strong> A new rank therefore takes at least 3 days.</li>
+        <li>Price grows with the rank. Shown before paying. No randomness, so it is never a loot box. 18+.</li>
+        <li>Earning is still the main road. Pro doubles points up to Doctore.</li>
+      </ul>
+      <p class="small" style="margin-top:8px">I read “one level” as one step. If you meant one whole rank a day, a person could buy all the way to Doctore in about 6 days, which makes the ranks worth very little.</p>
+      <p style="margin-top:10px"><span class="chip decide">Decision</span> One step a day, or one whole rank a day?</p></div>
+    <div class="card"><h3>Keeping the top meaningful</h3>
+      <ul class="tick">
+        <li>The <strong>Hall of Fame counts earned points only</strong>, not bought steps (my recommendation).</li>
+        <li>This reverses what I proposed before, that Legend and up could not be bought. You asked for paying to work at every level, so it does, but slowly and expensively.</li>
+        <li>In a phone app, selling digital items must go through the app stores’ billing (<em>verify the rules and fees</em>). On the web, Paystack or Flutterwave works.</li>
+        <li>Clear price and a clear refund policy. A paid climb is a purchase, not a surprise.</li>
+      </ul></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>Ranks on anonymous posts?</h3>
+    <p><strong>Yes on posts that show your auto name. No on posts with no name at all.</strong> The reasons:</p>
+    <ul class="tick">
+      <li><strong>A rank is a fingerprint.</strong> A rare rank on a nameless post narrows down who wrote it. Only a few people are Sages.</li>
+      <li><strong>On an auto name it is safe.</strong> The rank belongs to the pseudonym, not the person, and that pseudonym is already one linked identity.</li>
+      <li><strong>Two separate ladders.</strong> Your real-account rank and your anonymous (Anonymous) rank are different bars. They are never shown together, and nothing links them. Any payment is tied to the real account in our records only.</li>
+    </ul>
+    <p style="margin-top:10px"><span class="chip decide">Decision</span> Agree: ranks show on auto-name posts and comments, never on no-name posts?</p>
+  </div>
+
+  <div class="g3" style="margin-top:14px">
+    <div class="card"><h3>How you earn points</h3>
+      <ul class="tick"><li>Daily streak</li><li>Posts people like (from different accounts)</li><li>Helpful comments</li><li>Invites that become real sign-ups</li><li>Reports moderators confirm</li></ul>
+      <p class="small" style="margin-top:8px">Counted by the server only. A daily cap, and less credit for repeating the same action.</p></div>
+    <div class="card"><h3>What Pro changes</h3>
+      <ul class="tick"><li><strong>2× points up to Doctore</strong></li><li><strong>Ultimate Pass:</strong> start at Chief, skipping Rookie</li><li>Pro badge beside the rank</li></ul></div>
+    <div class="card"><h3>What each phase unlocks (ideas)</h3>
+      <ul class="tick"><li><strong>Ultimate:</strong> create Rooms from Chief, longer video from Sensei</li><li><strong>Legend:</strong> nominate Room moderators, early features</li><li><strong>Immortal and up:</strong> Hall of Fame, name on the Rooms they founded</li></ul>
+      <p class="small" style="margin-top:8px">Gating Room creation by rank also slows down spam accounts.</p></div>
+  </div>
+
+  <div class="stack" style="margin-top:14px">
+    <p><span class="chip decide">Decision</span> Confirm the order of the top ranks, or move Great Sage to the very top.</p>
+    <p><span class="chip decide">Decision</span> A third strike: reset to Novice, drop one phase, or just a ban?</p>
+    <p class="small">Still waiting on any 2go level names you remember.</p>
+  </div>
+</section>
+
+<section id="ads">
+  <div class="sec-head">
+    <p class="eyebrow">Advertising</p>
+    <h2>Self-serve ads, labelled Sponsored</h2>
+    <p class="lead">An advertiser makes an ad, pays, and it runs, with no phone call. The ad looks like a post, carries a clear label, and has a Chat on WhatsApp or Call button.</p>
+  </div>
+
+  <div class="g2">
+    <figure class="card">
+      <div class="phone" aria-label="Phone mock of a feed with a sponsored card">
+        <div class="bar"><span>Room</span></div>
+        <div class="row"><span class="dot">?</span><div><b>Anonymous</b> · 12m<br>Who else is still awake?</div></div>
+        <div class="row"><span class="dot ink">A</span><div><b>Amara</b> · 40m<br>Library is packed today.</div></div>
+        <div class="adcard"><span class="sponsored">Sponsored</span><br><b>Fresh shawarma, AAUA gate</b><br>Free delivery to hostels today.<br><span class="btn">Chat on WhatsApp</span></div>
+        <div class="row"><span class="dot">?</span><div><b>Anonymous</b> · 1h<br>Best quiet spot on campus?</div></div>
+        <div class="nav"><span>Anonymous</span><span class="on">Room</span><span>Market</span><span>Me</span></div>
+      </div>
+      <figcaption>One ad for every 7 to 15 posts. Never in the first 3, never two in a row, never beside sensitive content.</figcaption>
+    </figure>
+    <div class="stack">
+      <div class="card"><h3>Pricing model 1: fixed tiers</h3>
+        <p class="small">Starts at ₦3,000 a week. Higher tiers show more often. Example weights, to tune:</p>
+        <div class="bars" style="margin-top:10px" role="img" aria-label="Starter 3000 naira 1x, Plus 5000 naira 2x, Pro 10000 naira 4x delivery">
+          <div class="bar"><span>₦3,000</span><div class="track"><div class="fill" style="width:25%"></div></div><span>1×</span></div>
+          <div class="bar"><span>₦5,000</span><div class="track"><div class="fill" style="width:50%"></div></div><span>2×</span></div>
+          <div class="bar"><span>₦10,000</span><div class="track"><div class="fill" style="width:100%"></div></div><span>4×</span></div>
+        </div></div>
+      <div class="card"><h3>Pay for 3 weeks, get a 4th free</h3>
+        <div class="weeks" style="margin-top:8px"><div>Week 1</div><div>Week 2</div><div>Week 3</div><div class="free">Week 4 free</div></div>
+        <p class="small" style="margin-top:8px">A switch in admin. When on, a 3-week order runs for 4 weeks and the receipt shows both.</p></div>
+    </div>
+  </div>
+
+  <div class="g2" style="margin-top:14px">
+    <div class="card"><h3>Targeted by place</h3>
+      <p>Ads follow the viewer’s school or city. A prompt for sellers and Room owners says something like:</p>
+      <div class="bubble" style="margin-top:10px;background:var(--accent-soft)"><b>Reach students around AAUA this week</b><br>Plans from ₦3,000. Estimated reach shown before you pay.</div>
+      <p class="small" style="margin-top:10px">Shown at most once a week, always dismissible, never a pop-up over content.</p></div>
+    <div class="callout warn"><b>Only promise reach we have measured</b><p>“Reach 10k people in 7 days for ₦3k” is only true once traffic proves it. At first we show an <em>estimated range</em> from our own last-7-day audience in that place. If an ad under-delivers, it runs longer to make up. Over-promising to paying advertisers is how you lose them.</p></div>
+  </div>
+
+  <div class="g2" style="margin-top:14px">
+    <figure class="card svgbox">
+      <h3>Built so 1M users does not mean a rewrite</h3>
+      <svg viewBox="0 0 560 150" role="img" aria-label="Feed request picks from a cached list of eligible ads; impressions and clicks go through a queue into counters" style="margin-top:10px">
+        <defs><marker id="ah3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="f-accent"/></marker></defs>
+        <rect x="10" y="50" width="110" height="50" rx="10" class="f-soft"/><text x="65" y="80" text-anchor="middle" class="t t-b">Feed request</text>
+        <rect x="170" y="50" width="130" height="50" rx="10" class="f-soft"/><text x="235" y="72" text-anchor="middle" class="t t-b">Cached ads</text><text x="235" y="90" text-anchor="middle" class="t t-m">per school, 1 min</text>
+        <rect x="350" y="10" width="100" height="44" rx="10" class="f-soft"/><text x="400" y="37" text-anchor="middle" class="t t-b">Event queue</text>
+        <rect x="350" y="96" width="100" height="44" rx="10" class="f-soft"/><text x="400" y="123" text-anchor="middle" class="t t-b">Frequency cap</text>
+        <rect x="480" y="10" width="72" height="44" rx="10" class="f-ink"/><text x="516" y="37" text-anchor="middle" class="t t-b" style="fill:var(--bg)">Counters</text>
+        <g class="s-accent" fill="none" stroke-width="2" marker-end="url(#ah3)"><path d="M122 75H166"/><path d="M302 65L346 36"/><path d="M302 85L346 114"/><path d="M452 32H476"/></g>
+      </svg>
+      <figcaption>The feed never asks the database for ads one by one. Views and clicks are counted in batches.</figcaption>
+    </figure>
+    <div class="card"><h3>Pricing model 2, later</h3><p>The advertiser picks a <strong>budget and a goal</strong> (reach, clicks, WhatsApp chats) and we work out the rest. At scale this becomes an auction where the best mix of bid and expected clicks wins the slot, and the budget is paced across the week. It only works once there is real click data, so model 1 comes first.</p>
+      <h3 style="margin-top:14px">Advertiser path</h3>
+      <p class="small">Create ad, upload picture, choose place and tier, pay (Paystack or Flutterwave), quick review, goes live, see results, renew. Sponsored Market listings use the same path and rank first in related searches.</p></div>
+  </div>
+  <p style="margin-top:14px"><span class="chip decide">Decision</span> Tier prices and weights? Video ads in v1? Political ads allowed? Payment provider? Who approves ads at the start?</p>
+</section>
+
+<section id="data">
+  <div class="sec-head">
+    <p class="eyebrow">Analytics</p>
+    <h2>Data for you, and Insights for posters</h2>
+  </div>
+  <div class="g2">
+    <div class="card"><h3>For you, in admin</h3>
+      <div class="share" style="margin-top:8px"><span>Visits</span><span>Clicks</span><span>Sign-ups</span><span>Total users</span><span>Daily users</span><span>Weekly users</span><span>Average daily users</span><span>Retention day 1, 7, 30</span><span>Top shared links</span><span>Places</span><span>Devices</span></div>
+      <p class="small" style="margin-top:10px">Gender and age only from people who choose to tell us (optional, 18+). We do not guess them for visitors. Location is city or state from the connection, not GPS, and needs a consent notice.</p></div>
+    <div class="card"><h3>For posters and advertisers</h3>
+      <p class="small">Like Facebook Insights. Reach is unique people; impressions count repeat views; engagement is likes, comments, shares and clicks.</p>
+      <div class="g2" style="gap:8px;margin-top:10px">
+        <div class="metric"><b class="tabnum">12.4k</b><span>Reach</span></div>
+        <div class="metric"><b class="tabnum">18.9k</b><span>Impressions</span></div>
+        <div class="metric"><b class="tabnum">1,204</b><span>Engagement</span></div>
+        <div class="metric"><b class="tabnum">312</b><span>WhatsApp clicks</span></div>
+      </div>
+      <p class="small" style="margin-top:8px">Example numbers, not real data. Audience splits by place, school and device, only shown above a minimum group size so no one can be singled out.</p></div>
+  </div>
+  <p style="margin-top:14px"><span class="chip decide">Decision</span> Ask for optional age and gender at sign-up? Our own simple tables first, or a ready-made tool like PostHog?</p>
+</section>
+
+<section id="admin">
+  <div class="sec-head">
+    <p class="eyebrow">Admin</p>
+    <h2>Its own app on its own address</h2>
+  </div>
+  <div class="g2">
+    <figure class="card svgbox">
+      <svg viewBox="0 0 640 220" role="img" aria-label="Public app and admin app both call a server API, which talks to Supabase. The service key stays on the server.">
+        <defs><marker id="ah4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="f-accent"/></marker></defs>
+        <rect x="10" y="20" width="200" height="70" rx="12" class="f-soft"/><text x="26" y="50" class="t t-b">commonroom.com</text><text x="26" y="70" class="t t-m">the public app</text>
+        <rect x="10" y="130" width="200" height="70" rx="12" class="f-ink"/><text x="26" y="160" class="t t-b" style="fill:var(--bg)">admin.commonroom.com</text><text x="26" y="180" class="t" style="fill:var(--bg);opacity:.8">own login, 2-factor</text>
+        <rect x="250" y="75" width="130" height="70" rx="12" class="f-soft"/><text x="315" y="105" text-anchor="middle" class="t t-b">Server API</text><text x="315" y="125" text-anchor="middle" class="t t-m">holds the keys</text>
+        <rect x="430" y="75" width="200" height="70" rx="12" class="f-soft"/><text x="446" y="105" class="t t-b">Supabase</text><text x="446" y="125" class="t t-m">database and storage</text>
+        <g class="s-accent" fill="none" stroke-width="2" marker-end="url(#ah4)"><path d="M212 62L246 92"/><path d="M212 168L246 130"/><path d="M382 110H426"/></g>
+      </svg>
+      <figcaption>The powerful key never reaches a browser.</figcaption>
+    </figure>
+    <div class="card"><h3>Inside admin</h3>
+      <ul class="tick"><li>Analytics and the moderation queue</li><li>Users, strikes and bans</li><li>Rooms and Market listings</li><li><strong>Ads:</strong> orders, approvals, tiers, the 3+1 switch</li><li><strong>Feature flags:</strong> switch Room posts, Market, video or ads on and off without a deploy</li><li>Roles: super admin, moderator, analyst, ads manager</li><li>Every action in an audit log</li></ul></div>
+  </div>
+</section>
+
+<section id="logo">
+  <div class="sec-head">
+    <p class="eyebrow">Brand</p>
+    <h2>An original mark</h2>
+    <p class="lead">The current anonymous face is too close to Reddit’s. The base is two dots and a circle, with the clown mask worked in. Three rough directions, not final art.</p>
+  </div>
+  <div class="g3">
+    <figure class="card"><svg viewBox="0 0 120 120" width="120" role="img" aria-label="Circle with two dots"><circle cx="60" cy="60" r="46" class="f-ink"/><circle cx="43" cy="54" r="7" class="f-surface"/><circle cx="77" cy="54" r="7" class="f-surface"/></svg><figcaption><strong>A. Plain.</strong> Two dots in a circle. Reads at 16px, safest.</figcaption></figure>
+    <figure class="card"><svg viewBox="0 0 120 120" width="120" role="img" aria-label="Circle with two dots and a smile cut out"><circle cx="60" cy="60" r="46" class="f-ink"/><circle cx="43" cy="52" r="7" class="f-surface"/><circle cx="77" cy="52" r="7" class="f-surface"/><path d="M38 76C48 92 72 92 82 76" fill="none" stroke="var(--surface)" stroke-width="6" stroke-linecap="round"/></svg><figcaption><strong>B. Smile.</strong> Adds a clown grin, friendlier, more character.</figcaption></figure>
+    <figure class="card"><svg viewBox="0 0 120 120" width="120" role="img" aria-label="Half mask over a circle with two dots"><circle cx="60" cy="60" r="46" class="f-soft"/><path d="M60 14a46 46 0 0 1 0 92z" class="f-ink"/><circle cx="43" cy="54" r="7" class="f-ink"/><circle cx="77" cy="54" r="7" class="f-surface"/></svg><figcaption><strong>C. Half mask.</strong> Half face, half mask: hiding and showing.</figcaption></figure>
+  </div>
+  <p style="margin-top:14px"><span class="chip decide">Decision</span> Pick a direction. We also need a trademark search before launch.</p>
+</section>
+
+<section id="targets">
+  <div class="sec-head">
+    <p class="eyebrow">Targets</p>
+    <h2>Weekly active users in month one</h2>
+    <p class="lead">Nobody can predict this. These are planning ranges from stated assumptions: web only, one to three campuses of 20k to 40k students, a few dozen campus reps sharing links. Swap in real numbers after week one.</p>
+  </div>
+  <div class="card">
+    <div class="bars" role="img" aria-label="Weekly active users: slow 150 to 500, good 1500 to 4000, viral 10000 and above, on a scale to 12000">
+      <div class="bar" style="grid-template-columns:150px 1fr auto"><span>Slow</span><div class="range"><i style="left:1.25%;width:2.9%"></i></div><span class="tabnum">150 to 500</span></div>
+      <div class="bar" style="grid-template-columns:150px 1fr auto"><span>Good</span><div class="range"><i style="left:12.5%;width:20.8%"></i></div><span class="tabnum">1,500 to 4,000</span></div>
+      <div class="bar" style="grid-template-columns:150px 1fr auto"><span>Viral</span><div class="range"><i style="left:83.3%;width:16.7%"></i></div><span class="tabnum">10,000+</span></div>
+    </div>
+    <div class="scale" style="margin-left:162px"><span>0</span><span>3k</span><span>6k</span><span>9k</span><span>12k</span></div>
+    <p class="small" style="margin-top:14px">What decides it is the loop: each link owner brings visitors, and some visitors make their own link. Share cards, link previews and a link page with no wall matter more than any feature.</p>
+  </div>
+</section>
+
+<section id="roadmap">
+  <div class="sec-head">
+    <p class="eyebrow">Build order</p>
+    <h2>Phases, what each ends with, and when we are done</h2>
+    <p class="lead">A phase is a block of work that ends with something you can test. There are ten of them, 0 to 9. Three milestones tell you when something is ready for real people.</p>
+  </div>
+
+  <div class="g3">
+    <div class="card"><span class="chip info">Milestone 1</span><h3 style="margin-top:8px">Private beta</h3><p>Phases 0, 1, 2. A small group at <strong>AAUA and RUGIPO</strong> can sign up, post, share and report, and we can act on reports.</p><p class="small" style="margin-top:8px">About 5 to 7 work sessions.</p></div>
+    <div class="card"><span class="chip info">Milestone 2</span><h3 style="margin-top:8px">Public launch</h3><p>Adds phases 3, 4, 5: analytics, Rooms and People You May Know, and the admin app on its own address. <strong>This is “v1 done”.</strong></p><p class="small" style="margin-top:8px">About 10 to 15 work sessions in total.</p></div>
+    <div class="card"><span class="chip info">Milestone 3</span><h3 style="margin-top:8px">Money</h3><p>Adds phases 6, 7: Pro, levels, paid climbing and self-serve ads.</p><p class="small" style="margin-top:8px">About 15 to 22 work sessions in total.</p></div>
+  </div>
+  <div class="callout" style="margin-top:14px"><b>How to read the time</b><p>A work session is one long stretch like the last two days. I can’t give calendar dates. The calendar depends on how fast the accounts get set up (Supabase, Google, ZeptoMail, payments), on the legal review, and on how quickly you answer questions. The estimates are mine and will move.</p></div>
+
+  <div class="road" style="margin-top:22px">
+    <div class="phase"><div class="n">0</div><div><h3>Foundation and vetting <span class="chip ok">Built and tested</span> <span class="chip decide">Needs you</span></h3>
+      <p><strong>Done in code:</strong> every screen from sign-in to Anonymous, Room, Market, profile, search, settings and the composer; the audit of the old code with 7 fixes; photos always re-encoded so location data is removed; 15-second video check; Anonymous IDs; 18+ wording; drafts; gradient text posts; four tabs; the old unused UI deleted; a production build that passes; 94 browser checks, 12 unit tests and no lint errors.</p>
+      <p class="small"><strong>Done when:</strong> it runs against a real database and a preview address is live. <strong>Left:</strong> you create the Supabase project, I run the migrations (0001 to 0017), set up Google sign-in and ZeptoMail, and we deploy a preview. About 1 session after that.</p></div></div>
+    <div class="phase"><div class="n">1</div><div><h3>Growth loop <span class="chip info">Next</span></h3>
+      <p>Share cards with a small link line, link previews, the share sheet, link tracking, and a sign-up that takes about 30 seconds (email check delayed until you post in Room, interests optional).</p>
+      <p class="small"><strong>Done when:</strong> a post exports as a story card with the link, previews show in WhatsApp and X, and a new person reaches their first post in under a minute. 1 to 2 sessions.</p></div></div>
+    <div class="phase"><div class="n">2</div><div><h3>Safety</h3>
+      <p>Sensitive tag with eye icon and blur, text filter, rate limits (closing audit items O2, O3), strikes (3 days, 7 days, ban), an email when a suspension ends, the review queue, and the published rules.</p>
+      <p class="small"><strong>Done when:</strong> every report reaches the queue, strikes are enforced, and the legal pages are live. 2 to 3 sessions, plus vendor and legal time outside my control. The video scanner must exist before video is switched on for everyone.</p></div></div>
+    <div class="phase"><div class="n">3</div><div><h3>Analytics</h3>
+      <p>Visits, clicks, sign-ups, daily and weekly users, places, devices, plus post insights for posters.</p>
+      <p class="small"><strong>Done when:</strong> the dashboard shows real numbers for a day of test traffic. 1 session.</p></div></div>
+    <div class="phase"><div class="n">4</div><div><h3>Rooms and People You May Know</h3>
+      <p>Room cards with “See more”, user-made Rooms, the merged Room feed. Launch Rooms: <strong>AAUA, RUGIPO</strong>, Nigerian Devs and a few topic Rooms. Contact import, invites and suggestions.</p>
+      <p class="small"><strong>Done when:</strong> a new AAUA student lands in their Room, sees friends suggested, and can invite a contact. 2 to 3 sessions.</p></div></div>
+    <div class="phase"><div class="n">5</div><div><h3>Admin as its own app</h3>
+      <p>On its own address with two-factor login, roles, an audit log and feature flags (so Room posts, Market, video or ads can be switched off without a deploy). Closes audit item O4.</p>
+      <p class="small"><strong>Done when:</strong> a normal user gets “forbidden” on every admin route and every admin action is logged. 2 sessions.</p></div></div>
+    <div class="phase later"><div class="n">6</div><div><h3>Pro, levels and paid climbing</h3>
+      <p>Billing, opt-in hints, ask-to-reveal, points, streaks, the five phases of ranks, one paid step per 24 hours.</p>
+      <p class="small"><strong>Done when:</strong> a test payment upgrades a user and rank shows correctly on Room posts. 2 sessions.</p></div></div>
+    <div class="phase later"><div class="n">7</div><div><h3>Ads, model 1</h3>
+      <p>Self-serve flow, payments, Sponsored labels, the 3+1 switch, sponsored Market listings, advertiser insights.</p>
+      <p class="small"><strong>Done when:</strong> an advertiser can create, pay for and see results of an ad at AAUA. 3 sessions.</p></div></div>
+    <div class="phase later"><div class="n">8</div><div><h3>Video switched on for everyone</h3>
+      <p>The 15-second Room video already exists in the composer. This phase adds the scanner and switches it on safely.</p>
+      <p class="small"><strong>Done when:</strong> every upload is scanned before it shows. 1 session after phase 2.</p></div></div>
+    <div class="phase later"><div class="n">9</div><div><h3>TikTok and Apple sign-in, notifications, Market chat</h3>
+      <p>Plus ad model 2 (budget and goals).</p></div></div>
+  </div>
+
+  <div class="g2" style="margin-top:6px">
+    <div class="card"><h3>Launch focus: AAUA and RUGIPO</h3>
+      <p>Both are in the school list: <strong>Adekunle Ajasin University, Akungba</strong> and <strong>Rufus Giwa Polytechnic, Owo</strong>, both in Ondo State. They get Rooms from day one, plus Nigerian Devs. The Rooms area shows a few cards and a “See more” button for the rest.</p>
+      <div class="share" style="margin-top:10px"><span>AAUA Room</span><span>RUGIPO Room</span><span>Nigerian Devs</span><span>Computer Science</span><span>Jobs and internships</span><span>Campus market</span><span>Football</span><span>Faith</span></div>
+      <p class="small" style="margin-top:10px">You also mentioned “OFG”. I don’t know which school that is. Tell me and I’ll add it.</p></div>
+    <div class="card"><h3>Who lands where</h3>
+      <ul class="tick"><li><strong>Someone opening a shared link</strong> lands on that link’s content.</li><li><strong>Anyone else</strong> lands on the Anonymous feed.</li><li><strong>Room</strong> keeps its current design and gains a “+” create button on the side.</li></ul>
+      <p class="small" style="margin-top:8px">The pitch is one line: <strong>say what you can’t say anywhere else, to your own campus, with your name hidden.</strong> Room is where people stay, Market is where money comes later.</p></div>
+  </div>
+</section>
+
+<section id="decide">
+  <div class="sec-head">
+    <p class="eyebrow">Your turn</p>
+    <h2>Decisions I need from you</h2>
+    <p class="lead">Tick what you agree with. Ticks stay in this browser, so you can come back. Then tell me the rest in chat.</p>
+  </div>
+  <div class="decide-list" id="decisions">
+    <label><input type="checkbox" id="d1"><span>Remove Instagram login. Keep email, Google, TikTok and Apple.<small>Instagram only allows business and creator accounts.</small></span></label>
+    <label><input type="checkbox" id="d2"><span>Four tabs: Anonymous, Room, Market, Me. Room replaces Home. Old video viewer becomes Watch mode.</span></label>
+    <label><input type="checkbox" id="d3"><span>Pro uses opt-in hints and ask-to-reveal, not true unmasking.<small>Avoids the exact claim that got NGL in trouble.</small></span></label>
+    <label><input type="checkbox" id="d4"><span>Levels: five phases (Rookie, Ultimate, Legend, Immortal, Sages and Gods) with ranks inside, three steps each. Pro gets 2× points up to Doctore and the Ultimate Pass. You can also pay to climb one step a day.</span></label>
+    <label><input type="checkbox" id="d5"><span>Ship v1 with photo and text. Add 15-second video after the scanner works.</span></label>
+    <label><input type="checkbox" id="d6"><span>Video cap of 1.5&nbsp;MB, not 500&nbsp;KB.</span></label>
+    <label><input type="checkbox" id="d7"><span>Strikes: 3 days, 7 days, then ban. Strikes expire after 90 days of good behaviour.</span></label>
+    <label><input type="checkbox" id="d8"><span>Drop forced interests and the photo step. Delay email verification until posting.</span></label>
+    <label><input type="checkbox" id="d9"><span>Share cards carry a small link line.</span></label>
+    <label><input type="checkbox" id="d10"><span>Ads start with fixed tiers (₦3,000 base) and an estimated reach range, not a guaranteed number.</span></label>
+    <label><input type="checkbox" id="d11"><span>Anonymous feed tabs: you said three tabs is too many. Tell me what you want, or pick one feed with a small “Newest” toggle.</span></label>
+    <label><input type="checkbox" id="d12"><span>Logo direction A, B or C (tell me which).</span></label>
+    <label><input type="checkbox" id="d13"><span>People you may know only uses real accounts. Anonymous activity never feeds it.</span></label>
+    <label><input type="checkbox" id="d14"><span>Contacts are imported only when the person taps Import, and can be deleted any time.<small>Chosen: starts on, with a clear notice at sign-up and a one-tap switch-off.</small></span></label>
+    <label><input type="checkbox" id="d15"><span>Names are auto-assigned (like quietfox4821), never built from real details, with blocked words, brands and hateful digit runs.</span></label>
+    <label><input type="checkbox" id="d16"><span>Ranks show on auto-name posts and comments, never on no-name posts. Two separate ladders: real and Anonymous.</span></label>
+    <label><input type="checkbox" id="d17"><span>Pay to climb one step per 24 hours. The Hall of Fame counts earned points only.</span></label>
+    <label><input type="checkbox" id="d18"><span>Offer both “no name” and “my auto name” when posting anonymously.</span></label>
+    <label><input type="checkbox" id="d19"><span>Visitors land on the Anonymous feed. Room keeps its current design, with a “+” create button.</span></label>
+    <label><input type="checkbox" id="d20"><span>Video is 15 seconds and only in Room. Anonymous is photos and text, with gradient cards for text.</span></label>
+    <label><input type="checkbox" id="d21"><span>Drafts: text is saved on the device while typing. Photos and video are not kept.</span></label>
+    <label><input type="checkbox" id="d22"><span>When a suspension ends we email “you’re back”. Strikes expire after 7 days for now.<small>Please confirm what “after 7 days” meant.</small></span></label>
+    <label><input type="checkbox" id="d23"><span>What is “OFG”? (Tell me in chat.)</span></label>
+  </div>
+</section>
+
+<section id="risks">
+  <div class="sec-head"><p class="eyebrow">Be aware</p><h2>Risks</h2></div>
+  <div class="g2">
+    <div class="callout risk"><b>Nothing has met a real backend yet</b><p>Every UI test so far used a pretend API. The old Supabase project is gone. Expect fixes once a real one is connected.</p></div>
+    <div class="callout risk"><b>Anonymous plus images plus video</b><p>The highest legal and safety exposure in the whole plan. Settle scanning and legal advice before public uploads.</p></div>
+    <div class="callout risk"><b>Personal data</b><p>Location, devices, optional age and gender, and strike history are personal data. Needs consent wording and a lawyer’s review under Nigeria’s data protection law.</p></div>
+    <div class="callout risk"><b>Scope</b><p>This is months of work for one person. The order above keeps every phase shippable. Your work is also uncommitted, per your rule, so keep your own backup.</p></div>
+  </div>
+</section>
+
+<footer>
+  <p><strong>Sources</strong></p>
+  <p>FTC and Los Angeles DA action on NGL: <a href="https://www.ftc.gov/ngl">FTC page</a>, <a href="https://cyberinsider.com/ngl-messaging-app-to-pay-4-5-million-in-refunds-for-deceiving-users/">CyberInsider</a>, <a href="https://www.mondaq.com:443/unitedstates/social-media/1491656/ftc-bans-anonymous-messaging-app-from-offering-app-to-kids-under-18-secures-$5-million-settlement">Mondaq</a>. Amounts differ between sources.</p>
+  <p>WhatsApp Status length: <a href="https://green-api.com/en/blog/2025/whatsapp-increases-status-length-to-90-seconds/">Green API</a>, <a href="https://www.geeksforgeeks.org/whatsapp-users-can-soon-upload-upto-one-minute-long-video-in-status/">GeeksforGeeks</a>. Secondary sources; confirm in the app.</p>
+  <p>Google Play user-generated content policy: <a href="https://support.google.com/googleplay/android-developer/answer/9876937">Play Console Help</a>. Read the full text before submitting.</p>
+  <p>Reach, impressions and engagement definitions: <a href="https://extension.okstate.edu/fact-sheets/facebook-metrics-exposed-a-deep-dive-into-facebook-metrics-and-what-they-mean-for-your-organization.html">Oklahoma State Extension</a>. Sharing files from the web: <a href="https://web.dev/articles/files/share-files">web.dev</a>. Instagram’s API limits: <a href="https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/">Meta</a>.</p>
+  <p>Full written detail lives in the project’s docs folder: PRODUCT_PLAN_V1.md and PROJECT_STATE.md.</p>
+</footer>
+</div>
+
+<script>
+(function(){
+  var shot=document.getElementById('shot'),btn=document.getElementById('shotbtn'),label=document.getElementById('shotlabel');
+  if(shot&&btn){btn.addEventListener('click',function(){
+    var hidden=shot.classList.toggle('hidden');
+    btn.setAttribute('aria-pressed',hidden?'false':'true');
+    btn.setAttribute('aria-label',hidden?'Sensitive content. Tap to view':'Tap to hide again');
+    label.textContent=hidden?'Sensitive content. Tap to view':'Tap to hide again';
+  });}
+  var KEY='cr-plan-decisions',saved={};
+  try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){saved={};}
+  var boxes=document.querySelectorAll('#decisions input[type="checkbox"]');
+  boxes.forEach(function(box){
+    if(saved[box.id])box.checked=true;
+    box.addEventListener('change',function(){
+      saved[box.id]=box.checked;
+      try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}
+    });
+  });
+})();
+</script>
+
+<script>
+(function(){
+  var adj=['quiet','brave','lucky','sleepy','swift','bright','calm','witty','bold','cosmic','mellow','jolly','sunny','zesty','chill','clever','gentle','rapid','nimble','steady','great','happy','lively','noble'];
+  var noun=['fox','owl','lion','falcon','mango','comet','river','drum','panda','ember','cedar','pixel','nomad','scholar','ranger','danfo','harmattan','baobab','sparrow','human','ghost','tiger','cloud','spark'];
+  var badRuns=['88','14','69','420','666','1488'];
+  function pick(a){return a[Math.floor(Math.random()*a.length)];}
+  function digits(){
+    var n,s,tries=0;
+    do{n=2+Math.floor(Math.random()*3);s='';for(var i=0;i<n;i++)s+=Math.floor(Math.random()*10);tries++;}
+    while(badRuns.some(function(b){return s.indexOf(b)!==-1;})&&tries<20);
+    return s;
+  }
+  function make(){
+    var name,t=0;
+    do{
+      var r=Math.random();
+      if(r<.4)name=pick(adj)+pick(noun)+digits();
+      else if(r<.7)name=pick(noun)+digits();
+      else name=pick(noun)+digits()+pick(adj).slice(0,5);
+      t++;
+    }while((name.length>20||name.length<5||badRuns.some(function(b){return name.indexOf(b)!==-1;}))&&t<30);
+    return name;
+  }
+  var out=document.getElementById('nameout'),btn=document.getElementById('roll'),box=document.getElementById('samples');
+  function samples(){if(!box)return;box.innerHTML='';for(var i=0;i<5;i++){var s=document.createElement('span');s.textContent=make();box.appendChild(s);}}
+  if(out&&btn){
+    out.textContent=make();samples();
+    btn.addEventListener('click',function(){out.textContent=make();samples();});
+  }
+})();
+</script>
+
+</body>
+</html>

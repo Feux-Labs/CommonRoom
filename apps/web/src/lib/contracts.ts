@@ -10,6 +10,8 @@ export type MediaItem = {
   uri: string;
   mediaType: 'photo' | 'video';
   poster?: string;
+  /** Set when an automatic check or a moderator marked it sensitive: shown behind a warning. */
+  sensitive?: boolean;
 };
 
 export type FeedPost = {

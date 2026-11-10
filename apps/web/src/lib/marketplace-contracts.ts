@@ -26,6 +26,8 @@ export type MarketplaceListing = {
   location: string;
   school: string | null;
   images: string[];
+  /** True when an automatic check flagged the photos: they are shown behind a warning. */
+  images_sensitive?: boolean;
   status: ListingStatus;
   likes_count: number;
   views_count: number;

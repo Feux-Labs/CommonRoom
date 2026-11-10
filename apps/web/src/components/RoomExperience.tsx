@@ -1,5 +1,6 @@
 'use client';
 
+import { SensitiveGate } from '@/components/cr/SensitiveGate';
 import {
   Bell,
   Bookmark,
@@ -188,6 +189,7 @@ export function RoomExperience({
   const [followingById, setFollowingById] = useState<Record<string, boolean>>({});
   const [pausedPosts, setPausedPosts] = useState<Record<string, boolean>>({});
   const [heartBurst, setHeartBurst] = useState<{ id: string; key: number } | null>(null);
+  const heartBurstKey = useRef(0);
   const [commentLikes, setCommentLikes] = useState<Record<string, boolean>>({});
   const [storyReplyDraft, setStoryReplyDraft] = useState('');
   const [storyLiked, setStoryLiked] = useState<Record<string, boolean>>({});
@@ -400,6 +402,7 @@ export function RoomExperience({
   }, [accessToken]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- legacy loader, replaced when the Room feed is rebuilt (plan phase 4)
     void loadFeed();
   }, [loadFeed, refreshToken]);
 
@@ -414,7 +417,9 @@ export function RoomExperience({
   }, [displayedPosts.length, feedError, hasMore, isRoomFeed, loadMore, loading, loadingMore]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- legacy loader, replaced when the Room feed is rebuilt (plan phase 4)
     void loadStories();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- legacy loader, replaced when the Room feed is rebuilt (plan phase 4)
     void loadInvite();
   }, [loadInvite, loadStories, refreshToken]);
 
@@ -1238,6 +1243,7 @@ export function RoomExperience({
                         justifyContent: 'center',
                       }}
                     >
+                      <SensitiveGate active={currentMedia.sensitive === true}>
                       {currentMedia.mediaType === 'video' ? (
                         <video
                           controls
@@ -1263,6 +1269,7 @@ export function RoomExperience({
                           }}
                         />
                       )}
+                      </SensitiveGate>
                     </div>
                   ) : null}
 
@@ -1754,7 +1761,7 @@ export function RoomExperience({
                             <Play size={14} fill="#fff" color="#fff" />
                           </div>
                         ) : null}
-                        <img alt="" src={post.mediaUrl} />
+                        <img alt="" src={post.mediaUrl} style={media[0]?.sensitive ? { filter: 'blur(14px)' } : undefined} />
                         <div className="room-profile-grid-overlay">
                           <span>♥ {post.likes}</span>
                         </div>
@@ -2038,6 +2045,7 @@ export function RoomExperience({
                   if (!currentReelPost.liked) void toggleLike(currentReelPost);
                 }}
               >
+                <SensitiveGate active={reelItem?.sensitive === true} fill>
                 {reelItem?.mediaType === 'video' ? (
                   <video
                     autoPlay
@@ -2065,6 +2073,7 @@ export function RoomExperience({
                     <p>{currentReelPost.caption}</p>
                   </div>
                 )}
+                </SensitiveGate>
 
                 {/* Paused Indicator Overlay */}
                 {pausedPosts[currentReelPost.id] ? (
@@ -2238,7 +2247,8 @@ export function RoomExperience({
               <div
                 className="room-post-viewer-media"
                 onDoubleClick={() => {
-                  setHeartBurst({ id: viewedPost.id, key: Date.now() });
+                  heartBurstKey.current += 1;
+                  setHeartBurst({ id: viewedPost.id, key: heartBurstKey.current });
                   if (!viewedPost.liked) void toggleLike(viewedPost);
                 }}
               >
@@ -2247,7 +2257,7 @@ export function RoomExperience({
                     <p>{viewedPost.caption}</p>
                   </div>
                 ) : (
-                  <img alt="" src={viewedItem.uri} />
+                  <SensitiveGate active={viewedItem.sensitive === true}><img alt="" src={viewedItem.uri} /></SensitiveGate>
                 )}
 
                 {heartBurst?.id === viewedPost.id ? (

@@ -1,0 +1,21 @@
+/* Sensitive media: blurred behind a warning until the viewer chooses to look (like X) */
+.cr-sens { position: relative; overflow: hidden; border-radius: 12px; width: 100%; margin-top: 10px; }
+.cr-sens--fill { position: absolute; inset: 0; border-radius: 0; margin: 0; z-index: 2; }
+.cr-sens__media { display: block; width: 100%; height: 100%; }
+.cr-sens.is-hidden .cr-sens__media { filter: blur(34px) saturate(0.8); transform: scale(1.12); pointer-events: none; user-select: none; }
+.cr-sens__cover {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: 16px; text-align: center; color: #fff; background: rgba(14, 17, 38, 0.62);
+}
+.cr-sens__cover b { font-size: 16px; font-weight: 600; }
+.cr-sens__cover > span:not(.cr-sens__eye) { font-size: 13px; opacity: 0.88; }
+.cr-sens__eye { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, 0.16); margin-bottom: 4px; }
+.cr-sens__eye .i { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.cr-sens__show { margin-top: 8px; border: 0; border-radius: 999px; padding: 9px 18px; font: inherit; font-weight: 600; color: #161a3a; background: #fff; cursor: pointer; }
+.cr-sens__hide {
+  position: absolute; top: 8px; right: 8px; z-index: 3; width: 34px; height: 34px; border-radius: 50%; border: 0; cursor: pointer;
+  display: grid; place-items: center; color: #fff; background: rgba(14, 17, 38, 0.6);
+}
+.cr-sens__hide .i { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.cr-sens-opt { display: flex; align-items: center; gap: 10px; margin: 12px 0 0; font-size: 14px; }
+.cr-sens-opt input { width: 18px; height: 18px; }

@@ -74,8 +74,17 @@ alter table public.anonymous_posts
   add column if not exists likes_count integer not null default 0 check (likes_count >= 0),
   add column if not exists comments_count integer not null default 0 check (comments_count >= 0);
 
+-- Likes are now keyed by identity_id. The old (post_id, user_id) primary key blocks making user_id nullable,
+-- so replace it with a partial unique index that keeps one like per user for legacy rows.
+alter table public.anonymous_post_likes
+  drop constraint if exists anonymous_post_likes_pkey;
+
 alter table public.anonymous_post_likes
   alter column user_id drop not null;
+
+create unique index if not exists anonymous_post_likes_user_idx
+  on public.anonymous_post_likes (post_id, user_id)
+  where user_id is not null;
 
 alter table public.anonymous_post_likes
   add column if not exists identity_id uuid references auth.users(id) on delete cascade;

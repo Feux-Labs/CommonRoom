@@ -47,6 +47,31 @@ export function createPublicSupabase() {
   );
 }
 
+const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH']);
+
+/**
+ * A user with an active strike can still read and delete their own things, but cannot post, comment,
+ * message or upload until the restriction ends (suspensions and bans both lift on their own).
+ * If the check itself fails we let the request through: an outage must not lock everyone out.
+ */
+async function restrictionResponse(supabase: SupabaseClient): Promise<NextResponse | null> {
+  const { data, error } = await supabase.rpc('get_my_restriction');
+  if (error) {
+    console.error('Restriction check failed.', { code: error.code ?? 'unknown' });
+    return null;
+  }
+  const active = Array.isArray(data) ? data[0] : null;
+  if (!active) return null;
+  const until = new Date(active.ends_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+  return apiError(
+    'account_restricted',
+    active.kind === 'ban'
+      ? `Your account is suspended until ${until} for breaking the community rules. It reopens automatically.`
+      : `Your account is paused until ${until} for breaking the community rules.`,
+    403,
+  );
+}
+
 export async function authenticateRequest(request: Request): Promise<AuthenticatedRequest | NextResponse> {
   const authorization = request.headers.get('authorization');
   const accessToken = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
@@ -60,6 +85,10 @@ export async function authenticateRequest(request: Request): Promise<Authenticat
     const { data, error } = await supabase.auth.getUser(accessToken);
     if (error || !data.user) {
       return apiError('unauthorized', 'Your session is invalid or expired. Sign in again.', 401);
+    }
+    if (WRITE_METHODS.has(request.method)) {
+      const restricted = await restrictionResponse(supabase);
+      if (restricted) return restricted;
     }
     return { supabase, user: data.user };
   } catch (error) {

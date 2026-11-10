@@ -1,16 +1,16 @@
-import { MarketplaceExperience } from '@/components/MarketplaceExperience';
-import { AppRouteShell } from '@/components/cr/AppRouteShell';
 import type { Metadata } from 'next';
+import { AppShell } from '@/features/app/AppShell';
+import { MarketBrowse } from '@/features/market/MarketBrowse';
 
 export const metadata: Metadata = {
-  title: 'Campus Marketplace | Commonroom',
-  description: 'Buy and sell textbooks, electronics, hostel gear, and campus essentials safely within your student community.',
+  title: 'Market · Common Room',
+  description: 'Buy and sell textbooks, electronics, hostel gear and more with students on your campus.',
 };
 
 export default function MarketplacePage() {
   return (
-    <AppRouteShell active="Market">
-      <MarketplaceExperience />
-    </AppRouteShell>
+    <AppShell active="Market">
+      <MarketBrowse />
+    </AppShell>
   );
 }

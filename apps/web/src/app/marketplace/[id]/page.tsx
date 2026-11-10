@@ -1,24 +1,18 @@
 import { Suspense } from 'react';
-import ListingContent from './listing-content';
-import { AppRouteShell } from '@/components/cr/AppRouteShell';
+import { AppShell, BootScreen } from '@/features/app/AppShell';
+import { ListingDetail } from '@/features/market/ListingDetail';
 
-export default function ListingPage() {
+async function Listing({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <ListingDetail id={id} />;
+}
+
+export default function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <AppRouteShell active="Market">
-      <Suspense
-        fallback={
-          <main className="market-shell">
-            <div className="market-wrap">
-              <div className="market-loading-state">
-                <div className="market-spinner" />
-                <p>Loading listing…</p>
-              </div>
-            </div>
-          </main>
-        }
-      >
-        <ListingContent />
+    <AppShell active="Market">
+      <Suspense fallback={<BootScreen label="Opening listing" />}>
+        <Listing params={params} />
       </Suspense>
-    </AppRouteShell>
+    </AppShell>
   );
 }

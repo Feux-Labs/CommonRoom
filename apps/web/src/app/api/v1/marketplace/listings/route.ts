@@ -1,6 +1,8 @@
+import { parseListingFields } from '@/lib/listing-validation';
+import { mediaKeyFromUrl, scheduleMediaScan, scheduleTextScan } from '@/lib/moderation/media-scan';
 import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, parseJson, requireRegisteredUser } from '@/lib/supabase-server';
 import { INITIAL_MARKETPLACE_LISTINGS } from '@/lib/marketplace-seed';
-import type { CreateListingInput, MarketplaceCategory, MarketplaceListing } from '@/lib/marketplace-contracts';
+import type { MarketplaceCategory, MarketplaceListing } from '@/lib/marketplace-contracts';
 
 type MarketplaceListingRow = {
   id: string;
@@ -15,6 +17,7 @@ type MarketplaceListingRow = {
   location: string;
   school: string | null;
   images: unknown;
+  images_sensitive?: boolean;
   status: MarketplaceListing['status'];
   views_count: number | null;
   created_at: string;
@@ -123,6 +126,7 @@ export async function GET(request: Request) {
           location: row.location,
           school: row.school,
           images: Array.isArray(row.images) ? row.images : [],
+          images_sensitive: row.images_sensitive === true,
           status: row.status,
           likes_count: 0,
           views_count: row.views_count || 0,
@@ -208,26 +212,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const body = (await parseJson(request)) as CreateListingInput | null;
-  if (!body) return apiError('invalid_body', 'Invalid request body.', 400);
-
-  const { title, description, price, category, condition = 'good', location, school = null, images = [], contact_phone } = body;
-
-  if (!title || title.trim().length < 3) {
-    return apiError('invalid_title', 'Listing title must be at least 3 characters.', 422);
-  }
-  if (!description || description.trim().length < 5) {
-    return apiError('invalid_description', 'Please add a descriptive detail of at least 5 characters.', 422);
-  }
-  if (price === undefined || isNaN(price) || price < 0) {
-    return apiError('invalid_price', 'Price must be a positive number.', 422);
-  }
-  if (!category) {
-    return apiError('invalid_category', 'Please select a valid category.', 422);
-  }
-  if (!location || location.trim().length < 2) {
-    return apiError('invalid_location', 'Please specify a campus location (e.g. hostel, faculty, gate).', 422);
-  }
+  const rawBody = await parseJson(request);
+  if (!rawBody || typeof rawBody !== 'object' || Array.isArray(rawBody)) return apiError('invalid_body', 'Invalid request body.', 400);
+  const parsed = parseListingFields(rawBody as Record<string, unknown>, false);
+  if (!parsed.ok) return apiError(parsed.code, parsed.message, parsed.status);
+  const fields = parsed.data;
 
   const authResult = await authenticateRequest(request);
   if (!isAuthenticatedRequest(authResult)) return authResult;
@@ -237,22 +226,22 @@ export async function POST(request: Request) {
   const sellerId = authResult.user.id;
   const sellerName = (authResult.user.user_metadata?.display_name as string) || 'Campus Student';
   const sellerUsername = (authResult.user.user_metadata?.username as string) || null;
-  const sellerSchool = school;
+  const sellerSchool = fields.school ?? null;
 
   try {
     const { data: dbItem, error: insertError } = await authResult.supabase
       .from('marketplace_listings')
       .insert({
         seller_id: sellerId,
-        title: title.trim(),
-        description: description.trim(),
-        price,
-        category,
-        condition,
-        location: location.trim(),
+        title: fields.title,
+        description: fields.description,
+        price: fields.price,
+        category: fields.category,
+        condition: fields.condition,
+        location: fields.location,
         school: sellerSchool,
-        images: images.slice(0, 8),
-        contact_phone: contact_phone?.trim() || null,
+        images: fields.images,
+        contact_phone: fields.contact_phone ?? null,
         status: 'available',
       })
       .select()
@@ -270,7 +259,7 @@ export async function POST(request: Request) {
       seller_username: sellerUsername,
       seller_avatar: null,
       seller_school: sellerSchool,
-      seller_phone: contact_phone?.trim() || null,
+      seller_phone: fields.contact_phone ?? null,
       title: dbItem.title,
       description: dbItem.description,
       price: Number(dbItem.price),
@@ -279,6 +268,7 @@ export async function POST(request: Request) {
       location: dbItem.location,
       school: dbItem.school,
       images: Array.isArray(dbItem.images) ? dbItem.images : [],
+      images_sensitive: dbItem.images_sensitive === true,
       status: 'available',
       likes_count: 0,
       views_count: 0,
@@ -287,6 +277,8 @@ export async function POST(request: Request) {
       created_at: dbItem.created_at,
       updated_at: dbItem.updated_at,
     };
+    scheduleTextScan('listing', String(dbItem.id), `${fields.title ?? ''}\n${fields.description ?? ''}`);
+    scheduleMediaScan(sellerId, (fields.images ?? []).map((url) => mediaKeyFromUrl(url)).filter((key): key is string => key !== null));
     return apiSuccess(created, 201);
   } catch (error) {
     console.error('[marketplace] listing creation failed:', error);
