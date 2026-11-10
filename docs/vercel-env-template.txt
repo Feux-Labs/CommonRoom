@@ -1,0 +1,40 @@
+# Paste into Vercel > Project > Settings > Environment Variables (use "Import .env"). Fill the empty ones from your own files.
+# Names only: no secrets are in this file.
+
+# --- Supabase ---
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+DATABASE_URL=
+DIRECT_URL=
+
+# --- The app ---
+NEXT_PUBLIC_SITE_URL=https://commonroom.feuxlabs.com.ng
+NEXT_PUBLIC_SUPPORT_EMAIL=
+ADMIN_EMAIL=
+CRON_SECRET=
+
+# --- Sign-in ---
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=
+NEXT_PUBLIC_AUTH_APPLE_ENABLED=
+NEXT_PUBLIC_AUTH_TIKTOK_ENABLED=
+TIKTOK_CLIENT_KEY=
+TIKTOK_CLIENT_SECRET=
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=
+
+# --- Photos and videos (Cloudflare R2) ---
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=
+R2_PUBLIC_BASE_URL=
+CLOUDFLARE_API_TOKEN=
+CLOUDFLARE_ZONE_ID=
+
+# --- Email the app sends itself (the "you're back" email) ---
+ZEPTOMAIL_TOKEN=
+MAIL_FROM_ADDRESS=Room@feuxlabs.com.ng
+MAIL_FROM_NAME=Common Room
+
+# --- Safety checks and payments ---
+GEMINI_API_KEY=
+PAYSTACK_SECRET_KEY=

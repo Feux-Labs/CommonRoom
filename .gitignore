@@ -66,3 +66,6 @@ Thumbs.db
 *.sqlite
 *.db
 *.db-journal
+
+# Production env file for importing into Vercel (contains secrets)
+.env.vercel

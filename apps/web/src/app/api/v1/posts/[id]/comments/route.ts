@@ -1,4 +1,5 @@
 import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, isRecord, parseJson, requireRegisteredUser } from '@/lib/supabase-server';
+import { scheduleTextScan } from '@/lib/moderation/media-scan';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -76,6 +77,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     .select('id, post_id, body, created_at, author_id, parent_id')
     .single();
   if (error) return apiError('comment_create_failed', 'Your comment could not be posted.', 500);
+  scheduleTextScan('room_comment', String(data.id), comment);
 
   const { data: profile } = await auth.supabase
     .from('profiles')

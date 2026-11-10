@@ -7,7 +7,7 @@ import { useAppSession } from '@/features/app/AppSession';
 
 type QueueItem = {
   reportId: string;
-  source: 'anonymous' | 'room' | 'marketplace' | 'auto';
+  source: 'anonymous' | 'room' | 'marketplace' | 'auto' | 'content';
   targetKind: string;
   reason: string;
   reportedAt: string;
@@ -23,6 +23,8 @@ const LABEL: Record<string, string> = {
   message: 'Anonymous message',
   room_post: 'Room post',
   listing: 'Marketplace listing',
+  market_message: 'Chat message',
+  profile: 'Profile',
 };
 
 /** Moderator queue: every open report in one list. Admin only. */

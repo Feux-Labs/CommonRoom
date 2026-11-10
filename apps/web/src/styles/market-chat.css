@@ -20,3 +20,7 @@
 .cr-chat__form { display: flex; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid rgba(0, 0, 0, 0.08); background: #fff; }
 .cr-chat__form textarea { flex: 1; resize: none; border: 1px solid rgba(0, 0, 0, 0.18); border-radius: 18px; padding: 9px 14px; font: inherit; max-height: 120px; }
 .cr-chat__closed { margin: 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); text-align: center; font-size: 14px; opacity: 0.75; border-top: 1px solid rgba(0, 0, 0, 0.08); }
+.cr-chat__msg { position: relative; }
+.cr-chat__flag { position: absolute; right: -34px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border: 0; border-radius: 50%; background: transparent; opacity: 0.45; cursor: pointer; color: inherit; display: grid; place-items: center; }
+.cr-chat__flag .i { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.cr-chat__flag:hover, .cr-chat__flag:focus-visible { opacity: 1; }

@@ -91,7 +91,7 @@ export async function scanPending(limit = 20): Promise<{ checked: number; config
   return { checked: rows.length, configured: true };
 }
 
-export type TextTarget = 'post' | 'room_post' | 'listing';
+export type TextTarget = 'post' | 'room_post' | 'listing' | 'comment' | 'room_comment' | 'market_message';
 
 /**
  * After publishing, check the words too. Best effort and flag-only: if the check fails or is rate limited the

@@ -3,7 +3,7 @@ import { apiError, apiSuccess, isRecord, parseJson } from '@/lib/supabase-server
 import { prisma } from '@/lib/prisma';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const SOURCES = ['anonymous', 'room', 'marketplace', 'auto'];
+const SOURCES = ['anonymous', 'room', 'marketplace', 'auto', 'content'];
 const ACTIONS = ['dismiss', 'remove', 'remove_strike'];
 
 type QueueRow = {

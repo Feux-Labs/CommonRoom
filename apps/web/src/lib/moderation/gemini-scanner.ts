@@ -13,6 +13,9 @@ export function isGeminiConfigured(): boolean {
 
 const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 
+/** GEMINI_API_BASE only exists so tests can point the app at a fake Gemini. */
+const geminiBase = () => (process.env.GEMINI_API_BASE || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
+
 const PROMPT = `You are a strict content-safety classifier for a student social app (users are adults). Look at the attached photo or video (every part of it) and rate it. Reply with ONLY a JSON object, no other text:
 {"explicit_nudity": number, "sexual_activity": number, "suggestive": number, "graphic_violence": number}
 Each value is from 0 to 1 for how likely that is shown anywhere in the media:
@@ -56,7 +59,7 @@ export async function scanWithGemini(
   if (!key) throw new Error('Scanning is not configured.');
   const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
 
-  const response = await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+  const response = await fetchImpl(`${geminiBase()}/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
     method: 'POST',
     headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -119,7 +122,7 @@ export async function scanTextWithGemini(text: string, fetchImpl: Fetch = fetch)
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Scanning is not configured.');
   const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
-  const response = await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+  const response = await fetchImpl(`${geminiBase()}/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
     method: 'POST',
     headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
     body: JSON.stringify({

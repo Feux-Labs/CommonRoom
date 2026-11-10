@@ -21,7 +21,7 @@ export default function PrivacyPage() {
       <h2>Who we share it with</h2>
       <p>Service providers that run the app for us (database and sign-in hosting, file storage and email delivery), and the authorities when the law requires it. Your public profile and posts are visible to other users as you choose.</p>
       <h2>Automatic safety checks</h2>
-      <p>The words, photos and videos you post are automatically checked for explicit, graphic or abusive content by an AI service (Google Gemini). Only what you post is sent, and only for this check. While we use its free plan, Google may use what it receives to improve its products. The check never removes or hides anything: if something looks like it breaks our rules, it is flagged for a person to review and you may get a warning. Only a person can remove content or give a strike.</p>
+      <p>The words, photos and videos you post (including comments and marketplace messages) are automatically checked for explicit, graphic or abusive content by an AI service (Google Gemini). Only what you post is sent, and only for this check. While we use its free plan, Google may use what it receives to improve its products. The check never removes or hides anything: if something looks like it breaks our rules, it is flagged for a person to review and you may get a warning. Only a person can remove content or give a strike.</p>
       <h2>How long we keep it</h2>
       <p>Until you delete your account. Deleting your account removes your profile, posts, comments, messages, listings and uploaded files. Copies kept for a short time on content delivery networks expire on their own, within hours.</p>
       <h2>Your rights</h2>

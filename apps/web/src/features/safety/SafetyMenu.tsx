@@ -10,12 +10,12 @@ import { useAppSession } from '@/features/app/AppSession';
 type Relationship = { blocked: boolean; muted: boolean };
 
 /** Block / mute choices for one person. Opens from the "more" button on their profile. */
-export function SafetyMenu({ open, onClose, userId, name }: { open: boolean; onClose: () => void; userId: string; name: string }) {
+export function SafetyMenu({ open, onClose, onReport, userId, name }: { open: boolean; onClose: () => void; onReport?: () => void; userId: string; name: string }) {
   // The sheet content only exists while open, so it always starts fresh and loads the current state.
-  return open ? <SafetyMenuBody name={name} onClose={onClose} userId={userId} /> : null;
+  return open ? <SafetyMenuBody name={name} onClose={onClose} onReport={onReport} userId={userId} /> : null;
 }
 
-function SafetyMenuBody({ onClose, userId, name }: { onClose: () => void; userId: string; name: string }) {
+function SafetyMenuBody({ onClose, onReport, userId, name }: { onClose: () => void; onReport?: () => void; userId: string; name: string }) {
   const router = useRouter();
   const toast = useToast();
   const { account } = useAppSession();
@@ -65,6 +65,14 @@ function SafetyMenuBody({ onClose, userId, name }: { onClose: () => void; userId
             <span className="cr-row-btn__sub">{state?.muted ? 'Their posts and comments will show for you again.' : 'You won’t see their posts or comments. They aren’t told.'}</span>
           </span>
         </button>
+        {onReport ? (
+          <button className="cr-row-btn" onClick={() => { onClose(); onReport(); }} type="button">
+            <span className="cr-row-btn__main">
+              <span className="cr-row-btn__title">{`Report ${name}`}</span>
+              <span className="cr-row-btn__sub">Tell us if this profile breaks the rules. Your report is anonymous.</span>
+            </span>
+          </button>
+        ) : null}
         <button className="cr-row-btn cr-row-btn--danger" disabled={busy || !state} onClick={() => void change('blocks', !state?.blocked)} type="button">
           <span className="cr-row-btn__main">
             <span className="cr-row-btn__title">{state?.blocked ? `Unblock ${name}` : `Block ${name}`}</span>

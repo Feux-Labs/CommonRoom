@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { UserAvatar } from '@/components/cr/Avatars';
 import { StateBlock } from '@/components/cr/FeedStates';
+import { ReportSheet } from '@/components/cr/ReportSheet';
 import { Icon } from '@/components/cr/Icon';
 import { useToast } from '@/components/cr/Toast';
 import { apiRequest, errorMessage } from '@/features/app/api';
@@ -118,6 +119,7 @@ export function MarketThreadScreen({ id }: { id: string }) {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [reportFor, setReportFor] = useState<Message | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const stickToBottom = useRef(true);
 
@@ -204,6 +206,7 @@ export function MarketThreadScreen({ id }: { id: string }) {
               <div className={message.mine ? 'cr-chat__msg is-mine' : 'cr-chat__msg'} key={message.id}>
                 <p>{message.body}</p>
                 <span>{shortAge(message.createdAt)}</span>
+                {message.mine ? null : <button aria-label="Report message" className="cr-chat__flag" onClick={() => setReportFor(message)} type="button"><Icon name="flag" /></button>}
               </div>
             ))}
             <div ref={endRef} />
@@ -218,6 +221,18 @@ export function MarketThreadScreen({ id }: { id: string }) {
           )}
         </>
       )}
+      <ReportSheet
+        context={reportFor?.body.slice(0, 80)}
+        onClose={() => setReportFor(null)}
+        onSubmit={async (reason, details) => {
+          if (!account || !reportFor) return;
+          await apiRequest('/api/v1/reports/market-message', { session: account, method: 'POST', body: { messageId: reportFor.id, reason: details ? `${reason}: ${details}` : reason } });
+          toast.show('Report sent. Thank you.');
+          setReportFor(null);
+        }}
+        open={reportFor !== null}
+        subject="message"
+      />
     </main>
   );
 }

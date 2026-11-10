@@ -1,5 +1,6 @@
 import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, isRecord, parseJson } from '@/lib/supabase-server';
 import { marketChatError, UUID_PATTERN } from '@/lib/market-chat';
+import { scheduleTextScan } from '@/lib/moderation/media-scan';
 
 /** POST /api/v1/market/threads/<id>/messages { body }: send a message in a conversation you are part of. */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -15,5 +16,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (error) return marketChatError(error, 'Your message could not be sent.');
   const row = (data as Array<{ id: string; body: string; created_at: string }> | null)?.[0];
   if (!row) return apiError('market_chat_failed', 'Your message could not be sent.', 500);
+  scheduleTextScan('market_message', row.id, row.body);
   return apiSuccess({ id: row.id, mine: true, body: row.body, createdAt: row.created_at }, 201);
 }

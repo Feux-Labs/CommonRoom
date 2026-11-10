@@ -18,6 +18,7 @@ import { compactCount, formatNaira } from '@/lib/format';
 import { institutions } from '@/lib/institutions';
 import type { MarketplaceListing } from '@/lib/marketplace-contracts';
 import type { RoomPost } from '@/lib/room-contracts';
+import { ReportSheet } from '@/components/cr/ReportSheet';
 import { SafetyMenu } from '@/features/safety/SafetyMenu';
 import { useHydrated } from '@/lib/use-hydrated';
 import { fetchPerson, postThumbnail, setFollowing, type PersonProfile } from './api';
@@ -299,6 +300,7 @@ export function PersonProfileScreen({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [safetyOpen, setSafetyOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const [attempt, setAttempt] = useState(0);
   const reload = () => {
@@ -381,7 +383,19 @@ export function PersonProfileScreen({ id }: { id: string }) {
           <div className="cr-tabbar cr-tabbar--flush" role="tablist" aria-label="Profile sections"><button aria-selected="true" role="tab" type="button">Posts</button></div>
           <PostGrid posts={person.posts} />
           <ShareSheet onClose={() => setShareOpen(false)} open={shareOpen} text={`${person.display_name} on Common Room`} title="Share profile" url={typeof window === 'undefined' ? '' : window.location.href} />
-          <SafetyMenu name={person.display_name} onClose={() => setSafetyOpen(false)} open={safetyOpen} userId={person.id} />
+          <SafetyMenu name={person.display_name} onClose={() => setSafetyOpen(false)} onReport={() => setReportOpen(true)} open={safetyOpen} userId={person.id} />
+          <ReportSheet
+            context={person.display_name}
+            onClose={() => setReportOpen(false)}
+            onSubmit={async (reason, details) => {
+              if (!account) return;
+              await apiRequest('/api/v1/reports/profile', { session: account, method: 'POST', body: { userId: person.id, reason: details ? `${reason}: ${details}` : reason } });
+              toast.show('Report sent. Thank you.');
+              setReportOpen(false);
+            }}
+            open={reportOpen}
+            subject="profile"
+          />
         </>
       ) : null}
     </main>
