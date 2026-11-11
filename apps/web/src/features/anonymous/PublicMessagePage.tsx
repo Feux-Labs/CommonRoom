@@ -5,6 +5,8 @@ import type { FormEvent } from 'react';
 import Link from 'next/link';
 import { Icon, type IconName } from '@/components/cr/Icon';
 import { useAppSession } from '@/features/app/AppSession';
+import { CARD_GRADIENTS, isCardTheme } from '@/features/share/card';
+import './prompt.css';
 import { AnonymousApiError, anonRequest, type AnonIdentity } from './api';
 
 type PageState = 'loading' | 'ready' | 'sending' | 'failed' | 'sent' | 'rate_limited' | 'off' | 'invalid' | 'unavailable';
@@ -24,7 +26,8 @@ const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? '';
  * reveal nothing about who owns them.
  */
 export function PublicMessagePage({ token }: { token: string }) {
-  const { session, ready, ensureAdult } = useAppSession();
+  const { session, ready, ensureAdult, isGuest, openAuth } = useAppSession();
+  const [prompt, setPrompt] = useState<{ text: string; theme: string | null } | null>(null);
   const [pageState, setState] = useState<PageState>('loading');
   // Without a session nothing can load, so that is derived rather than synced in an effect.
   const state: PageState = ready && !session ? 'unavailable' : pageState;
@@ -41,8 +44,11 @@ export function PublicMessagePage({ token }: { token: string }) {
     let active = true;
     void (async () => {
       try {
-        const prompt = await anonRequest<{ enabled: boolean }>(session, `/inbox/links/${encodeURIComponent(token)}`);
-        if (active) setState(prompt.enabled ? 'ready' : 'off');
+        const link = await anonRequest<{ enabled: boolean; prompt?: string | null; prompt_theme?: string | null }>(session, `/inbox/links/${encodeURIComponent(token)}`);
+        if (active) {
+          setPrompt(link.prompt ? { text: link.prompt, theme: link.prompt_theme ?? null } : null);
+          setState(link.enabled ? 'ready' : 'off');
+        }
       } catch (error) {
         if (!active) return;
         if (error instanceof AnonymousApiError && error.status === 404) setState('invalid');
@@ -94,12 +100,12 @@ export function PublicMessagePage({ token }: { token: string }) {
 
   return (
     <main className="cr-web">
-      <div className={showComposer ? 'cr-web__top' : 'cr-web__top cr-web__top--short'}>
+      <div className={showComposer ? (prompt ? 'cr-web__top cr-web__top--prompt' : 'cr-web__top') : 'cr-web__top cr-web__top--short'} style={showComposer && prompt ? { background: `linear-gradient(145deg, ${CARD_GRADIENTS[isCardTheme(prompt.theme) ? prompt.theme : 'blue-hour'][0]}, ${CARD_GRADIENTS[isCardTheme(prompt.theme) ? prompt.theme : 'blue-hour'][1]})` } : undefined}>
         <div className="cr-web__brand"><span aria-hidden="true" className="cr-brand-dots cr-brand-dots--light"><i /><i /><i /></span>common room</div>
         {showComposer ? (
           <>
             <div aria-hidden="true" className="cr-web__sq"><Icon name="anon" /></div>
-            <h1 className="cr-web__title">Send an anonymous message</h1>
+            {prompt ? <h1 className="cr-web__prompt">{prompt.text}</h1> : <h1 className="cr-web__title">Send an anonymous message</h1>}
             <p className="cr-web__sub">They won’t see who you are. No account needed.</p>
           </>
         ) : null}
@@ -153,10 +159,11 @@ export function PublicMessagePage({ token }: { token: string }) {
       {state === 'sent' ? (
         <Result
           actions={<>
+            {isGuest ? <button className="cr-ghost cr-ghost--l" onClick={() => openAuth('sign-in')} type="button">Sign in to keep replies</button> : null}
             <button className="cr-ghost cr-ghost--l" onClick={() => setState('ready')} type="button">Send another</button>
             <Link className="cr-pbtn cr-pbtn--l" href="/anonymous">Get your own link</Link>
           </>}
-          description="They won’t see who you are."
+          description="They won’t see who you are. Come back here to see replies — sign in so you never lose them."
           icon="chk"
           title="Message sent"
         />

@@ -9,6 +9,7 @@ import { Onboarding } from '@/features/auth/Onboarding';
 import type { EducationStatus, OnboardingProfile } from '@/lib/contracts';
 import { getBrowserSupabase, isSupabaseConfigured } from '@/lib/supabase-browser';
 import { guestSignInOptions } from '@/lib/turnstile';
+import { captureSource, trackEvent } from '@/lib/analytics';
 import { AgeGate } from './AgeGate';
 import { apiRequest, errorMessage } from './api';
 import { removeUserMedia, uploadUserMedia } from './media';
@@ -224,6 +225,19 @@ function AppSessionProvider({ children }: { children: ReactNode }) {
     })();
     return () => { active = false; };
     // Only when the visitor changes, not on every token refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionUserId]);
+
+  // Remember the first ?s= tag, then count one "app open" per visitor per browser tab session (guests included).
+  useEffect(() => { captureSource(); }, []);
+  useEffect(() => {
+    if (!sessionUserId || !session) return;
+    try {
+      if (window.sessionStorage.getItem('commonroom:opened') === sessionUserId) return;
+      window.sessionStorage.setItem('commonroom:opened', sessionUserId);
+    } catch { /* storage blocked: count the open anyway */ }
+    trackEvent(session, 'app_open');
+    // Once per visitor, not on every token refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionUserId]);
 

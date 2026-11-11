@@ -3,6 +3,8 @@ import { scheduleMediaScan, scheduleTextScan } from '@/lib/moderation/media-scan
 import { objectSize, R2NotConfiguredError } from '@/lib/r2';
 import { anonymousInvalidBody, anonymousRpcError, authenticateAnonymousRequest, parseAnonymousBody } from '@/lib/anonymous-api';
 import { rejectUnsafeAnonymousText } from '@/lib/text-filter';
+import { isFlagEnabled } from '@/lib/flags';
+import { prisma } from '@/lib/prisma';
 
 const scopes = ['school', 'all_nigerian_schools'];
 const cardThemes = ['blue-hour', 'soft-sky', 'warm-glow', 'rose-note'];
@@ -41,6 +43,20 @@ function decodeHotCursor(value: string | null): HotCursor | null | undefined {
   }
 }
 
+/** Adds `edited: true` to posts whose author changed the text. A lookup failure simply leaves the label off. */
+async function markEdited<T extends { id: string }>(posts: T[]): Promise<Array<T & { edited?: boolean }>> {
+  if (posts.length === 0) return posts;
+  try {
+    const ids = posts.map((post) => post.id);
+    const rows = await prisma.$queryRaw<Array<{ id: string }>>`select id::text as id from public.anonymous_posts where id = any(${ids}::uuid[]) and edited_at is not null`;
+    if (rows.length === 0) return posts;
+    const edited = new Set(rows.map((row) => row.id));
+    return posts.map((post) => (edited.has(post.id) ? { ...post, edited: true } : post));
+  } catch {
+    return posts;
+  }
+}
+
 export async function GET(request: Request) {
   const auth = request.headers.has('authorization') ? await authenticateRequest(request) : null;
   if (auth && !isAuthenticatedRequest(auth)) return auth;
@@ -74,7 +90,7 @@ export async function GET(request: Request) {
     const nextCursor = hasMore && last
       ? Buffer.from(JSON.stringify({ asOf: last.as_of, rank: last.hot_rank, id: last.id })).toString('base64url')
       : null;
-    return apiSuccess({ posts, hasMore, nextCursor });
+    return apiSuccess({ posts: await markEdited(posts as Array<{ id: string }>), hasMore, nextCursor });
   }
 
   if (params.has('page')) {
@@ -105,7 +121,7 @@ export async function GET(request: Request) {
     const nextCursor = hasMore && lastPost
       ? Buffer.from(JSON.stringify({ createdAt: lastPost.created_at, id: lastPost.id })).toString('base64url')
       : null;
-    return apiSuccess({ posts, hasMore, nextCursor });
+    return apiSuccess({ posts: await markEdited(posts), hasMore, nextCursor });
   }
 
   if (params.has('id')) {
@@ -124,7 +140,7 @@ export async function GET(request: Request) {
         p_post_id: params.get('id'),
       });
     if (mediaError) return anonymousRpcError(mediaError, 'Anonymous posts could not be loaded.');
-    return apiSuccess(posts ?? []);
+    return apiSuccess(await markEdited(posts ?? []));
   }
   const { data, error } = auth
     ? await supabase.rpc('get_anonymous_posts', {
@@ -141,6 +157,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  if (!(await isFlagEnabled('anonymous_posting'))) return apiError('feature_disabled', 'New posts are paused for a moment. Please try again later.', 503);
   const body = await parseAnonymousBody(request);
   if (!body || typeof body.scope !== 'string' || !scopes.includes(body.scope)
     || typeof body.title !== 'string' || typeof body.body !== 'string'

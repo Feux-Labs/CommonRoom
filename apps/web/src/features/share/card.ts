@@ -59,8 +59,10 @@ export async function renderShareCard(options: {
   /** Small line at the bottom. Pass the link people should follow. */
   link: string;
   kicker?: string;
+  /** A received message shown above the words, for public reply cards ("they asked, you answered"). */
+  question?: string;
 }): Promise<Blob> {
-  const { text, theme = 'blue-hour', link, kicker } = options;
+  const { text, theme = 'blue-hour', link, kicker, question } = options;
   const canvas = document.createElement('canvas');
   canvas.width = CARD_WIDTH;
   canvas.height = CARD_HEIGHT;
@@ -94,18 +96,47 @@ export async function renderShareCard(options: {
   context.globalAlpha = 1;
   context.font = `500 40px ${family}`;
   context.textBaseline = 'alphabetic';
+  context.textAlign = 'left';
   context.fillText('common room', marginX + 124, 164);
 
+  // Everything below is centred.
+  const centerX = CARD_WIDTH / 2;
+  context.textAlign = 'center';
+  const kickerY = question ? 470 : 640;
   if (kicker) {
     context.globalAlpha = 0.8;
     context.font = `500 38px ${family}`;
-    context.fillText(kicker, marginX, 640);
+    context.fillText(kicker, centerX, kickerY);
     context.globalAlpha = 1;
   }
 
+  // Public reply cards: the question sits on a white panel above the answer.
+  let replyTop = kicker ? 720 : 560;
+  if (question) {
+    const panelFont = `500 54px ${family}`;
+    context.font = panelFont;
+    let questionLines = wrapText((value) => context.measureText(value).width, question.trim(), maxWidth - 120);
+    if (questionLines.length > 6) {
+      questionLines = questionLines.slice(0, 6);
+      questionLines[5] = `${questionLines[5].replace(/\s+\S*$/, '')}…`;
+    }
+    const questionLineHeight = 70;
+    const panelTop = kickerY + 50;
+    const panelHeight = questionLines.length * questionLineHeight + 100;
+    context.fillStyle = '#ffffff';
+    context.beginPath();
+    context.roundRect(marginX, panelTop, maxWidth, panelHeight, 48);
+    context.fill();
+    context.fillStyle = '#14183a';
+    context.font = panelFont;
+    let questionY = panelTop + 50 + 54;
+    for (const line of questionLines) { context.fillText(line, centerX, questionY); questionY += questionLineHeight; }
+    replyTop = panelTop + panelHeight + 130;
+  }
+
   // The words: the largest size that fits about 12 lines.
-  const maxLines = 12;
-  let size = 88;
+  const maxLines = question ? 8 : 12;
+  let size = question ? 72 : 88;
   let lines: string[] = [];
   for (; size >= 40; size -= 4) {
     context.font = `500 ${size}px ${family}`;
@@ -118,15 +149,15 @@ export async function renderShareCard(options: {
   }
   const lineHeight = Math.round(size * 1.28);
   const blockHeight = lines.length * lineHeight;
-  let y = Math.max(kicker ? 720 : 560, (CARD_HEIGHT - blockHeight) / 2 + size * 0.4);
+  let y = question ? replyTop + size * 0.4 : Math.max(kicker ? 720 : 560, (CARD_HEIGHT - blockHeight) / 2 + size * 0.4);
   context.fillStyle = '#fff';
   context.font = `500 ${size}px ${family}`;
-  for (const line of lines) { context.fillText(line, marginX, y); y += lineHeight; }
+  for (const line of lines) { context.fillText(line, centerX, y); y += lineHeight; }
 
   // Small link line.
   context.globalAlpha = 0.85;
   context.font = `500 36px ${family}`;
-  context.fillText(shortLink(link), marginX, CARD_HEIGHT - 150);
+  context.fillText(shortLink(link), centerX, CARD_HEIGHT - 150);
   context.globalAlpha = 1;
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));

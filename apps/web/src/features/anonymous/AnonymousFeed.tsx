@@ -28,6 +28,8 @@ import {
   type ReportTargetKind,
 } from './api';
 import { AnonymousNameSheet } from './AnonymousNameSheet';
+import { PostInsightsSheet } from './PostInsightsSheet';
+import { trackEvent } from '@/lib/analytics';
 
 /** Anonymous feed screen and mockups 15, 18, 19, 71, 72, 73. `focusPostId` shows one shared post. */
 export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusPostId?: string | null; pinPostId?: string | null }) {
@@ -50,6 +52,11 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
   const [reportTarget, setReportTarget] = useState<{ kind: ReportTargetKind; id: string } | null>(null);
   const [shareTarget, setShareTarget] = useState<AnonPost | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AnonPost | null>(null);
+  const [insightsFor, setInsightsFor] = useState<AnonPost | null>(null);
+  const [editFor, setEditFor] = useState<AnonPost | null>(null);
+  const [editText, setEditText] = useState('');
+  const [editError, setEditError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const generation = useRef(0);
@@ -95,6 +102,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
           setPosts(result);
           setHasMore(false);
           setCursor(null);
+          if (result.length > 0) trackEvent(session, 'post_view', { kind: 'anonymous', id: focusPostId });
         } else {
           const page = await anonRequest<AnonPostPage>(session, '/posts?scope=all_nigerian_schools&page=1&sort=hot');
           if (current !== generation.current) return;
@@ -168,6 +176,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
   }, [session]);
 
   const openComments = (post: AnonPost) => {
+    trackEvent(session, 'post_view', { kind: 'anonymous', id: post.id });
     setCommentsFor(post);
     setComments([]);
     void loadComments(post);
@@ -213,6 +222,21 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
       toast.show(error instanceof Error ? error.message : 'Your post could not be deleted.', 'error');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const saveEdit = async () => {
+    if (!editFor || !session || saving) return;
+    setSaving(true);
+    setEditError('');
+    try {
+      const result = await anonRequest<{ edited: boolean; body: string }>(session, `/posts/${editFor.id}`, 'PATCH', { body: editText });
+      setPosts((current) => current.map((item) => (item.id === editFor.id ? { ...item, body: result.body, edited: true } : item)));
+      setEditFor(null);
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : 'Your post could not be edited.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -263,7 +287,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
             <article className="cr-apost" key={post.id}>
               <AnonAvatar />
               <div className="cr-apost__main">
-                <p className="cr-apost__meta">Anonymous · {shortAge(post.created_at)}{topic ? ` · ${topic}` : ''}</p>
+                <p className="cr-apost__meta">Anonymous · {shortAge(post.created_at)}{post.edited ? ' · edited' : ''}{topic ? ` · ${topic}` : ''}</p>
                 {post.body && !(post.media_items ?? []).length ? (
                   <div className={`cr-tcard cr-tcard--${post.card_theme ?? 'blue-hour'} cr-tcard--${post.body.length > 160 ? 'sm' : post.body.length > 80 ? 'md' : 'lg'}`}>{post.body}</div>
                 ) : null}
@@ -286,9 +310,13 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
                 <div className="cr-actions">
                   <button aria-label={post.liked_by_me ? 'Unlike' : 'Like'} aria-pressed={post.liked_by_me} className="cr-act" onClick={() => toggleLike(post)} type="button"><Icon name="heart" />{compactCount(post.likes_count)}</button>
                   <button aria-label={`Comments, ${post.comments_count}`} className="cr-act" onClick={() => openComments(post)} type="button"><Icon name="cmt" />{compactCount(post.comments_count)}</button>
-                  <button aria-label="Share" className="cr-act" onClick={() => setShareTarget(post)} type="button"><Icon name="up" /></button>
+                  <button aria-label="Share" className="cr-act" onClick={() => { trackEvent(session, 'post_share', { kind: 'anonymous', id: post.id }); setShareTarget(post); }} type="button"><Icon name="up" /></button>
                   {post.is_mine ? (
+                    <>
+                    <button aria-label="Edit your post" className="cr-act cr-actions__end" onClick={() => { setEditText(post.body); setEditError(''); setEditFor(post); }} type="button">Edit</button>
+                    <button aria-label="Post insights" className="cr-act cr-actions__end" onClick={() => setInsightsFor(post)} type="button">Insights</button>
                     <button aria-label="Delete your post" className="cr-act cr-actions__end" onClick={() => setDeleteTarget(post)} type="button"><Icon name="trash" /></button>
+                    </>
                   ) : (
                     <button aria-label="Report post" className="cr-act cr-actions__end" onClick={() => setReportTarget({ kind: 'post', id: post.id })} type="button"><Icon name="flag" /></button>
                   )}
@@ -343,6 +371,17 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
         text={shareTarget ? shareTarget.body.slice(0, 140) : ''}
         url={shareTarget && typeof window !== 'undefined' ? `${window.location.origin}/anonymous/posts/${shareTarget.id}` : ''}
       />
+
+      <BottomSheet description="Your edit is checked like a new post, and the post will show “edited”." onClose={() => setEditFor(null)} open={Boolean(editFor)} title="Edit your post">
+        <textarea aria-label="Post text" className="cr-textarea" maxLength={3000} onChange={(event) => setEditText(event.target.value)} rows={5} value={editText} />
+        {editError ? <p role="alert" style={{ color: '#b3261e' }}>{editError}</p> : null}
+        <div className="cr-acts">
+          <button className="cr-ghost cr-ghost--l" onClick={() => setEditFor(null)} type="button">Cancel</button>
+          <button className="cr-pbtn cr-pbtn--l" disabled={saving || !editText.trim() || editText.trim() === editFor?.body} onClick={() => void saveEdit()} type="button">{saving ? 'Saving…' : 'Save'}</button>
+        </div>
+      </BottomSheet>
+
+      <PostInsightsSheet kind="anonymous" onClose={() => setInsightsFor(null)} postId={insightsFor?.id ?? null} session={session} />
 
       <BottomSheet description="This can’t be undone." onClose={() => setDeleteTarget(null)} open={Boolean(deleteTarget)} title="Delete your post?">
         <div className="cr-acts">

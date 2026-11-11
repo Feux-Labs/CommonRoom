@@ -624,15 +624,17 @@ export function BottomNav({
   active = "Anonymous",
   onNavigate,
   showRoom = false,
+  showMarket = true,
 }: {
   active?: BottomNavItemLabel | null;
   onNavigate?: (item: BottomNavItemLabel) => void;
   /** The Room tab is hidden unless the caller says it is available. */
   showRoom?: boolean;
+  showMarket?: boolean;
 }) {
   return (
     <nav className="cr-bottom-nav" aria-label="Main navigation">
-      {bottomNavItems.filter(({ label }) => showRoom || label !== "Room").map(({ label, href, icon }) => (
+      {bottomNavItems.filter(({ label }) => (showRoom || label !== "Room") && (showMarket || label !== "Market")).map(({ label, href, icon }) => (
         <Link
           key={label}
           href={href}

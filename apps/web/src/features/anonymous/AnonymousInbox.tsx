@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AnonAvatar } from '@/components/cr/Avatars';
 import { BottomSheet } from '@/components/cr/BottomSheet';
 import { ErrorBlock, FeedSkeleton, StateBlock } from '@/components/cr/FeedStates';
@@ -13,8 +13,12 @@ import { ShareSheet } from '@/components/cr/ShareSheet';
 import { useToast } from '@/components/cr/Toast';
 import { useAppSession } from '@/features/app/AppSession';
 import { dayLabel, shortAge } from '@/lib/format';
+import { isCardTheme, type CardTheme } from '@/features/share/card';
 import { anonRequest, inboxLinkUrl, type AnonIdentity, type InboxLink, type InboxMessage, type InboxThread } from './api';
 import { AnonymousNameSheet } from './AnonymousNameSheet';
+import { PromptPickerSheet } from './PromptPickerSheet';
+import { DEFAULT_PROMPT } from './prompt-templates';
+import './prompt.css';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -69,24 +73,32 @@ function useInboxLink() {
   const share = useCallback((target: InboxLink) => setShareFor(target), []);
   const shareSheet = (
     <ShareSheet
-      card={{ text: 'Send me an anonymous message', kicker: 'Ask me anything', theme: 'blue-hour' }}
+      card={{ text: shareFor?.prompt || DEFAULT_PROMPT, kicker: 'Ask me anything', theme: isCardTheme(shareFor?.prompt_theme) ? shareFor.prompt_theme : 'blue-hour' }}
       onClose={() => setShareFor(null)}
       open={Boolean(shareFor)}
-      text="Send me an anonymous message"
+      text={shareFor?.prompt || DEFAULT_PROMPT}
       title="Share your link"
       url={shareFor ? inboxLinkUrl(shareFor.token) : ''}
     />
   );
 
-  return { link, setLink, busy, create, setEnabled, copy, share, shareSheet };
+  const savePrompt = useCallback(async (prompt: string, theme: CardTheme) => {
+    if (!account) throw new Error('Sign in again to save your prompt.');
+    const saved = await anonRequest<{ prompt: string | null; theme: string | null }>(account, '/inbox/link', 'PATCH', { prompt, theme });
+    setLink((current) => (current ? { ...current, prompt: saved.prompt, prompt_theme: saved.theme } : current));
+  }, [account]);
+
+  return { link, setLink, busy, create, setEnabled, copy, share, shareSheet, savePrompt };
 }
 
 /** "Inbox and link" screen and mockup 74 (empty). */
 export function AnonymousInbox() {
   const router = useRouter();
   const { session: account, ready, requireAccount } = useAppSession();
-  const { link, setLink, busy, create, setEnabled, copy, share, shareSheet } = useInboxLink();
+  const { link, setLink, busy, create, setEnabled, copy, share, shareSheet, savePrompt } = useInboxLink();
+  const [promptOpen, setPromptOpen] = useState(false);
   const [threads, setThreads] = useState<InboxThread[]>([]);
+  const [sent, setSent] = useState<InboxThread[]>([]);
   // When the list was fetched. Used to split New vs Earlier; read here, never during render.
   const [loadedAt, setLoadedAt] = useState(0);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -113,9 +125,12 @@ export function AnonymousInbox() {
           anonRequest<InboxThread[]>(account, '/inbox'),
           anonRequest<AnonIdentity | null>(account, '/identity'),
         ]);
+        // Conversations you started (so you can read replies). A failure here just hides the section.
+        const sentThreads = await anonRequest<InboxThread[]>(account, '/inbox/sent').catch(() => [] as InboxThread[]);
         if (!active) return;
         setLink(currentLink);
         setThreads(currentThreads);
+        setSent(sentThreads);
         setLoadedAt(Date.now());
         setIdentity(currentIdentity);
         setStatus('ready');
@@ -181,6 +196,8 @@ export function AnonymousInbox() {
                     <Toggle className="cr-toggle--light" label="Accept messages" on={link.enabled} onChange={busy ? undefined : (value) => void setEnabled(value)} />
                   </span>
                 </div>
+                <p className="cr-linkcard__hint" style={{ textAlign: 'center' }}>“{link.prompt || DEFAULT_PROMPT}”</p>
+                <button className="cr-linkcard__btn cr-linkcard__btn--light" onClick={() => setPromptOpen(true)} type="button">Change prompt</button>
               </>
             ) : (
               <>
@@ -190,7 +207,7 @@ export function AnonymousInbox() {
             )}
           </section>
 
-          {threads.length === 0 ? (
+          {threads.length === 0 && sent.length === 0 ? (
             <StateBlock
               actions={<button className="cr-pbtn cr-pbtn--l" disabled={busy} onClick={() => void ensureLink().then((ready) => { if (ready) void share(ready); })} type="button">Share my link</button>}
               description="Share your link to start getting anonymous messages."
@@ -203,10 +220,35 @@ export function AnonymousInbox() {
               {earlier.length ? <><p className="cr-section-label">Earlier</p>{earlier.map(row)}</> : null}
             </>
           )}
+          {sent.length ? (
+            <>
+              <p className="cr-section-label">Messages you sent</p>
+              {sent.map((thread) => (
+                <button className="cr-row-btn" key={thread.id} onClick={() => router.push(`/anonymous/inbox/thread/${thread.id}?from=sent`)} type="button">
+                  <AnonAvatar />
+                  <span className="cr-row-btn__main">
+                    <span className="cr-row-btn__title">Your anonymous message</span>
+                    <span className="cr-row-btn__sub">{thread.last_message ?? 'Private conversation'}</span>
+                  </span>
+                  <span className="cr-row-btn__meta">
+                    <span>{thread.last_message_at ? shortAge(thread.last_message_at) : ''}</span>
+                    {thread.message_count > 1 ? <span>{thread.message_count} messages</span> : null}
+                  </span>
+                </button>
+              ))}
+            </>
+          ) : null}
         </>
       ) : null}
 
       {shareSheet}
+      <PromptPickerSheet
+        initialPrompt={link?.prompt ?? ''}
+        initialTheme={link?.prompt_theme ?? null}
+        onClose={() => setPromptOpen(false)}
+        onSave={async (prompt, theme) => { await savePrompt(prompt, theme); setPromptOpen(false); }}
+        open={promptOpen}
+      />
       <AnonymousNameSheet
         onClose={() => setNameSheet(false)}
         onSaved={(saved) => {
@@ -297,12 +339,17 @@ export function AnonymousThread({ threadId }: { threadId: string }) {
   const router = useRouter();
   const toast = useToast();
   const { session: account, ready, requireAccount } = useAppSession();
+  // Opened from "Messages you sent": you are the sender, so the owner-only tools (reply publicly, share) stay hidden.
+  const fromSent = useSearchParams().get('from') === 'sent';
   const [messages, setMessages] = useState<InboxMessage[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [shareMessage, setShareMessage] = useState<InboxMessage | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [replyFor, setReplyFor] = useState<InboxMessage | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [replyCard, setReplyCard] = useState<{ question: string; answer: string; url: string } | null>(null);
   const [reportMessage, setReportMessage] = useState<InboxMessage | null>(null);
   const [blockOpen, setBlockOpen] = useState(false);
   const [blocking, setBlocking] = useState(false);
@@ -381,6 +428,18 @@ export function AnonymousThread({ threadId }: { threadId: string }) {
     }
   };
 
+  // Builds the card from the message and your answer. The card links to your own link, so people who see it can message you.
+  const makeReplyCard = async () => {
+    if (!replyFor || !account || !replyText.trim()) return;
+    let url = `${window.location.origin}/anonymous`;
+    try {
+      const own = await anonRequest<InboxLink | null>(account, '/inbox/link');
+      if (own) url = inboxLinkUrl(own.token);
+    } catch { /* the card still works, it just points at the app */ }
+    setReplyCard({ question: replyFor.body, answer: replyText.trim(), url });
+    setReplyFor(null);
+  };
+
   let lastDay = '';
 
   return (
@@ -410,7 +469,8 @@ export function AnonymousThread({ threadId }: { threadId: string }) {
               </div>
               {!message.is_mine ? (
                 <div className="cr-bub__tools">
-                  <button className="cr-link" onClick={() => setShareMessage(message)} type="button">Share publicly</button>
+                  {fromSent ? null : <button className="cr-link" onClick={() => { setReplyText(''); setReplyFor(message); }} type="button">Reply publicly</button>}
+                  {fromSent ? null : <button className="cr-link" onClick={() => setShareMessage(message)} type="button">Share publicly</button>}
                   <button className="cr-link cr-link--muted" onClick={() => setReportMessage(message)} type="button">Report</button>
                 </div>
               ) : null}
@@ -435,6 +495,24 @@ export function AnonymousThread({ threadId }: { threadId: string }) {
           <button className="cr-pbtn cr-pbtn--l" disabled={sharing} onClick={() => void confirmShare()} type="button">{sharing ? 'Sharing…' : 'Share'}</button>
         </div>
       </BottomSheet>
+
+      <BottomSheet context="Inbox" description="Your answer goes on a card with their message. Nobody sees who sent it." onClose={() => setReplyFor(null)} open={Boolean(replyFor)} title="Reply publicly">
+        <div className="cr-pv"><AnonAvatar size="s" /><p>{replyFor?.body}</p></div>
+        <textarea aria-label="Your public answer" className="cr-textarea" maxLength={200} onChange={(event) => setReplyText(event.target.value)} placeholder="Your answer…" rows={3} value={replyText} />
+        <div className="cr-acts">
+          <button className="cr-ghost cr-ghost--l" onClick={() => setReplyFor(null)} type="button">Cancel</button>
+          <button className="cr-pbtn cr-pbtn--l" disabled={!replyText.trim()} onClick={() => void makeReplyCard()} type="button">Make my card</button>
+        </div>
+      </BottomSheet>
+
+      <ShareSheet
+        card={replyCard ? { text: replyCard.answer, question: replyCard.question, kicker: 'Anonymous message', theme: 'rose-note' } : undefined}
+        onClose={() => setReplyCard(null)}
+        open={Boolean(replyCard)}
+        text={replyCard ? `“${replyCard.question}” — my answer 👇` : ''}
+        title="Share your reply"
+        url={replyCard?.url ?? ''}
+      />
 
       <ReportSheet
         context="Inbox"

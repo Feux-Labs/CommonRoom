@@ -28,6 +28,12 @@ export function searchPeople(session: Session, query: string, signal?: AbortSign
   return apiRequest<PersonSummary[]>(`/api/v1/people?q=${encodeURIComponent(query)}`, { session, signal });
 }
 
+export type PersonSuggestion = PersonSummary & { reason: string };
+
+export function fetchSuggestions(session: Session) {
+  return apiRequest<PersonSuggestion[]>('/api/v1/people/suggestions', { session });
+}
+
 export function setFollowing(session: Session, userId: string, follow: boolean) {
   return apiRequest<{ following: boolean }>('/api/v1/follows', { session, method: follow ? 'POST' : 'DELETE', body: { userId } });
 }

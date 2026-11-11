@@ -7,7 +7,7 @@ import { StateBlock } from '@/components/cr/FeedStates';
 import { Icon } from '@/components/cr/Icon';
 import { useAppSession } from '@/features/app/AppSession';
 import { institutions } from '@/lib/institutions';
-import { searchPeople, type PersonSummary } from './api';
+import { fetchSuggestions, searchPeople, setFollowing, type PersonSuggestion, type PersonSummary } from './api';
 
 const RECENT_KEY = 'commonroom:recent-searches';
 
@@ -37,6 +37,8 @@ export function SearchScreen() {
   const [peopleState, setPeople] = useState<PersonSummary[]>([]);
   const [statusState, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [retry, setRetry] = useState(0);
+  const [suggestions, setSuggestions] = useState<PersonSuggestion[]>([]);
+  const [followingNow, setFollowingNow] = useState<string[]>([]);
 
   const clean = query.trim();
   const searching = clean.length >= 2 && Boolean(account);
@@ -61,6 +63,32 @@ export function SearchScreen() {
       controller.abort();
     };
   }, [account, clean, retry, searching]);
+
+  // People You May Know: shown while the search box is empty, for signed-in members only. A failure just hides the list.
+  useEffect(() => {
+    if (!account) return;
+    let active = true;
+    void (async () => {
+      try {
+        await Promise.resolve();
+        const list = await fetchSuggestions(account);
+        if (active) setSuggestions(list);
+      } catch {
+        if (active) setSuggestions([]);
+      }
+    })();
+    return () => { active = false; };
+  }, [account]);
+
+  const follow = async (person: PersonSuggestion) => {
+    if (!account) return;
+    setFollowingNow((current) => [...current, person.id]);
+    try {
+      await setFollowing(account, person.id, true);
+    } catch {
+      setFollowingNow((current) => current.filter((id) => id !== person.id));
+    }
+  };
 
   const schools = useMemo(() => {
     if (clean.length < 2) return [];
@@ -94,6 +122,24 @@ export function SearchScreen() {
 
       {ready && !account ? (
         <StateBlock actions={<button className="cr-pbtn cr-pbtn--l" onClick={() => requireAccount('sign-in')} type="button">Sign in</button>} description="Sign in to search for students." icon="srch" title="Find people on campus" />
+      ) : null}
+
+      {account && clean.length < 2 && suggestions.length ? (
+        <>
+          <p className="cr-section-label">People you may know</p>
+          {suggestions.map((person) => (
+            <div key={person.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button className="cr-row-btn" onClick={() => router.push(`/u/${person.id}`)} style={{ flex: 1 }} type="button">
+                <UserAvatar name={person.display_name} src={person.avatar_url} tone="gray" />
+                <span className="cr-row-btn__main">
+                  <span className="cr-row-btn__title">{person.display_name}</span>
+                  <span className="cr-row-btn__sub">{[person.username ? `@${person.username}` : '', person.reason].filter(Boolean).join(' · ')}</span>
+                </span>
+              </button>
+              <button className="cr-ghost" disabled={followingNow.includes(person.id)} onClick={() => void follow(person)} type="button">{followingNow.includes(person.id) ? 'Following' : 'Follow'}</button>
+            </div>
+          ))}
+        </>
       ) : null}
 
       {account && clean.length < 2 ? (

@@ -427,7 +427,7 @@ export function CreatePost({ destination }: { destination: CreateDestination }) 
             <span className="cr-cnt">{anonymous ? 'Follows Community Guidelines' : 'Add #tags to help people find this'}</span>
             <span aria-live="polite" className={remaining < 0 ? 'cr-cnt cr-msg--e' : 'cr-cnt'}>{caption.length} / {maxLength}</span>
           </div>
-          {anonymous ? <p className="cr-note">You can delete a post later, but not edit it.</p> : null}
+          {anonymous ? <p className="cr-note">You can edit or delete your post later.</p> : null}
         </form>
 
         <input

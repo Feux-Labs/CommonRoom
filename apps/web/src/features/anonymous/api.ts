@@ -21,12 +21,13 @@ export type AnonPost = {
   created_at: string;
   media_items?: AnonMediaItem[];
   card_theme?: string;
+  edited?: boolean;
 };
 
 export type AnonPostPage = { posts: AnonPost[]; hasMore: boolean; nextCursor: string | null };
 export type AnonComment = { id: string; parent_comment_id: string | null; author_handle: string; body: string; created_at: string };
 export type AnonIdentity = { handle: string; created_at: string };
-export type InboxLink = { token: string; enabled: boolean };
+export type InboxLink = { token: string; enabled: boolean; prompt?: string | null; prompt_theme?: string | null };
 export type InboxThread = { id: string; last_message: string | null; last_message_at: string | null; message_count: number };
 export type InboxMessage = { id: string; body: string; is_mine: boolean; participant_label: 'Anonymous'; created_at: string };
 export type ReportTargetKind = 'post' | 'comment' | 'message';

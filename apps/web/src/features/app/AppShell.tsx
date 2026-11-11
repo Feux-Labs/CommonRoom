@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { BottomNav, type BottomNavItemLabel } from '@/components/cr/primitives';
 import { ROOM_ENABLED } from '@/lib/features';
+import { useFlag } from '@/lib/use-flags';
 import { useAppSession } from './AppSession';
 import { SignInNudge } from './SignInNudge';
 
@@ -18,15 +19,19 @@ const ROUTES: Record<BottomNavItemLabel, string> = {
 export function AppShell({ active, children, hideNav = false }: { active: BottomNavItemLabel | null; children: ReactNode; hideNav?: boolean }) {
   const router = useRouter();
   const { isGuest, openAuth, ready } = useAppSession();
+  const roomFlag = useFlag('room_tab');
+  const marketFlag = useFlag('market_tab');
+  const nudgeFlag = useFlag('signin_nudge');
 
   return (
     <div className="cr-app">
       {children}
-      {hideNav ? null : <SignInNudge />}
+      {hideNav || !nudgeFlag ? null : <SignInNudge />}
       {hideNav ? null : (
         <BottomNav
           active={active}
-          showRoom={ROOM_ENABLED}
+          showRoom={ROOM_ENABLED && roomFlag}
+          showMarket={marketFlag}
           onNavigate={(item) => {
             if (item === 'Me' && ready && isGuest) {
               openAuth('sign-in');

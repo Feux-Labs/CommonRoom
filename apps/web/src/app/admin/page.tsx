@@ -30,10 +30,12 @@ import {
   X,
 } from 'lucide-react';
 import { getBrowserSupabase, isSupabaseConfigured } from '@/lib/supabase-browser';
+import { FlagsPanel } from './FlagsPanel';
+import { GrowthPanel } from './GrowthPanel';
 
 const ADMIN_EMAIL = 'ibitoyrgideon79@gmail.com';
 
-type Tab = 'overview' | 'users' | 'moderation' | 'announcements';
+type Tab = 'overview' | 'users' | 'moderation' | 'announcements' | 'flags' | 'growth';
 
 type Analytics = {
   overview: Record<string, number>;
@@ -690,6 +692,20 @@ export default function AdminPage() {
           >
             <Megaphone size={15} /> Announcements
           </button>
+          <button
+            className={`admin-tab-btn ${activeTab === 'flags' ? 'active' : ''}`}
+            onClick={() => setActiveTab('flags')}
+            type="button"
+          >
+            Feature flags
+          </button>
+          <button
+            className={`admin-tab-btn ${activeTab === 'growth' ? 'active' : ''}`}
+            onClick={() => setActiveTab('growth')}
+            type="button"
+          >
+            Growth
+          </button>
         </nav>
 
         {/* TAB 1: OVERVIEW */}
@@ -1182,6 +1198,10 @@ export default function AdminPage() {
             )}
           </section>
         )}
+
+        {activeTab === 'growth' && session ? <GrowthPanel session={session} /> : null}
+
+        {activeTab === 'flags' && session ? <FlagsPanel session={session} /> : null}
 
         {/* TAB 4: ANNOUNCEMENTS */}
         {activeTab === 'announcements' && (

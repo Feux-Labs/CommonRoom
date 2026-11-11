@@ -628,6 +628,8 @@
   display: flex;
   min-height: 150px;
   align-items: center;
+  justify-content: center;
+  text-align: center;
   margin-top: 8px;
   border-radius: 18px;
   color: #fff;
