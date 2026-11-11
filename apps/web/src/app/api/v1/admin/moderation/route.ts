@@ -21,7 +21,7 @@ type QueueRow = {
 
 /** GET /api/v1/admin/moderation: open reports from Anonymous, Room and Marketplace, most-reported first. */
 export async function GET(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'moderation');
   if (!isAdminAuthenticated(auth)) return auth;
   try {
     const rows = await prisma.$queryRaw<QueueRow[]>`select * from public.moderation_queue(100)`;
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
 
 /** POST /api/v1/admin/moderation { source, reportId, action }: dismiss, remove, or remove and give a strike. */
 export async function POST(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'moderation');
   if (!isAdminAuthenticated(auth)) return auth;
 
   const body = await parseJson(request);

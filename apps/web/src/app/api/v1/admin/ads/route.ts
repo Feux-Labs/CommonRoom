@@ -16,7 +16,7 @@ async function readBody(request: Request): Promise<Record<string, unknown> | nul
 
 /** GET /api/v1/admin/ads: every ad with its views, clicks and click rate. */
 export async function GET(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'ads');
   if (!isAdminAuthenticated(auth)) return auth;
   const rows = await prisma.$queryRaw<AdRow[]>`
     select a.id::text as id, a.advertiser, a.title, a.body, a.image_url, a.cta_label, a.link_url, a.placement, a.school, a.starts_at, a.ends_at, a.status, a.owner_id::text as owner_id, a.targets, a.objective, a.price_kobo,
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
 
 /** POST /api/v1/admin/ads: create an ad. Links and images must be https. */
 export async function POST(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'ads');
   if (!isAdminAuthenticated(auth)) return auth;
   const body = await readBody(request);
   const text = (value: unknown, max: number) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
 /** PATCH /api/v1/admin/ads { id, status }: pause or resume. */
 export async function PATCH(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'ads');
   if (!isAdminAuthenticated(auth)) return auth;
   const body = await readBody(request);
   if (!body || typeof body.id !== 'string' || !uuid.test(body.id) || (body.status !== 'active' && body.status !== 'paused')) {
@@ -71,7 +71,7 @@ export async function PATCH(request: Request) {
 
 /** DELETE /api/v1/admin/ads { id } */
 export async function DELETE(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'ads');
   if (!isAdminAuthenticated(auth)) return auth;
   const body = await readBody(request);
   if (!body || typeof body.id !== 'string' || !uuid.test(body.id)) return apiError('invalid_input', 'Send an ad id.', 400);

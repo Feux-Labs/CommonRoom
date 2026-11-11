@@ -31,12 +31,15 @@ import {
 } from 'lucide-react';
 import { getBrowserSupabase, isSupabaseConfigured } from '@/lib/supabase-browser';
 import { FlagsPanel } from './FlagsPanel';
-import { GrowthPanel } from './GrowthPanel';
+import { AnalyticsPanel } from './AnalyticsPanel';
+import { SupportPanel } from './SupportPanel';
+import { SecurityPanel } from './SecurityPanel';
+import { TeamPanel } from './TeamPanel';
+import { adminCall, type AdminMe } from './adminApi';
 import { AdsPanel } from './AdsPanel';
 
-const ADMIN_EMAIL = 'ibitoyrgideon79@gmail.com';
 
-type Tab = 'overview' | 'users' | 'moderation' | 'announcements' | 'flags' | 'growth' | 'ads';
+type Tab = 'overview' | 'users' | 'moderation' | 'announcements' | 'flags' | 'growth' | 'ads' | 'support' | 'security' | 'team';
 
 type Analytics = {
   overview: Record<string, number>;
@@ -145,8 +148,12 @@ async function adminRequest<T>(
 export default function AdminPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(() => isSupabaseConfigured());
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [requestedTab, setActiveTab] = useState<Tab>('overview');
   const [password, setPassword] = useState('');
+  const [emailInput, setEmailInput] = useState('');
+  // Who this person is in the dashboard (their staff role and what it allows). Set by the server, never by an email in the page.
+  const [me, setMe] = useState<AdminMe | null>(null);
+  const [meChecked, setMeChecked] = useState(false);
 
   // Dashboard Data
   const [dashboardLoading, setDashboardLoading] = useState(false);
@@ -179,11 +186,12 @@ export default function AdminPage() {
     void supabase.auth.getSession().then(({ data, error: sessionError }) => {
       if (!active) return;
       if (sessionError) setError(sessionError.message);
-      setSession(data.session);
+      // A guest (anonymous) session is not a staff sign-in: treat it as signed out so the form appears.
+      setSession(data.session && !data.session.user.is_anonymous ? data.session : null);
       setLoading(false);
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
+      setSession(nextSession && !nextSession.user.is_anonymous ? nextSession : null);
       setError('');
     });
     return () => {
@@ -192,22 +200,43 @@ export default function AdminPage() {
     };
   }, [supabase]);
 
-  const authorized = Boolean(
-    session?.user.email_confirmed_at &&
-      session.user.email?.trim().toLowerCase() === ADMIN_EMAIL
-  );
+  const authorized = Boolean(session && me);
+  const has = useCallback((permission: string) => Boolean(me?.permissions.includes(permission)), [me]);
+
+  useEffect(() => {
+    if (!session) return;
+    let active = true;
+    void (async () => {
+      await Promise.resolve();
+      if (active) setMeChecked(false);
+      try {
+        const info = await adminCall<AdminMe>(session, '/api/v1/admin/me');
+        if (active) setMe(info);
+      } catch {
+        if (active) setMe(null);
+      } finally {
+        if (active) setMeChecked(true);
+      }
+    })();
+    return () => { active = false; };
+  }, [session]);
+
+  // The tab being shown: the one asked for if this role may use it, otherwise the first tab it may use.
+  const tabPermission: Record<Tab, string> = { overview: 'analytics', growth: 'analytics', users: 'users', moderation: 'moderation', support: 'support', security: 'security', announcements: 'broadcast', flags: 'flags', ads: 'ads', team: 'team_staff' };
+  const firstAllowed = (['overview', 'moderation', 'support', 'users', 'security', 'growth', 'team'] as Tab[]).find((tab) => has(tabPermission[tab]));
+  const activeTab: Tab = has(tabPermission[requestedTab]) ? requestedTab : firstAllowed ?? requestedTab;
 
   const loadDashboard = useCallback(async () => {
     if (!session || !authorized) return;
     setDashboardLoading(true);
     try {
       const [analyticsData, reportsData, broadcastData] = await Promise.all([
-        adminRequest<Analytics>(session, '/api/v1/admin/analytics'),
-        adminRequest<Reports>(session, '/api/v1/admin/reports'),
+        has('analytics') ? adminRequest<Analytics>(session, '/api/v1/admin/analytics') : Promise.resolve(null),
+        has('moderation') ? adminRequest<Reports>(session, '/api/v1/admin/reports') : Promise.resolve(null),
         adminRequest<{ broadcast: Broadcast }>(session, '/api/v1/admin/broadcast'),
       ]);
-      setAnalytics(analyticsData);
-      setReports(reportsData);
+      if (analyticsData) setAnalytics(analyticsData);
+      if (reportsData) setReports(reportsData);
       setBroadcast(broadcastData.broadcast);
       setBroadcastDraft(broadcastData.broadcast?.message ?? '');
       setError('');
@@ -216,7 +245,7 @@ export default function AdminPage() {
     } finally {
       setDashboardLoading(false);
     }
-  }, [authorized, session]);
+  }, [authorized, has, session]);
 
   const loadUsers = useCallback(
     async (page = 1, query = userSearchQuery, school = userSchoolFilter) => {
@@ -265,7 +294,7 @@ export default function AdminPage() {
     }
     setError('');
     const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: ADMIN_EMAIL,
+      email: emailInput.trim(),
       password,
     });
     if (signInError) setError(signInError.message);
@@ -522,10 +551,10 @@ export default function AdminPage() {
             </span>
             <span className="eyebrow">PRIVATE ADMIN AREA</span>
             <h1>Sign in to Admin</h1>
-            <p>Only the authorized Commonroom administrator can enter this console.</p>
+            <p>Staff only. Sign in with the account you were given.</p>
             <label>
               Email
-              <input autoComplete="username" readOnly value={ADMIN_EMAIL} />
+              <input autoComplete="username" onChange={(event) => setEmailInput(event.target.value)} required type="email" value={emailInput} />
             </label>
             <label>
               Password
@@ -548,6 +577,14 @@ export default function AdminPage() {
             <Link href="/">Return to Commonroom</Link>
           </form>
         </main>
+      </AppRouteShell>
+    );
+  }
+
+  if (session && !meChecked) {
+    return (
+      <AppRouteShell active={null}>
+        <main className="admin-page"><p aria-busy="true" role="status" style={{ padding: 24 }}>Checking your access…</p></main>
       </AppRouteShell>
     );
   }
@@ -621,7 +658,7 @@ export default function AdminPage() {
           </span>
         </a>
         <div>
-          <span>{ADMIN_EMAIL}</span>
+          <span>{me?.email} · {me?.role}</span>
           <button className="secondary-button" onClick={() => void signOut()} type="button">
             <LogOut size={14} /> Sign out
           </button>
@@ -662,58 +699,16 @@ export default function AdminPage() {
 
         {/* Navigation Tabs */}
         <nav className="admin-nav-tabs" aria-label="Admin Navigation Tabs">
-          <button
-            className={`admin-tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => setActiveTab('overview')}
-            type="button"
-          >
-            <BarChart3 size={15} /> Analytics
-          </button>
-          <button
-            className={`admin-tab-btn ${activeTab === 'users' ? 'active' : ''}`}
-            onClick={() => setActiveTab('users')}
-            type="button"
-          >
-            <Users size={15} /> Users
-          </button>
-          <button
-            className={`admin-tab-btn ${activeTab === 'moderation' ? 'active' : ''}`}
-            onClick={() => setActiveTab('moderation')}
-            type="button"
-          >
-            <ShieldAlert size={15} /> Reports
-            {totalReportsCount > 0 ? (
-              <span className="admin-tab-count">{totalReportsCount}</span>
-            ) : null}
-          </button>
-          <button
-            className={`admin-tab-btn ${activeTab === 'announcements' ? 'active' : ''}`}
-            onClick={() => setActiveTab('announcements')}
-            type="button"
-          >
-            <Megaphone size={15} /> Announcements
-          </button>
-          <button
-            className={`admin-tab-btn ${activeTab === 'flags' ? 'active' : ''}`}
-            onClick={() => setActiveTab('flags')}
-            type="button"
-          >
-            Feature flags
-          </button>
-          <button
-            className={`admin-tab-btn ${activeTab === 'growth' ? 'active' : ''}`}
-            onClick={() => setActiveTab('growth')}
-            type="button"
-          >
-            Growth
-          </button>
-          <button
-            className={`admin-tab-btn ${activeTab === 'ads' ? 'active' : ''}`}
-            onClick={() => setActiveTab('ads')}
-            type="button"
-          >
-            Ads
-          </button>
+          {([
+            ['overview', 'analytics', 'Overview'], ['growth', 'analytics', 'Analytics'], ['users', 'users', 'Users'], ['moderation', 'moderation', 'Reports'],
+            ['support', 'support', 'User issues'], ['security', 'security', 'Security'], ['announcements', 'broadcast', 'Announcements'],
+            ['flags', 'flags', 'Feature flags'], ['ads', 'ads', 'Ads'], ['team', 'team_staff', 'Team'],
+          ] as Array<[Tab, string, string]>).filter(([, permission]) => has(permission)).map(([tab, , label]) => (
+            <button className={`admin-tab-btn ${activeTab === tab ? 'active' : ''}`} key={tab} onClick={() => setActiveTab(tab)} type="button">
+              {label}
+              {tab === 'moderation' && totalReportsCount > 0 ? <span className="admin-tab-count">{totalReportsCount}</span> : null}
+            </button>
+          ))}
         </nav>
 
         {/* TAB 1: OVERVIEW */}
@@ -1209,7 +1204,10 @@ export default function AdminPage() {
 
         {activeTab === 'ads' && session ? <AdsPanel session={session} /> : null}
 
-        {activeTab === 'growth' && session ? <GrowthPanel session={session} /> : null}
+        {activeTab === 'growth' && session ? <AnalyticsPanel session={session} /> : null}
+        {activeTab === 'support' && session ? <SupportPanel session={session} /> : null}
+        {activeTab === 'security' && session ? <SecurityPanel session={session} /> : null}
+        {activeTab === 'team' && session && me ? <TeamPanel me={me} onLocked={() => setMe({ ...me, creationLocked: true })} session={session} /> : null}
 
         {activeTab === 'flags' && session ? <FlagsPanel session={session} /> : null}
 

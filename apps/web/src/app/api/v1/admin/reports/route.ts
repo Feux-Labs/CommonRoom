@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 
 /** GET /api/v1/admin/reports — admin-only: list all reports with post & reporter details */
 export async function GET(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'moderation');
   if (!isAdminAuthenticated(auth)) return auth;
 
   const [postReports, marketplaceReports] = await Promise.all([
@@ -87,7 +87,7 @@ export async function GET(request: Request) {
 
 /** DELETE /api/v1/admin/reports — admin-only: resolve or dismiss report, optionally taking down content */
 export async function DELETE(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'moderation');
   if (!isAdminAuthenticated(auth)) return auth;
 
   try {

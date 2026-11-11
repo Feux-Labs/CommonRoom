@@ -115,7 +115,21 @@ export function AuthFlow({
       ? 'checking'
       : checked.unknown ? 'unknown' : checked.available ? 'available' : 'taken';
 
+  // Where this person has been inside the account flow, so Back goes to the screen before, and closes the flow (leaving them
+  // exactly where they were in the app) when there is nothing before. It never drops them on the welcome screen.
+  const trail = useRef<AuthRoute[]>([]);
+  const goBack = () => {
+    const previous = trail.current.pop();
+    if (!previous) { onClose(); return; }
+    setFailure(null);
+    setFieldError('');
+    setNotice('');
+    setCode('');
+    setShowPassword(false);
+    onRouteChange(previous);
+  };
   const go = (next: AuthRoute) => {
+    trail.current.push(route);
     setFailure(null);
     setFieldError('');
     setNotice('');
@@ -390,23 +404,13 @@ export function AuthFlow({
         <h1 className="cr-auth__title cr-auth__title--center" ref={headingRef} tabIndex={-1}>You were signed out</h1>
         <p className="cr-auth__sub cr-auth__sub--center">Your session expired. Sign in again to continue.</p>
         <button className="cr-auth__btn" onClick={() => go('sign-in')} type="button">Sign in</button>
-        <p className="cr-auth__foot"><button className="cr-auth__link" onClick={() => go('welcome')} type="button">Back to welcome</button></p>
+        <p className="cr-auth__foot"><button className="cr-auth__link" onClick={onClose} type="button">Not now</button></p>
       </AuthSurface>
     );
   }
 
-  const backTarget: Partial<Record<AuthRoute, AuthRoute>> = {
-    'sign-in': 'welcome',
-    'sign-up-email': 'welcome',
-    'sign-up-password': 'sign-up-email',
-    'sign-up-username': 'sign-up-password',
-    'verify-email': 'sign-up-email',
-    'forgot-password': 'sign-in',
-    'reset-password': recoverySession ? 'welcome' : 'forgot-password',
-  };
-  const back = backTarget[route];
   const backButton = (
-    <button aria-label="Back" className="cr-auth__back" onClick={() => (back ? go(back) : onClose())} type="button">
+    <button aria-label="Back" className="cr-auth__back" onClick={goBack} type="button">
       <Icon name="back" />
     </button>
   );
@@ -653,10 +657,15 @@ function ProviderButtons({
       <div className="cr-auth__provider-stack">
         <GoogleSignInButton context={context} disabled={disabled} onError={onError} onSignedIn={onSignedIn} />
         {APPLE_ENABLED ? (
-          <button className="ghost" disabled={disabled} onClick={onApple} type="button">Continue with Apple</button>
+          <button className="cr-auth__social" disabled={disabled} onClick={onApple} type="button">
+            <svg aria-hidden="true" height="18" viewBox="0 0 24 24" width="18"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" fill="currentColor" /></svg>
+            <span>Continue with Apple</span>
+          </button>
         ) : null}
         {TIKTOK_ENABLED ? (
-          <a aria-disabled={disabled} className="ghost" href="/api/auth/tiktok/start" style={{ textAlign: 'center' }}>Continue with TikTok</a>
+          <a aria-disabled={disabled} className="cr-auth__social" href="/api/auth/tiktok/start">
+            <span>Continue with TikTok</span>
+          </a>
         ) : null}
       </div>
     </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { StateBlock } from '@/components/cr/FeedStates';
 import { Icon } from '@/components/cr/Icon';
@@ -10,11 +11,11 @@ import { fetchMyLevel, fetchProPrice, startProCheckout, type MyLevel } from './a
 import './pro.css';
 
 const PERKS = [
-  ['A Pro badge', 'Shows next to your name on your profile.'],
+  ['Blue verified tick', 'A blue tick next to your name shows you are a verified member.'],
+  ['See hints about who messaged you', 'When someone chooses to share their school, year or course, you see it in the conversation.'],
+  ['2 free ad days', 'Your first Pro subscription includes 2 days of advertising on us.'],
   ['Double points', 'Your rank points count double until the end of Doctore.'],
   ['More Communities', 'Run up to 15 Communities instead of 5.'],
-  ['No ads', 'Sponsored posts never appear in your feeds.'],
-  ['Supports Common Room', 'Helps keep it free, safe and moderated for everyone.'],
 ] as const;
 
 /** What Pro is, what it costs, and how to pay (Paystack opens in the same tab and returns here). */
@@ -84,7 +85,7 @@ export function ProScreen() {
           <ul className="cr-pro__perks">
             {PERKS.map(([title, text]) => <li key={title}><b>{title}</b><span>{text}</span></li>)}
           </ul>
-          {level?.pro ? <p className="cr-pro__status" role="status">You’re Pro until {until}. Paying again adds 30 more days.</p> : null}
+          {level?.pro ? <p className="cr-pro__status" role="status">You’re Pro until {until}. Paying again adds 30 more days. <Link href="/advertise">Use your free ad days</Link></p> : null}
           {error ? <p role="alert" style={{ color: '#b3261e' }}>{error}</p> : null}
           <button className="cr-pbtn cr-pbtn--l cr-pro__cta" disabled={busy || !account} onClick={() => void subscribe()} type="button">{busy ? 'Opening Paystack…' : level?.pro ? 'Add 30 days' : 'Go Pro'}</button>
           <p className="cr-pro__fine">Payments are handled by Paystack. We never see your card details.</p>

@@ -110,7 +110,7 @@ export function GoogleSignInButton({
           type: 'standard',
           theme: 'outline',
           size: 'large',
-          shape: 'pill',
+          shape: 'rectangular',
           text: context === 'signup' ? 'signup_with' : 'continue_with',
           logo_alignment: 'left',
           width: Math.min(container.current.clientWidth || 320, 400),

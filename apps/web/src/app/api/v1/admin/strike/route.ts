@@ -9,7 +9,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * Strike 1 pauses the account for 3 days, strike 2 for 7 days, strike 3 and later is a ban. Each lifts after 7 days at most.
  */
 export async function POST(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'moderation');
   if (!isAdminAuthenticated(auth)) return auth;
 
   const body = await parseJson(request);

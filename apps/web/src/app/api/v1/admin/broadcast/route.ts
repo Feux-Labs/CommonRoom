@@ -10,7 +10,7 @@ export async function GET() {
 
 /** POST /api/v1/admin/broadcast — admin only: set broadcast */
 export async function POST(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'broadcast');
   if (!isAdminAuthenticated(auth)) return auth;
 
   let body: unknown;
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
 /** DELETE /api/v1/admin/broadcast — admin only: clear broadcast */
 export async function DELETE(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'broadcast');
   if (!isAdminAuthenticated(auth)) return auth;
 
   await prisma.adminBroadcast.deleteMany({ where: { key: 'global' } });

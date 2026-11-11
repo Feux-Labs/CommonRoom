@@ -416,12 +416,13 @@ export function CreatePost({ destination, communityId }: { destination: CreateDe
           {anonymous ? (
             <>
               <div className="cr-create__tools">
-                <button className="cr-ghost cr-ghost--l" disabled={publishing || files.length >= ANON_MAX_PHOTOS} onClick={() => openPicker('photo')} type="button"><Icon name="img" />Add photo</button>
+                <button className="cr-ghost cr-ghost--l" disabled={publishing || kind === 'video' || files.length >= ANON_MAX_PHOTOS} onClick={() => openPicker('photo')} type="button"><Icon name="img" />Add photo</button>
+                <button className="cr-ghost cr-ghost--l" disabled={publishing || files.length > 0} onClick={() => openPicker('video')} type="button"><Icon name="vid" />Add video</button>
               </div>
               {files.length ? (
                 <label className="cr-sens-opt">
                   <input checked={sensitive} disabled={publishing} onChange={(event) => setSensitive(event.target.checked)} type="checkbox" />
-                  <span>This photo is sensitive. People tap to view it.</span>
+                  <span>This {kind === 'video' ? 'video' : 'photo'} is sensitive. People tap to view it.</span>
                 </label>
               ) : null}
             </>

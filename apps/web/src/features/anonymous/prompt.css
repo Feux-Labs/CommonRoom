@@ -19,3 +19,9 @@
 .cr-web__get { margin: 18px 14px 28px; text-align: center; font-size: 13px; color: #6b6f8a; }
 .cr-web__get a { color: inherit; font-weight: 600; text-decoration: underline; }
 .cr-web__mark { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 6px; font-size: 15px; font-weight: 600; color: #14183a; }
+
+.cr-web__hints { border: 0; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; font-size: 0.82rem; }
+.cr-web__hints legend { padding: 0; margin-bottom: 4px; font-size: 0.78rem; opacity: 0.75; }
+.cr-web__hints label { display: flex; align-items: center; gap: 8px; }
+.cr-hints { margin: 0 14px 8px; padding: 10px 12px; border-radius: 12px; background: rgba(70, 90, 200, 0.1); font-size: 0.82rem; line-height: 1.45; }
+.cr-hints a { font-weight: 600; }

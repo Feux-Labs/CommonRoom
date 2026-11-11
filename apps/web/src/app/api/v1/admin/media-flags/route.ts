@@ -6,7 +6,7 @@ type FlagRow = { path: string; owner_id: string | null; kind: string; level: str
 
 /** GET /api/v1/admin/media-flags: photos and videos the scanner flagged, newest first, so a person can review them. */
 export async function GET(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'moderation');
   if (!isAdminAuthenticated(auth)) return auth;
   try {
     const rows = await prisma.$queryRaw<FlagRow[]>`

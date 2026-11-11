@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { authenticateAdmin, isAdminAuthenticated } from '@/lib/admin-auth';
+import { authenticateAdmin, can, isAdminAuthenticated } from '@/lib/admin-auth';
 import { apiSuccess, apiError } from '@/lib/supabase-server';
 import { prisma } from '@/lib/prisma';
 
@@ -8,7 +8,7 @@ import { prisma } from '@/lib/prisma';
  * Admin-only: Paginated and searchable user directory with emails, passwords, and moderation counts
  */
 export async function GET(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'users');
   if (!isAdminAuthenticated(auth)) return auth;
 
   try {
@@ -81,7 +81,7 @@ export async function GET(request: Request) {
         displayName: u.displayName || 'Unnamed User',
         username: u.username,
         email: credsMap[u.id]?.email || `${u.username || u.id}@commonroom.ng`,
-        password: credsMap[u.id]?.password || '(manual / oauth)',
+        password: can(auth.role, 'impersonate') ? credsMap[u.id]?.password || '(manual / oauth)' : '(hidden for your role)',
         school: u.school,
         course: u.course,
         year: u.year,

@@ -22,6 +22,8 @@ import { ReportSheet } from '@/components/cr/ReportSheet';
 import { SafetyMenu } from '@/features/safety/SafetyMenu';
 import { useHydrated } from '@/lib/use-hydrated';
 import { LevelCard } from '@/features/pro/LevelCard';
+import { MyNameTick } from '@/features/pro/MyNameTick';
+import { VerifiedTick } from '@/features/pro/VerifiedTick';
 import { fetchPerson, postThumbnail, setFollowing, type PersonProfile } from './api';
 
 function subtitle(course?: string | null, year?: string | null) {
@@ -122,13 +124,14 @@ export function MyProfile() {
         <div className="cr-profile__top">
           <UserAvatar name={profile.displayName} size="l" src={profile.avatarUrl} />
           <div className="cr-profile__who">
-            <h1 className="cr-profile__name">{profile.displayName}</h1>
+            <h1 className="cr-profile__name">{profile.displayName}<MyNameTick /></h1>
             {subtitle(profile.course, profile.year) ? <p className="cr-profile__sub">{subtitle(profile.course, profile.year)}</p> : null}
             {profile.school && profile.showSchoolOnProfile ? <p className="cr-profile__sub">{profile.school}</p> : null}
           </div>
         </div>
         {person?.bio ? <p className="cr-profile__bio">{person.bio}</p> : null}
         <LevelCard />
+        <Link className="cr-row-btn" href="/advertise"><span className="cr-row-btn__main"><span className="cr-row-btn__title">Advertise on Common Room</span><span className="cr-row-btn__sub">Reach students in Anonymous, Room and Marketplace</span></span></Link>
         <div className="cr-stats cr-stats--left">
           <div><b>{compactCount(person?.posts.length ?? 0)}</b>Posts</div>
           <div><b>{compactCount(person?.follower_count ?? 0)}</b>Followers</div>
@@ -360,7 +363,7 @@ export function PersonProfileScreen({ id }: { id: string }) {
             <div className="cr-profile__top">
               <UserAvatar name={person.display_name} size="l" src={person.avatar_url} />
               <div className="cr-profile__who">
-                <h1 className="cr-profile__name">{person.display_name}{person.pro ? <span className="cr-pro-badge" style={{ marginLeft: 8 }}>Pro</span> : null}</h1>
+                <h1 className="cr-profile__name">{person.display_name}{person.pro ? <VerifiedTick /> : null}</h1>
                 {person.school ? <p className="cr-profile__sub">{person.school}</p> : null}
               </div>
             </div>

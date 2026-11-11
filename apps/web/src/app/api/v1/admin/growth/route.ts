@@ -6,7 +6,7 @@ const n = (value: unknown) => Number(value ?? 0);
 
 /** GET /api/v1/admin/growth: active people, guests versus members, where people come from, and the sign-up funnel. */
 export async function GET(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'analytics');
   if (!isAdminAuthenticated(auth)) return auth;
 
   const [active, split, sources, funnel] = await Promise.all([

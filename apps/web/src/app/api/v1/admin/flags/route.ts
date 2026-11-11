@@ -7,7 +7,7 @@ type FlagRow = { key: string; enabled: boolean; description: string; updated_at:
 
 /** GET /api/v1/admin/flags: every flag with its description. */
 export async function GET(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'flags');
   if (!isAdminAuthenticated(auth)) return auth;
   const rows = await prisma.$queryRaw<FlagRow[]>`select key, enabled, description, updated_at from public.feature_flags order by key`;
   return apiSuccess({ flags: rows.map((row) => ({ key: row.key, enabled: row.enabled, description: row.description, updatedAt: row.updated_at.toISOString() })) });
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
 /** PUT /api/v1/admin/flags: { key, enabled } flips one switch. */
 export async function PUT(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'flags');
   if (!isAdminAuthenticated(auth)) return auth;
   let body: unknown;
   try { body = await request.json(); } catch { return apiError('invalid_json', 'Invalid request body.', 400); }

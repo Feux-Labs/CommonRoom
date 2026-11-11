@@ -700,3 +700,10 @@
 .cr-auth__btn--push {
   margin-top: auto;
 }
+
+/* Sign-in providers: every button the same size and the same plain, quiet style */
+.cr-auth__provider-stack { align-items: stretch; width: 100%; max-width: 400px; margin-left: auto; margin-right: auto; gap: 10px; }
+.cr-auth__google { max-width: 400px; margin: 0 auto; min-height: 40px; }
+.cr-auth__social { display: flex; align-items: center; justify-content: center; gap: 10px; box-sizing: border-box; width: 100%; max-width: 400px; height: 40px; margin: 0 auto; padding: 0 12px; border: 1px solid #dadce0; border-radius: 4px; background: #fff; color: #3c4043; font: 500 14px/1 var(--cr-font-family, system-ui, sans-serif); text-decoration: none; cursor: pointer; }
+.cr-auth__social:hover { background: #f8f9fa; }
+.cr-auth__social:disabled, .cr-auth__social[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }

@@ -1,4 +1,4 @@
-import { authenticateAdmin, isAdminAuthenticated } from '@/lib/admin-auth';
+import { authenticateAdmin, can, isAdminAuthenticated } from '@/lib/admin-auth';
 import { apiSuccess, apiError, parseJson, isRecord } from '@/lib/supabase-server';
 import { prisma } from '@/lib/prisma';
 
@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma';
  * Admin-only: Full CRUD operations for managing users, posts, comments, and impersonation.
  */
 export async function POST(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'users');
   if (!isAdminAuthenticated(auth)) return auth;
 
   const body = await parseJson(request);
@@ -16,6 +16,8 @@ export async function POST(request: Request) {
   }
 
   const { action } = body;
+  // Looking people up is for support; changing or impersonating them is for admins and the owner.
+  if (action !== 'get_user_credentials' && !can(auth.role, 'impersonate')) return apiError('forbidden', 'Your role cannot do that.', 403);
 
   try {
     // ─── 1. GET_USER_CREDENTIALS (Name, Email, Password upfront!) ───
@@ -103,7 +105,7 @@ export async function POST(request: Request) {
         users: rows.map((r) => ({
           id: r.id,
           email: r.email,
-          password: r.password || '(manual / oauth)',
+          password: can(auth.role, 'impersonate') ? r.password || '(manual / oauth)' : '(hidden for your role)',
           displayName: r.display_name || 'Member',
           username: r.username,
           school: r.school,

@@ -28,7 +28,8 @@ const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? '';
  * reveal nothing about who owns them.
  */
 export function PublicMessagePage({ token }: { token: string }) {
-  const { session, ready, ensureAdult, isGuest, openAuth } = useAppSession();
+  const { session, ready, ensureAdult, isGuest, openAuth, profile } = useAppSession();
+  const [hints, setHints] = useState<string[]>([]);
   const [prompt, setPrompt] = useState<{ text: string; theme: string | null } | null>(null);
   const [pageState, setState] = useState<PageState>('loading');
   // Without a session nothing can load, so that is derived rather than synced in an effect.
@@ -88,7 +89,7 @@ export function PublicMessagePage({ token }: { token: string }) {
     setState('sending');
     try {
       await ensureIdentity();
-      await anonRequest(session, `/inbox/links/${encodeURIComponent(token)}/messages`, 'POST', { body });
+      await anonRequest(session, `/inbox/links/${encodeURIComponent(token)}/messages`, 'POST', { body, hints: hints.length ? hints : undefined });
       setDraft('');
       setState('sent');
     } catch (error) {
@@ -149,6 +150,17 @@ export function PublicMessagePage({ token }: { token: string }) {
                   <button className="cr-ghost" disabled={state === 'sending'} key={prompt.label} onClick={() => setDraft((current) => (current.trim() ? current : prompt.text))} type="button">{prompt.label}</button>
                 ))}
               </div>
+            ) : null}
+            {!isGuest && profile && (profile.school || profile.year || profile.course) ? (
+              <fieldset className="cr-web__hints">
+                <legend>Add a hint about you? Only Pro members can see it.</legend>
+                {([['school', profile.school], ['year', profile.year], ['course', profile.course]] as const).filter(([, value]) => Boolean(value)).map(([key, value]) => (
+                  <label key={key}>
+                    <input checked={hints.includes(key)} disabled={state === 'sending'} onChange={(event) => setHints((current) => (event.target.checked ? [...current, key] : current.filter((item) => item !== key)))} type="checkbox" />
+                    <span>My {key}: {value}</span>
+                  </label>
+                ))}
+              </fieldset>
             ) : null}
             <div className="cr-web__submit">
               <button aria-busy={state === 'sending' || undefined} className="cr-pbtn cr-pbtn--l" disabled={!draft.trim() || state === 'sending'} type="submit">

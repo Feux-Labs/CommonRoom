@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { logSecurityEvent } from './request-log';
 
 type AuthenticatedRequest = {
   supabase: SupabaseClient;
@@ -77,6 +78,7 @@ export async function authenticateRequest(request: Request): Promise<Authenticat
   const accessToken = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
 
   if (!accessToken) {
+    logSecurityEvent(request, 'auth_failed', { status: 401, flag: 'no token' });
     return apiError('unauthorized', 'Sign in to continue.', 401);
   }
 
@@ -84,6 +86,7 @@ export async function authenticateRequest(request: Request): Promise<Authenticat
     const supabase = createUserSupabase(accessToken);
     const { data, error } = await supabase.auth.getUser(accessToken);
     if (error || !data.user) {
+      logSecurityEvent(request, 'auth_failed', { status: 401, flag: 'invalid or expired token' });
       return apiError('unauthorized', 'Your session is invalid or expired. Sign in again.', 401);
     }
     if (WRITE_METHODS.has(request.method)) {

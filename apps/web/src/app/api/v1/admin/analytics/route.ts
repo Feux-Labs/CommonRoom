@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 
 /** GET /api/v1/admin/analytics — admin-only analytics dashboard data */
 export async function GET(request: Request) {
-  const auth = await authenticateAdmin(request);
+  const auth = await authenticateAdmin(request, 'analytics');
   if (!isAdminAuthenticated(auth)) return auth;
 
   const now = new Date();

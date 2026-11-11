@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnonAvatar } from '@/components/cr/Avatars';
 import { BottomSheet } from '@/components/cr/BottomSheet';
@@ -354,6 +355,7 @@ export function AnonymousThread({ threadId }: { threadId: string }) {
   const [sending, setSending] = useState(false);
   const [shareMessage, setShareMessage] = useState<InboxMessage | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [hintInfo, setHintInfo] = useState<{ locked: boolean; count: number; hints: Record<string, string> } | null>(null);
   const [replyFor, setReplyFor] = useState<InboxMessage | null>(null);
   const [replyText, setReplyText] = useState('');
   const [replyCard, setReplyCard] = useState<{ question: string; answer: string; url: string } | null>(null);
@@ -435,6 +437,22 @@ export function AnonymousThread({ threadId }: { threadId: string }) {
     }
   };
 
+  // Hints the sender chose to share. Only the link owner is asked; without Pro they only learn that hints exist.
+  useEffect(() => {
+    if (!ready || !account || fromSent) return;
+    let active = true;
+    void (async () => {
+      try {
+        await Promise.resolve();
+        const info = await anonRequest<{ locked: boolean; count: number; hints: Record<string, string> }>(account, `/inbox/threads/${threadId}/hints`);
+        if (active) setHintInfo(info);
+      } catch {
+        if (active) setHintInfo(null);
+      }
+    })();
+    return () => { active = false; };
+  }, [account, fromSent, ready, threadId]);
+
   // Builds the card from the message and your answer. The card links to your own link, so people who see it can message you.
   const makeReplyCard = async () => {
     if (!replyFor || !account || !replyText.trim()) return;
@@ -460,6 +478,14 @@ export function AnonymousThread({ threadId }: { threadId: string }) {
         </div>
         <button aria-label="Block this conversation" className="cr-icon-btn" onClick={() => setBlockOpen(true)} type="button"><Icon name="blk" /></button>
       </header>
+
+      {hintInfo && hintInfo.count > 0 ? (
+        <p className="cr-hints" role="note">
+          {hintInfo.locked
+            ? <>They shared {hintInfo.count} {hintInfo.count === 1 ? 'hint' : 'hints'} about themselves. <Link href="/pro">Go Pro to see {hintInfo.count === 1 ? 'it' : 'them'}.</Link></>
+            : <>Hints they chose to share: {[hintInfo.hints.school, hintInfo.hints.year, hintInfo.hints.course].filter(Boolean).join(' · ')}</>}
+        </p>
+      ) : null}
 
       <div className="cr-thread__list">
         {status === 'loading' ? <FeedSkeleton count={2} label="Loading conversation" media={false} /> : null}

@@ -28,3 +28,4 @@
 .cr-levels__rank--now { background: rgba(70, 90, 200, 0.14); font-weight: 600; }
 .cr-levels__rank--locked { opacity: 0.5; }
 .cr-levels__fine { margin: 6px 14px 0; font-size: 0.75rem; opacity: 0.65; line-height: 1.45; }
+.cr-tick { display: inline-block; vertical-align: -3px; margin-left: 6px; flex: none; }
