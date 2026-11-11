@@ -94,7 +94,7 @@ function useInboxLink() {
 /** "Inbox and link" screen and mockup 74 (empty). */
 export function AnonymousInbox() {
   const router = useRouter();
-  const { session: account, ready, requireAccount } = useAppSession();
+  const { session: account, ready, requireAccount, isGuest, openAuth } = useAppSession();
   const { link, setLink, busy, create, setEnabled, copy, share, shareSheet, savePrompt } = useInboxLink();
   const [promptOpen, setPromptOpen] = useState(false);
   const [threads, setThreads] = useState<InboxThread[]>([]);
@@ -157,7 +157,7 @@ export function AnonymousInbox() {
     <button className="cr-row-btn" key={thread.id} onClick={() => router.push(`/anonymous/inbox/thread/${thread.id}`)} type="button">
       <AnonAvatar />
       <span className="cr-row-btn__main">
-        <span className="cr-row-btn__title">Anonymous</span>
+        <span className="cr-row-btn__title">{thread.participant || 'Anonymous'}</span>
         <span className="cr-row-btn__sub">{thread.last_message ?? 'Private conversation'}</span>
       </span>
       <span className="cr-row-btn__meta">
@@ -177,6 +177,13 @@ export function AnonymousInbox() {
         </div>
         <button aria-label="Link settings" className="cr-icon-btn" onClick={() => router.push('/anonymous/link')} type="button"><Icon name="cog" /></button>
       </header>
+
+      {isGuest ? (
+        <p className="cr-note" role="note" style={{ margin: '0 14px 8px' }}>
+          Your inbox works without an account. Sign in to keep your message history if you change phone or clear your browser.{' '}
+          <button className="cr-link" onClick={() => openAuth('sign-in')} type="button">Sign in</button>
+        </p>
+      ) : null}
 
       {status === 'loading' ? <FeedSkeleton count={3} label="Loading Inbox" media={false} /> : null}
       {status === 'error' ? <ErrorBlock description="Check your connection and try again." onRetry={reload} title="Couldn’t load your Inbox" /> : null}
@@ -227,7 +234,7 @@ export function AnonymousInbox() {
                 <button className="cr-row-btn" key={thread.id} onClick={() => router.push(`/anonymous/inbox/thread/${thread.id}?from=sent`)} type="button">
                   <AnonAvatar />
                   <span className="cr-row-btn__main">
-                    <span className="cr-row-btn__title">Your anonymous message</span>
+                    <span className="cr-row-btn__title">To {thread.participant || 'Anonymous'}</span>
                     <span className="cr-row-btn__sub">{thread.last_message ?? 'Private conversation'}</span>
                   </span>
                   <span className="cr-row-btn__meta">
@@ -448,7 +455,7 @@ export function AnonymousThread({ threadId }: { threadId: string }) {
         <button aria-label="Back to Inbox" className="cr-icon-btn" onClick={() => router.push('/anonymous/inbox')} type="button"><Icon name="back" /></button>
         <AnonAvatar />
         <div className="cr-hd__grow">
-          <h1 className="cr-hd__t">Anonymous</h1>
+          <h1 className="cr-hd__t">{messages[0]?.other_handle || 'Anonymous'}</h1>
           <p className="cr-hd__sub">Only you can see this.</p>
         </div>
         <button aria-label="Block this conversation" className="cr-icon-btn" onClick={() => setBlockOpen(true)} type="button"><Icon name="blk" /></button>
@@ -489,7 +496,7 @@ export function AnonymousThread({ threadId }: { threadId: string }) {
 
       <BottomSheet context="Inbox" onClose={() => setShareMessage(null)} open={Boolean(shareMessage)} title="Share this message publicly?">
         <div className="cr-pv"><AnonAvatar size="s" /><p>{shareMessage?.body}</p></div>
-        <p className="cr-note">It will appear in the Anonymous feed. Your name and the sender’s identity are not shown. Nothing else from your Inbox is shared.</p>
+        <p className="cr-note">It will appear in the Anonymous feed under your Anonymous ID. Your real name and the sender’s ID are not shown. Nothing else from your Inbox is shared.</p>
         <div className="cr-acts">
           <button className="cr-ghost cr-ghost--l" onClick={() => setShareMessage(null)} type="button">Cancel</button>
           <button className="cr-pbtn cr-pbtn--l" disabled={sharing} onClick={() => void confirmShare()} type="button">{sharing ? 'Sharing…' : 'Share'}</button>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnonAvatar } from '@/components/cr/Avatars';
 import { BottomSheet } from '@/components/cr/BottomSheet';
@@ -13,6 +13,7 @@ import { FeedVideo } from '@/components/cr/FeedVideo';
 import { ShareSheet } from '@/components/cr/ShareSheet';
 import { isCardTheme } from '@/features/share/card';
 import { useToast } from '@/components/cr/Toast';
+import { apiRequest } from '@/features/app/api';
 import { useAppSession } from '@/features/app/AppSession';
 import { compactCount, shortAge } from '@/lib/format';
 import {
@@ -29,7 +30,9 @@ import {
 } from './api';
 import { AnonymousNameSheet } from './AnonymousNameSheet';
 import { PostInsightsSheet } from './PostInsightsSheet';
+import { SponsoredCard, type Ad } from './SponsoredCard';
 import { trackEvent } from '@/lib/analytics';
+import { cacheGet, cacheSet } from '@/lib/client-cache';
 
 /** Anonymous feed screen and mockups 15, 18, 19, 71, 72, 73. `focusPostId` shows one shared post. */
 export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusPostId?: string | null; pinPostId?: string | null }) {
@@ -38,10 +41,13 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
   // Guests (anonymous sessions) take part too: `account` here means the current visitor, member or guest.
   const { session, isGuest, requireAccount, ensureAdult, ready } = useAppSession();
   const account = session;
-  const [posts, setPosts] = useState<AnonPost[]>([]);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
+  // The last feed this person loaded (if any), so coming back to this tab shows it immediately instead of a skeleton.
+  const feedCacheKey = session && !focusPostId ? `anon-feed:${session.user.id}` : null;
+  const [cached] = useState(() => (feedCacheKey ? cacheGet<{ posts: AnonPost[]; hasMore: boolean; cursor: string | null }>(feedCacheKey) : undefined));
+  const [posts, setPosts] = useState<AnonPost[]>(cached?.posts ?? []);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(cached ? 'ready' : 'loading');
+  const [cursor, setCursor] = useState<string | null>(cached?.cursor ?? null);
+  const [hasMore, setHasMore] = useState(cached?.hasMore ?? false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreFailed, setMoreFailed] = useState(false);
   const [identity, setIdentity] = useState<AnonIdentity | null | undefined>(undefined);
@@ -53,6 +59,8 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
   const [shareTarget, setShareTarget] = useState<AnonPost | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AnonPost | null>(null);
   const [insightsFor, setInsightsFor] = useState<AnonPost | null>(null);
+  // One sponsored card, if there is one for this person (never for Pro members). A failed lookup just means no ad.
+  const [ad, setAd] = useState<Ad | null>(null);
   const [editFor, setEditFor] = useState<AnonPost | null>(null);
   const [editText, setEditText] = useState('');
   const [editError, setEditError] = useState('');
@@ -95,6 +103,19 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
     if (!ready) return;
     const current = ++generation.current;
     void (async () => {
+      await Promise.resolve();
+      // Show the feed loaded last time right away (when the session was not known yet at first render), then refresh below.
+      let shownFromCache = Boolean(cached);
+      if (!focusPostId && session && !shownFromCache) {
+        const hit = cacheGet<{ posts: AnonPost[]; hasMore: boolean; cursor: string | null }>(`anon-feed:${session.user.id}`);
+        if (hit && current === generation.current) {
+          setPosts(hit.posts);
+          setHasMore(hit.hasMore);
+          setCursor(hit.cursor);
+          setStatus('ready');
+          shownFromCache = true;
+        }
+      }
       try {
         if (focusPostId) {
           const result = await anonRequest<AnonPost[]>(session, `/posts?scope=all_nigerian_schools&id=${encodeURIComponent(focusPostId)}`);
@@ -106,16 +127,35 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
         } else {
           const page = await anonRequest<AnonPostPage>(session, '/posts?scope=all_nigerian_schools&page=1&sort=hot');
           if (current !== generation.current) return;
-          setPosts(mergeUnique([], pinFirst(page.posts, pinPostId)));
+          const fresh = mergeUnique([], pinFirst(page.posts, pinPostId));
+          setPosts(fresh);
           setHasMore(page.hasMore && page.nextCursor !== null);
           setCursor(page.nextCursor);
+          if (session) cacheSet(`anon-feed:${session.user.id}`, { posts: fresh, hasMore: page.hasMore && page.nextCursor !== null, cursor: page.nextCursor });
         }
         setStatus('ready');
       } catch {
-        if (current === generation.current) setStatus('error');
+        // A failed refresh keeps showing what was already on screen from the cache.
+        if (current === generation.current && !shownFromCache) setStatus('error');
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt, focusPostId, pinPostId, ready, session]);
+
+  useEffect(() => {
+    if (!ready || !session || focusPostId) return;
+    let active = true;
+    void (async () => {
+      try {
+        await Promise.resolve();
+        const found = await apiRequest<Ad | null>('/api/v1/ads?placement=anonymous_feed', { session });
+        if (active) setAd(found);
+      } catch {
+        if (active) setAd(null);
+      }
+    })();
+    return () => { active = false; };
+  }, [focusPostId, ready, session]);
 
   // Coming back from the composer (?posted=...): the new post is pinned first; tidy the address bar.
   useEffect(() => {
@@ -247,7 +287,8 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
   const sheetComments: SheetComment[] = comments.map((comment) => ({
     id: comment.id,
     parentId: comment.parent_comment_id,
-    author: 'Anonymous',
+    // Each person's Anonymous ID, the name they chose, so people can follow who is who without knowing who they are.
+    author: comment.author_handle || 'Anonymous',
     avatar: <AnonAvatar size="s" />,
     body: comment.body,
     createdAt: comment.created_at,
@@ -264,7 +305,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
             <p className="cr-hd__sub">Never linked to your profile.</p>
           </div>
         )}
-        <button aria-label="Inbox" className="cr-icon-btn" onClick={() => { if (requireAccount('sign-in')) router.push('/anonymous/inbox'); }} type="button">
+        <button aria-label="Inbox" className="cr-icon-btn" onClick={() => router.push('/anonymous/inbox')} type="button">
           <Icon name="inbox" />
         </button>
       </header>
@@ -278,16 +319,17 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
             : <StateBlock actions={<button className="cr-pbtn cr-pbtn--l" onClick={openCreate} type="button">Post anonymously</button>} description="Be the first to post. Nobody will know it’s you." icon="anon" title="No posts yet" />
         ) : null}
 
-        {status === 'ready' ? ranked.map((post) => {
+        {status === 'ready' ? ranked.map((post, index) => {
           const topic = topicOf(post);
           const photos = (post.media_items ?? []).filter((item) => item.mediaType === 'photo');
           const videos = (post.media_items ?? []).filter((item) => item.mediaType === 'video');
           const sensitiveMedia = (post.media_items ?? []).some((item) => item.sensitive);
           return (
-            <article className="cr-apost" key={post.id}>
+            <Fragment key={post.id}>
+            <article className="cr-apost">
               <AnonAvatar />
               <div className="cr-apost__main">
-                <p className="cr-apost__meta">Anonymous · {shortAge(post.created_at)}{post.edited ? ' · edited' : ''}{topic ? ` · ${topic}` : ''}</p>
+                <p className="cr-apost__meta">{post.author_handle || 'Anonymous'} · {shortAge(post.created_at)}{post.edited ? ' · edited' : ''}{topic ? ` · ${topic}` : ''}</p>
                 {post.body && !(post.media_items ?? []).length ? (
                   <div className={`cr-tcard cr-tcard--${post.card_theme ?? 'blue-hour'} cr-tcard--${post.body.length > 160 ? 'sm' : post.body.length > 80 ? 'md' : 'lg'}`}>{post.body}</div>
                 ) : null}
@@ -323,6 +365,8 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
                 </div>
               </div>
             </article>
+            {ad && !focusPostId && ranked.length >= 2 && index === Math.min(3, ranked.length - 1) ? <SponsoredCard ad={ad} session={session} /> : null}
+            </Fragment>
           );
         }) : null}
 
@@ -341,7 +385,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
       <CommentsSheet
         canCompose={Boolean(account)}
         comments={sheetComments}
-        composeDisabledReason={isGuest ? <button className="cr-link" onClick={() => requireAccount('sign-in')} type="button">Sign in to comment</button> : undefined}
+        composeDisabledReason={!session ? <button className="cr-link" onClick={() => requireAccount('sign-in')} type="button">Sign in to comment</button> : undefined}
         composerAvatar={<AnonAvatar size="s" />}
         context={commentsFor ? `Anonymous${topicOf(commentsFor) ? ` · ${topicOf(commentsFor)}` : ''}` : undefined}
         count={commentsFor?.comments_count ?? 0}

@@ -162,6 +162,15 @@ export async function POST(request: Request) {
   if (!audiences.includes(audience as Audience)) {
     return apiError('invalid_audience', 'Choose Public, Followers, or Private visibility.', 422);
   }
+  // A post can be sent to a community you belong to. Community posts are always public.
+  const communityId = typeof body.communityId === 'string' ? body.communityId : null;
+  if (body.communityId !== undefined && body.communityId !== null && (!communityId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(communityId))) {
+    return apiError('invalid_community', 'Choose a valid community.', 422);
+  }
+  if (communityId) {
+    const { data: isMember } = await auth.supabase.rpc('is_community_member', { p_community_id: communityId });
+    if (isMember !== true) return apiError('not_a_member', 'Join this community to post in it.', 403);
+  }
   if (mediaItems.length > 10 || mediaItems.some((item) => !isOwnStorageUrl(item.uri) || (item.poster !== undefined && !isOwnStorageUrl(item.poster)))) {
     return apiError('invalid_media', 'Upload up to 10 media items through the app and use their URLs.', 422);
   }
@@ -189,7 +198,8 @@ export async function POST(request: Request) {
       media_items: mediaItems,
       media_type: mediaType,
       location,
-      audience,
+      audience: communityId ? 'Public' : audience,
+      ...(communityId ? { community_id: communityId } : {}),
       age_restricted: body.ageRestricted === true,
       allow_comments: body.allowComments !== false,
       allow_reuse: body.allowReuse !== false,

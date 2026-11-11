@@ -1,0 +1,30 @@
+.cr-level { margin: 12px 0 4px; padding: 14px; border-radius: 16px; background: linear-gradient(145deg, #14183a, #3a47c4); color: #fff; }
+.cr-level__top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cr-level__name { margin: 0; font-weight: 600; font-size: 1rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cr-level__sub { margin: 2px 0 0; font-size: 0.8rem; opacity: 0.85; }
+.cr-level__go { padding: 7px 14px; border-radius: 999px; background: #fff; color: #14183a; font-weight: 600; font-size: 0.82rem; text-decoration: none; }
+.cr-level__track { height: 8px; margin: 12px 0 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.25); overflow: hidden; }
+.cr-level__track i { display: block; height: 100%; border-radius: 4px; background: #fff; }
+.cr-level__hint { margin: 0; font-size: 0.72rem; opacity: 0.75; }
+.cr-pro-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; background: #ffd24a; color: #3a2a00; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.02em; }
+.cr-pro { padding-bottom: 48px; }
+.cr-pro__hero { margin: 8px 14px 12px; padding: 18px; border-radius: 18px; background: linear-gradient(145deg, #14183a, #3a47c4); color: #fff; text-align: center; }
+.cr-pro__price { margin: 0 0 6px; font-size: 2rem; font-weight: 700; }
+.cr-pro__price small { font-size: 0.9rem; font-weight: 500; opacity: 0.85; }
+.cr-pro__hero p { margin: 0; font-size: 0.9rem; }
+.cr-pro__perks { list-style: none; margin: 0 14px 12px; padding: 0; display: grid; gap: 8px; }
+.cr-pro__perks li { display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: 14px; border: 1px solid rgba(20, 24, 58, 0.12); }
+.cr-pro__perks span { font-size: 0.85rem; opacity: 0.75; }
+.cr-pro__status { margin: 0 14px 10px; padding: 10px 12px; border-radius: 12px; background: rgba(70, 90, 200, 0.1); font-size: 0.88rem; }
+.cr-pro__cta { display: block; width: calc(100% - 28px); margin: 0 14px; }
+.cr-pro__fine { margin: 10px 14px 0; font-size: 0.75rem; opacity: 0.65; text-align: center; }
+.cr-levels { padding-bottom: 48px; }
+.cr-levels__you { margin: 4px 14px 12px; font-size: 0.95rem; }
+.cr-levels__phase { margin: 0 14px 12px; padding: 12px 14px; border-radius: 16px; border: 1px solid rgba(20, 24, 58, 0.12); }
+.cr-levels__phase h2 { margin: 0 0 6px; font-size: 0.95rem; }
+.cr-levels__phase ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.cr-levels__rank { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 7px 10px; border-radius: 10px; font-size: 0.9rem; }
+.cr-levels__rank small { font-size: 0.74rem; opacity: 0.65; }
+.cr-levels__rank--now { background: rgba(70, 90, 200, 0.14); font-weight: 600; }
+.cr-levels__rank--locked { opacity: 0.5; }
+.cr-levels__fine { margin: 6px 14px 0; font-size: 0.75rem; opacity: 0.65; line-height: 1.45; }

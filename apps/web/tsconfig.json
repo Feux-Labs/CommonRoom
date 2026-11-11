@@ -62,7 +62,23 @@
     ".next-a19/types/**/*.ts",
     ".next-a19/dev/types/**/*.ts",
     ".next-a20/types/**/*.ts",
-    ".next-a20/dev/types/**/*.ts"
+    ".next-a20/dev/types/**/*.ts",
+    ".next-a21/types/**/*.ts",
+    ".next-a21/dev/types/**/*.ts",
+    ".next-a22/types/**/*.ts",
+    ".next-a22/dev/types/**/*.ts",
+    ".next-a23/types/**/*.ts",
+    ".next-a23/dev/types/**/*.ts",
+    ".next-a24/types/**/*.ts",
+    ".next-a24/dev/types/**/*.ts",
+    ".next-a25/types/**/*.ts",
+    ".next-a25/dev/types/**/*.ts",
+    ".next-a26/types/**/*.ts",
+    ".next-a26/dev/types/**/*.ts",
+    ".next-a27/types/**/*.ts",
+    ".next-a27/dev/types/**/*.ts",
+    ".next-a28/types/**/*.ts",
+    ".next-a28/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

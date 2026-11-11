@@ -14,7 +14,7 @@ const EXTENSIONS: Record<string, string> = {
 };
 const MAX_IMAGE_BYTES = 6_000_000;
 const MAX_VIDEO_BYTES = 2_500_000;
-const PREFIXES = ['', 'profile-', 'listing-'];
+const PREFIXES = ['', 'profile-', 'listing-', 'ad-'];
 
 /**
  * POST /api/v1/media/upload-url { contentType, size, kind?: 'user' | 'anonymous', prefix? }

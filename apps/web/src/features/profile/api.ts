@@ -16,6 +16,7 @@ export type PersonProfile = PersonSummary & {
   bio: string;
   following: boolean;
   follower_count: number;
+  pro?: boolean;
   interests: string[];
   posts: RoomPost[];
 };

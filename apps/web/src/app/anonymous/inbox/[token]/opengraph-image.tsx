@@ -22,7 +22,7 @@ export default function Image() {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
           <div style={{ display: 'flex', fontSize: 84, lineHeight: 1.1 }}>Send me an anonymous message</div>
-          <div style={{ display: 'flex', fontSize: 40, color: '#cfcfcf' }}>No account needed. I won’t see who you are.</div>
+          <div style={{ display: 'flex', fontSize: 40, color: '#cfcfcf' }}>No account needed. I’ll see your Anonymous ID, never your real name.</div>
         </div>
       </div>
     ),

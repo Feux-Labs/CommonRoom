@@ -7,6 +7,7 @@ import { Icon, type IconName } from '@/components/cr/Icon';
 import { useAppSession } from '@/features/app/AppSession';
 import { CARD_GRADIENTS, isCardTheme } from '@/features/share/card';
 import { limitWords, wordLimitOf } from './prompt-templates';
+import { generateAnonymousId } from './names';
 import './prompt.css';
 import { AnonymousApiError, anonRequest, type AnonIdentity } from './api';
 
@@ -59,13 +60,13 @@ export function PublicMessagePage({ token }: { token: string }) {
     return () => { active = false; };
   }, [attempt, ready, session, token]);
 
-  /** Visitors need an identity row to send; create a private one silently. Never displayed. */
+  /** Visitors need an Anonymous ID to send. If they have none yet, one is made for them; the person they message sees it, never a real name. */
   const ensureIdentity = async () => {
     const existing = await anonRequest<AnonIdentity | null>(session, '/identity');
     if (existing) return;
     for (let attempt = 0; attempt < 4; attempt += 1) {
       try {
-        await anonRequest<AnonIdentity>(session, '/identity', 'POST', { handle: `Visitor ${Math.floor(100000 + Math.random() * 900000)}` });
+        await anonRequest<AnonIdentity>(session, '/identity', 'POST', { handle: generateAnonymousId() });
         return;
       } catch (error) {
         if (!(error instanceof AnonymousApiError && error.code === 'anonymous_handle_taken')) throw error;
@@ -109,7 +110,7 @@ export function PublicMessagePage({ token }: { token: string }) {
           <>
             <div aria-hidden="true" className="cr-web__sq"><Icon name="anon" /></div>
             {prompt ? <h1 className="cr-web__prompt">{prompt.text}</h1> : <h1 className="cr-web__title">Send an anonymous message</h1>}
-            <p className="cr-web__sub">They won’t see who you are. No account needed.</p>
+            <p className="cr-web__sub">They’ll see your Anonymous ID, never your real name. No account needed.</p>
           </>
         ) : null}
       </div>
@@ -155,7 +156,7 @@ export function PublicMessagePage({ token }: { token: string }) {
               </button>
             </div>
           </form>
-          <p className="cr-web__privacy"><Icon name="lock" /><span>Your identity is never shared. Messages are private, and the person you’re messaging chooses whether to share anything publicly.</span></p>
+          <p className="cr-web__privacy"><Icon name="lock" /><span>Your real name is never shared. They’ll see your Anonymous ID, messages stay private, and the person you’re messaging chooses whether to share anything publicly.</span></p>
         </>
       ) : null}
 
@@ -173,7 +174,7 @@ export function PublicMessagePage({ token }: { token: string }) {
             <button className="cr-ghost cr-ghost--l" onClick={() => setState('ready')} type="button">Send another</button>
             <Link className="cr-pbtn cr-pbtn--l" href="/anonymous">Get your own link</Link>
           </>}
-          description="They won’t see who you are. Come back here to see replies — sign in so you never lose them."
+          description="They’ll see your Anonymous ID, never your real name. Come back here to see replies — sign in so you never lose them."
           icon="chk"
           title="Message sent"
         />

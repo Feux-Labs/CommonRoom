@@ -17,10 +17,10 @@ function storedSource(): string | null {
   try { return window.localStorage.getItem(SOURCE_KEY); } catch { return null; }
 }
 
-export type TrackedEvent = 'app_open' | 'post_view' | 'post_share' | 'profile_view' | 'listing_view' | 'nudge_click';
+export type TrackedEvent = 'app_open' | 'post_view' | 'post_share' | 'profile_view' | 'listing_view' | 'nudge_click' | 'ad_view' | 'ad_click';
 
 /** Fire and forget. Analytics must never get in the way of the app, so every failure is swallowed. */
-export function trackEvent(session: Session | null, event: TrackedEvent, target?: { kind: 'room' | 'anonymous' | 'listing' | 'profile'; id: string }): void {
+export function trackEvent(session: Pick<Session, 'access_token'> | null, event: TrackedEvent, target?: { kind: 'room' | 'anonymous' | 'listing' | 'profile' | 'ad'; id: string }): void {
   if (!session) return;
   void fetch('/api/v1/events', {
     method: 'POST',

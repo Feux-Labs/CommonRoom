@@ -1073,3 +1073,11 @@ body {
 .cr-safety__who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .cr-safety__who small { opacity: 0.6; }
 .cr-safety { display: flex; flex-direction: column; gap: 4px; }
+
+/* Long-form legal pages (Community Guidelines): small type so the whole document reads like a real policy */
+.cr-legal--compact { font-size: 13px; line-height: 1.55; max-width: 720px; }
+.cr-legal--compact h1 { font-size: 22px; }
+.cr-legal--compact h2 { font-size: 15px; margin: 22px 0 6px; }
+.cr-legal--compact h3 { font-size: 13.5px; margin: 14px 0 4px; }
+.cr-legal--compact p, .cr-legal--compact li { font-size: 13px; }
+.cr-legal--compact ul { padding-left: 18px; margin: 6px 0 10px; }

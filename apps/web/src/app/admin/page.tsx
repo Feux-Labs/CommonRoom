@@ -32,10 +32,11 @@ import {
 import { getBrowserSupabase, isSupabaseConfigured } from '@/lib/supabase-browser';
 import { FlagsPanel } from './FlagsPanel';
 import { GrowthPanel } from './GrowthPanel';
+import { AdsPanel } from './AdsPanel';
 
 const ADMIN_EMAIL = 'ibitoyrgideon79@gmail.com';
 
-type Tab = 'overview' | 'users' | 'moderation' | 'announcements' | 'flags' | 'growth';
+type Tab = 'overview' | 'users' | 'moderation' | 'announcements' | 'flags' | 'growth' | 'ads';
 
 type Analytics = {
   overview: Record<string, number>;
@@ -706,6 +707,13 @@ export default function AdminPage() {
           >
             Growth
           </button>
+          <button
+            className={`admin-tab-btn ${activeTab === 'ads' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ads')}
+            type="button"
+          >
+            Ads
+          </button>
         </nav>
 
         {/* TAB 1: OVERVIEW */}
@@ -1198,6 +1206,8 @@ export default function AdminPage() {
             )}
           </section>
         )}
+
+        {activeTab === 'ads' && session ? <AdsPanel session={session} /> : null}
 
         {activeTab === 'growth' && session ? <GrowthPanel session={session} /> : null}
 

@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BottomSheet } from '@/components/cr/BottomSheet';
 import { ErrorBlock, GridSkeleton, StateBlock } from '@/components/cr/FeedStates';
 import { Icon } from '@/components/cr/Icon';
 import { useToast } from '@/components/cr/Toast';
-import { errorMessage } from '@/features/app/api';
+import { apiRequest, errorMessage } from '@/features/app/api';
+import { SponsoredCard, type Ad } from '@/features/anonymous/SponsoredCard';
 import { useAppSession } from '@/features/app/AppSession';
 import { formatNaira, relativeAge } from '@/lib/format';
 import { institutions } from '@/lib/institutions';
@@ -34,7 +35,24 @@ export function MarketBrowse() {
   const router = useRouter();
   const toast = useToast();
   const { session, account, ready, requireAccount } = useAppSession();
+  const [ad, setAd] = useState<Ad | null>(null);
   const [query, setQuery] = useState<MarketQuery>(DEFAULT_QUERY);
+
+  // One sponsored post for this person, if any. A failed lookup just means no ad.
+  useEffect(() => {
+    if (!session) return;
+    let active = true;
+    void (async () => {
+      try {
+        await Promise.resolve();
+        const found = await apiRequest<Ad | null>('/api/v1/ads?placement=marketplace', { session });
+        if (active) setAd(found);
+      } catch {
+        if (active) setAd(null);
+      }
+    })();
+    return () => { active = false; };
+  }, [session]);
   const [searchDraft, setSearchDraft] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
@@ -155,8 +173,9 @@ export function MarketBrowse() {
 
       {status === 'ready' && listings.length > 0 ? (
         <ul className="cr-g2" aria-label="Listings">
-          {listings.map((listing) => (
-            <li className={listing.status === 'sold' ? 'cr-li cr-li--sold' : 'cr-li'} key={listing.id}>
+          {listings.map((listing, listingIndex) => (
+            <Fragment key={listing.id}>
+            <li className={listing.status === 'sold' ? 'cr-li cr-li--sold' : 'cr-li'}>
               <Link className="cr-li__link" href={`/marketplace/${listing.id}`}>
                 <span className="cr-tile">
                   {listing.images[0]
@@ -176,6 +195,8 @@ export function MarketBrowse() {
                 </button>
               ) : null}
             </li>
+            {ad && listings.length >= 2 && listingIndex === Math.min(3, listings.length - 1) ? <li style={{ gridColumn: '1 / -1', listStyle: 'none' }}><SponsoredCard ad={ad} session={session} /></li> : null}
+            </Fragment>
           ))}
         </ul>
       ) : null}

@@ -1,5 +1,6 @@
 import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest } from '@/lib/supabase-server';
 import { attachRoomViewerFields, mapRoomPost } from '@/lib/room-map';
+import { prisma } from '@/lib/prisma';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -27,7 +28,11 @@ export async function GET(request: Request, { params }: RouteContext) {
       .limit(30),
   ]);
 
+  // Pro badge: a failed lookup just leaves it off.
+  const pro = await prisma.$queryRaw<Array<{ pro: boolean }>>`select public.is_pro(${id}::uuid) as pro`.then((rows) => rows[0]?.pro === true).catch(() => false);
+
   return apiSuccess({
+    pro,
     id: profile.id,
     display_name: profile.display_name,
     username: profile.username,

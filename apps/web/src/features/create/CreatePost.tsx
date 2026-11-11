@@ -13,7 +13,7 @@ import { useToast } from '@/components/cr/Toast';
 import { apiRequest, errorMessage } from '@/features/app/api';
 import { useAppSession } from '@/features/app/AppSession';
 import { mediaExtension, removeUserMedia, uploadUserMedia } from '@/features/app/media';
-import { ANON_POST_MAX, ANON_TOPICS, type AnonIdentity, type AnonTopic } from '@/features/anonymous/api';
+import { ANON_POST_MAX, type AnonIdentity, type AnonTopic } from '@/features/anonymous/api';
 import { AnonymousNameSheet } from '@/features/anonymous/AnonymousNameSheet';
 import type { Audience, MediaItem } from '@/lib/contracts';
 import { MAX_VIDEO_BYTES, MAX_VIDEO_SECONDS, compressMedia, readVideoDuration } from '@/lib/media-compression';
@@ -49,7 +49,7 @@ const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
 
 /** Mockups 12, 13, 77 and 78: create a Room post or an anonymous post. */
-export function CreatePost({ destination }: { destination: CreateDestination }) {
+export function CreatePost({ destination, communityId }: { destination: CreateDestination; communityId?: string }) {
   const router = useRouter();
   const toast = useToast();
   const { account: member, session, profile } = useAppSession();
@@ -62,7 +62,8 @@ export function CreatePost({ destination }: { destination: CreateDestination }) 
   const [draft] = useState(() => (typeof window === 'undefined' ? null : readDraft(draftKey)));
 
   const [caption, setCaption] = useState(draft?.caption?.slice(0, maxLength) ?? '');
-  const [topic, setTopic] = useState<AnonTopic>(draft?.topic && ANON_TOPICS.includes(draft.topic) ? draft.topic : 'Campus life');
+  // Posts no longer have topics. The API still wants a title, so every new post carries the neutral one.
+  const topic: AnonTopic = 'Other';
   const [sensitive, setSensitive] = useState(false);
   const [cardTheme, setCardTheme] = useState<CardTheme>(CARD_THEMES.some((theme) => theme.id === draft?.cardTheme) ? (draft?.cardTheme as CardTheme) : 'blue-hour');
   const [draftRestored, setDraftRestored] = useState(Boolean(draft));
@@ -231,6 +232,7 @@ export function CreatePost({ destination }: { destination: CreateDestination }) 
           pollOptions: isPoll ? validPollOptions : [],
           audience,
           location: location.trim(),
+          ...(communityId ? { communityId } : {}),
         },
       });
       toast.show('Posted');
@@ -312,7 +314,7 @@ export function CreatePost({ destination }: { destination: CreateDestination }) 
             <p className="cr-msg cr-msg--e" role="alert">We couldn’t check your anonymous name. You can still try to post.</p>
           ) : null}
 
-          <div className="cr-create__compose">
+          {anonymous && files.length === 0 ? null : <div className="cr-create__compose">
             {anonymous ? <AnonAvatar /> : <UserAvatar name={profile?.displayName} src={profile?.avatarUrl} />}
             <textarea
               aria-label={anonymous ? 'Say it anonymously' : 'What’s happening on campus?'}
@@ -325,7 +327,7 @@ export function CreatePost({ destination }: { destination: CreateDestination }) 
               rows={4}
               value={caption}
             />
-          </div>
+          </div>}
 
           {draftRestored ? (
             <p className="cr-note cr-create__draft" role="status">
@@ -336,8 +338,18 @@ export function CreatePost({ destination }: { destination: CreateDestination }) 
 
           {anonymous && files.length === 0 ? (
             <div className="cr-create__card">
-              <div className={`cr-tcard cr-tcard--${cardTheme} cr-tcard--${caption.length > 160 ? 'sm' : caption.length > 80 ? 'md' : 'lg'}`} aria-label="Preview of your post card">
-                {caption.trim() || 'Your words appear here'}
+              <div className={`cr-tcard cr-tcard--${cardTheme} cr-tcard--${caption.length > 160 ? 'sm' : caption.length > 80 ? 'md' : 'lg'}`}>
+                <textarea
+                  aria-label="Say it anonymously"
+                  className="cr-tcard__input"
+                  disabled={publishing}
+                  maxLength={maxLength}
+                  onChange={(event) => setCaption(event.target.value)}
+                  placeholder="Say it anonymously…"
+                  ref={textareaRef}
+                  rows={Math.min(8, Math.max(2, Math.ceil(caption.length / 28) + caption.split('\n').length - 1))}
+                  value={caption}
+                />
               </div>
               <div className="cr-create__themes" role="radiogroup" aria-label="Card style">
                 {CARD_THEMES.map((theme) => (
@@ -403,12 +415,6 @@ export function CreatePost({ destination }: { destination: CreateDestination }) 
 
           {anonymous ? (
             <>
-              <span className="cr-label" id="cr-topic-label">Topic</span>
-              <div aria-labelledby="cr-topic-label" className="cr-chips" role="radiogroup">
-                {ANON_TOPICS.map((item) => (
-                  <button aria-checked={topic === item} className={topic === item ? 'cr-chip on' : 'cr-chip'} disabled={publishing} key={item} onClick={() => setTopic(item)} role="radio" type="button">{item}</button>
-                ))}
-              </div>
               <div className="cr-create__tools">
                 <button className="cr-ghost cr-ghost--l" disabled={publishing || files.length >= ANON_MAX_PHOTOS} onClick={() => openPicker('photo')} type="button"><Icon name="img" />Add photo</button>
               </div>

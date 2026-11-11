@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Session } from '@supabase/supabase-js';
 import { BottomSheet } from '@/components/cr/BottomSheet';
 import { apiRequest, errorMessage } from '@/features/app/api';
@@ -9,6 +10,7 @@ type Insights = { views: number; viewers: number; likes: number; comments: numbe
 
 /** What happened to your post: shown only to its author. Mounted once, loads when a post is chosen. */
 export function PostInsightsSheet({ kind, postId, session, onClose }: { kind: 'anonymous' | 'room'; postId: string | null; session: Session | null; onClose: () => void }) {
+  const router = useRouter();
   const [state, setState] = useState<{ id: string; data?: Insights; error?: string } | null>(null);
 
   useEffect(() => {
@@ -43,6 +45,7 @@ export function PostInsightsSheet({ kind, postId, session, onClose }: { kind: 'a
           </div>
         ))}
       </dl>
+      {postId && kind === 'anonymous' ? <button className="cr-pbtn cr-pbtn--l" onClick={() => router.push(`/anonymous/posts/${postId}/insights`)} type="button">Show details</button> : null}
     </BottomSheet>
   );
 }

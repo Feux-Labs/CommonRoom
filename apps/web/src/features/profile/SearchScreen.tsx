@@ -124,6 +124,10 @@ export function SearchScreen() {
         <StateBlock actions={<button className="cr-pbtn cr-pbtn--l" onClick={() => requireAccount('sign-in')} type="button">Sign in</button>} description="Sign in to search for students." icon="srch" title="Find people on campus" />
       ) : null}
 
+      {account && clean.length < 2 ? (
+        <button className="cr-row-btn" onClick={() => router.push('/communities')} type="button"><Icon name="user" /><span className="cr-row-btn__main"><span className="cr-row-btn__title">Communities</span><span className="cr-row-btn__sub">Find your people, or start a group</span></span></button>
+      ) : null}
+
       {account && clean.length < 2 && suggestions.length ? (
         <>
           <p className="cr-section-label">People you may know</p>

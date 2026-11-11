@@ -6,7 +6,7 @@ import { useAppSession } from '@/features/app/AppSession';
 import { CreatePost, type CreateDestination } from './CreatePost';
 
 /** Guests are asked to sign in before the composer opens. */
-export function CreateRoute({ destination }: { destination: CreateDestination }) {
+export function CreateRoute({ destination, communityId }: { destination: CreateDestination; communityId?: string }) {
   const { ready, isGuest, session, requireAccount } = useAppSession();
   const anonymous = destination === 'anonymous';
 
@@ -15,5 +15,5 @@ export function CreateRoute({ destination }: { destination: CreateDestination })
   }, [anonymous, isGuest, ready, requireAccount]);
 
   if (!ready || (anonymous ? !session : isGuest)) return <BootScreen label="Opening composer" />;
-  return <CreatePost destination={destination} />;
+  return <CreatePost communityId={communityId} destination={destination} />;
 }

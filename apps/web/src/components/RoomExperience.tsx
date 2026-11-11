@@ -34,7 +34,9 @@ import {
   VolumeX,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { cacheGet, cacheOwner, cacheSet } from '@/lib/client-cache';
+import { SponsoredCard, type Ad } from '@/features/anonymous/SponsoredCard';
 import type { FormEvent } from 'react';
 import { Banner, Button, EmptyState, ErrorState, Header as CRHeader, Skeleton } from '@/components/cr/primitives';
 import type { RoomComment, RoomFeedPage, RoomPerson, RoomPost, RoomProfile, RoomScope, RoomStory } from '@/lib/room-contracts';
@@ -184,6 +186,8 @@ export function RoomExperience({
   const [menuPostId, setMenuPostId] = useState<string | null>(null);
   const [reportModalPost, setReportModalPost] = useState<RoomPost | null>(null);
   const [editPost, setEditPost] = useState<RoomPost | null>(null);
+  // One sponsored post for this person, if any. A failed lookup just means no ad.
+  const [roomAd, setRoomAd] = useState<Ad | null>(null);
   const [editText, setEditText] = useState('');
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState('');
@@ -277,14 +281,25 @@ export function RoomExperience({
   const loadFeed = useCallback(async () => {
     const generation = ++generationRef.current;
     loadingMoreRef.current = false;
-    setLoading(true);
+    // Show the feed this person already loaded (if any) straight away, then refresh it quietly underneath.
+    const cacheKey = `room-feed:${cacheOwner(accessToken)}:${scope}`;
+    const cachedFeed = focusPostId ? undefined : cacheGet<RoomFeedPage>(cacheKey);
+    if (cachedFeed) {
+      setPosts(cachedFeed.posts);
+      setHasMore(cachedFeed.hasMore && cachedFeed.nextCursor !== null);
+      setNextCursor(cachedFeed.nextCursor);
+      setLoading(false);
+    } else {
+      setLoading(true);
+      setHasMore(false);
+      setNextCursor(null);
+    }
     setLoadingMore(false);
     setFeedError('');
     setFeedErrorSource(null);
-    setHasMore(false);
-    setNextCursor(null);
     try {
       const result = await roomRequest<RoomFeedPage>(`/api/v1/posts?scope=${scope}`, accessToken);
+      if (!focusPostId) cacheSet(cacheKey, result);
       if (generation !== generationRef.current) return;
       let nextPosts = result.posts;
       if (focusPostId && !nextPosts.some((post) => post.id === focusPostId)) {
@@ -298,9 +313,9 @@ export function RoomExperience({
       setPosts(nextPosts);
       setHasMore(result.hasMore && result.nextCursor !== null);
       setNextCursor(result.nextCursor);
-      setActiveIndex(0);
+      if (!cachedFeed) setActiveIndex(0);
     } catch (error) {
-      if (generation === generationRef.current) {
+      if (generation === generationRef.current && !cachedFeed) {
         setFeedError(error instanceof Error ? error.message : 'Your feed could not be loaded.');
         setFeedErrorSource('feed');
       }
@@ -308,6 +323,20 @@ export function RoomExperience({
       if (generation === generationRef.current) setLoading(false);
     }
   }, [accessToken, focusPostId, onError, scope]);
+
+  useEffect(() => {
+    if (!accessToken || focusPostId) return;
+    let active = true;
+    void (async () => {
+      try {
+        const found = await roomRequest<Ad | null>('/api/v1/ads?placement=room', accessToken);
+        if (active) setRoomAd(found);
+      } catch {
+        if (active) setRoomAd(null);
+      }
+    })();
+    return () => { active = false; };
+  }, [accessToken, focusPostId]);
 
   const loadMore = useCallback(async () => {
     if (!nextCursor || !hasMore || loadingMoreRef.current) return;
@@ -1121,14 +1150,14 @@ export function RoomExperience({
         {/* Normal vertical card scroll matching Sprint 7 and Screens 3 & 4 */}
         {!loading && displayedPosts.length > 0 ? (
           <div className="room-vertical-feed" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-            {displayedPosts.map((post) => {
+            {displayedPosts.map((post, postIndex) => {
               const items = postMedia(post);
               const itemIndex = Math.min(mediaIndex[post.id] ?? 0, Math.max(0, items.length - 1));
               const currentMedia = items[itemIndex] ?? null;
 
               return (
+                <Fragment key={post.id}>
                 <article
-                  key={post.id}
                   className="room-post-card"
                   style={{
                     padding: '14px 16px',
@@ -1450,6 +1479,8 @@ export function RoomExperience({
                     </button>
                   </div>
                 </article>
+                {roomAd && displayedPosts.length >= 2 && postIndex === Math.min(3, displayedPosts.length - 1) ? <SponsoredCard ad={roomAd} session={accessToken ? { access_token: accessToken } : null} /> : null}
+                </Fragment>
               );
             })}
           </div>

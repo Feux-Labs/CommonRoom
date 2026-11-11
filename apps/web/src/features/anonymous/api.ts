@@ -28,8 +28,8 @@ export type AnonPostPage = { posts: AnonPost[]; hasMore: boolean; nextCursor: st
 export type AnonComment = { id: string; parent_comment_id: string | null; author_handle: string; body: string; created_at: string };
 export type AnonIdentity = { handle: string; created_at: string };
 export type InboxLink = { token: string; enabled: boolean; prompt?: string | null; prompt_theme?: string | null };
-export type InboxThread = { id: string; last_message: string | null; last_message_at: string | null; message_count: number };
-export type InboxMessage = { id: string; body: string; is_mine: boolean; participant_label: 'Anonymous'; created_at: string };
+export type InboxThread = { id: string; last_message: string | null; last_message_at: string | null; message_count: number; participant?: string };
+export type InboxMessage = { id: string; body: string; is_mine: boolean; participant_label: string; created_at: string; other_handle?: string };
 export type ReportTargetKind = 'post' | 'comment' | 'message';
 
 /** Topic labels from mockup 13. Stored in the post title until the API has a topic field. */

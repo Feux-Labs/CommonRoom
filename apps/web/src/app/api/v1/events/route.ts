@@ -1,7 +1,7 @@
 import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest } from '@/lib/supabase-server';
 
-const events = ['app_open', 'post_view', 'post_share', 'profile_view', 'listing_view', 'nudge_click'];
-const targetKinds = ['room', 'anonymous', 'listing', 'profile'];
+const events = ['app_open', 'post_view', 'post_share', 'profile_view', 'listing_view', 'nudge_click', 'ad_view', 'ad_click'];
+const targetKinds = ['room', 'anonymous', 'listing', 'profile', 'ad'];
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** POST /api/v1/events: records one usage event for the current visitor (guest or member). Best effort. */

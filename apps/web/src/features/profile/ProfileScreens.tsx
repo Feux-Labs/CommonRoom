@@ -21,6 +21,7 @@ import type { RoomPost } from '@/lib/room-contracts';
 import { ReportSheet } from '@/components/cr/ReportSheet';
 import { SafetyMenu } from '@/features/safety/SafetyMenu';
 import { useHydrated } from '@/lib/use-hydrated';
+import { LevelCard } from '@/features/pro/LevelCard';
 import { fetchPerson, postThumbnail, setFollowing, type PersonProfile } from './api';
 
 function subtitle(course?: string | null, year?: string | null) {
@@ -127,6 +128,7 @@ export function MyProfile() {
           </div>
         </div>
         {person?.bio ? <p className="cr-profile__bio">{person.bio}</p> : null}
+        <LevelCard />
         <div className="cr-stats cr-stats--left">
           <div><b>{compactCount(person?.posts.length ?? 0)}</b>Posts</div>
           <div><b>{compactCount(person?.follower_count ?? 0)}</b>Followers</div>
@@ -358,7 +360,7 @@ export function PersonProfileScreen({ id }: { id: string }) {
             <div className="cr-profile__top">
               <UserAvatar name={person.display_name} size="l" src={person.avatar_url} />
               <div className="cr-profile__who">
-                <h1 className="cr-profile__name">{person.display_name}</h1>
+                <h1 className="cr-profile__name">{person.display_name}{person.pro ? <span className="cr-pro-badge" style={{ marginLeft: 8 }}>Pro</span> : null}</h1>
                 {person.school ? <p className="cr-profile__sub">{person.school}</p> : null}
               </div>
             </div>

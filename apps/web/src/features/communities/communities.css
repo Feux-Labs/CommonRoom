@@ -1,0 +1,8 @@
+.cr-communities { padding-bottom: 96px; }
+.cr-communities__new { margin: 10px 0 12px; width: 100%; }
+.cr-communities__about { margin: 4px 0 12px; font-size: 0.95rem; line-height: 1.45; }
+.cr-communities__acts { display: flex; gap: 10px; margin-bottom: 14px; }
+.cr-communities__post { padding: 12px 0; border-top: 1px solid rgba(0, 0, 0, 0.08); }
+.cr-communities__post p { margin: 0 0 6px; line-height: 1.45; overflow-wrap: anywhere; }
+.cr-communities__who { font-size: 0.8rem; opacity: 0.65; }
+.cr-communities__foot { margin-top: 18px; text-align: center; }
