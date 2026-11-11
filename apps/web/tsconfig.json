@@ -40,7 +40,13 @@
     ".next-a9/types/**/*.ts",
     ".next-a9/dev/types/**/*.ts",
     ".next-a8/types/**/*.ts",
-    ".next-a8/dev/types/**/*.ts"
+    ".next-a8/dev/types/**/*.ts",
+    ".next-a10/types/**/*.ts",
+    ".next-a10/dev/types/**/*.ts",
+    ".next-a11/types/**/*.ts",
+    ".next-a11/dev/types/**/*.ts",
+    ".next-a12/types/**/*.ts",
+    ".next-a12/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

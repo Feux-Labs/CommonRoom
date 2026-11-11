@@ -1,0 +1,5 @@
+.cr-nudge { position: fixed; left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 30; max-width: 456px; margin: 0 auto; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: #14183a; color: #fff; box-shadow: 0 8px 28px rgba(10, 14, 50, 0.3); }
+.cr-nudge p { margin: 0; flex: 1; font-size: 13px; line-height: 1.4; }
+.cr-nudge__acts { display: flex; flex-direction: column; gap: 4px; }
+.cr-nudge__go { border: 0; border-radius: 10px; padding: 8px 12px; font-weight: 600; background: #fff; color: #14183a; cursor: pointer; }
+.cr-nudge__later { border: 0; background: none; color: inherit; opacity: 0.75; font-size: 12px; cursor: pointer; padding: 2px; }

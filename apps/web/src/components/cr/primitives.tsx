@@ -623,13 +623,16 @@ export type BottomNavItemLabel = (typeof bottomNavItems)[number]["label"];
 export function BottomNav({
   active = "Anonymous",
   onNavigate,
+  showRoom = false,
 }: {
   active?: BottomNavItemLabel | null;
   onNavigate?: (item: BottomNavItemLabel) => void;
+  /** The Room tab is hidden unless the caller says it is available. */
+  showRoom?: boolean;
 }) {
   return (
     <nav className="cr-bottom-nav" aria-label="Main navigation">
-      {bottomNavItems.map(({ label, href, icon }) => (
+      {bottomNavItems.filter(({ label }) => showRoom || label !== "Room").map(({ label, href, icon }) => (
         <Link
           key={label}
           href={href}

@@ -24,7 +24,7 @@ const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? '';
  * reveal nothing about who owns them.
  */
 export function PublicMessagePage({ token }: { token: string }) {
-  const { session, ready } = useAppSession();
+  const { session, ready, ensureAdult } = useAppSession();
   const [pageState, setState] = useState<PageState>('loading');
   // Without a session nothing can load, so that is derived rather than synced in an effect.
   const state: PageState = ready && !session ? 'unavailable' : pageState;
@@ -71,6 +71,12 @@ export function PublicMessagePage({ token }: { token: string }) {
     event.preventDefault();
     const body = draft.trim();
     if (!body || !session || state === 'sending') return;
+    if (!ensureAdult(() => void deliver(body))) return;
+    await deliver(body);
+  };
+
+  const deliver = async (body: string) => {
+    if (!session) return;
     setState('sending');
     try {
       await ensureIdentity();

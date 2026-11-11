@@ -19,7 +19,7 @@ import { AnonymousNameSheet } from './AnonymousNameSheet';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function useInboxLink() {
-  const { account } = useAppSession();
+  const { session: account } = useAppSession();
   const toast = useToast();
   const [link, setLink] = useState<InboxLink | null>(null);
   const [busy, setBusy] = useState(false);
@@ -84,7 +84,7 @@ function useInboxLink() {
 /** "Inbox and link" screen and mockup 74 (empty). */
 export function AnonymousInbox() {
   const router = useRouter();
-  const { account, ready, requireAccount } = useAppSession();
+  const { session: account, ready, requireAccount } = useAppSession();
   const { link, setLink, busy, create, setEnabled, copy, share, shareSheet } = useInboxLink();
   const [threads, setThreads] = useState<InboxThread[]>([]);
   // When the list was fetched. Used to split New vs Earlier; read here, never during render.
@@ -223,7 +223,7 @@ export function AnonymousInbox() {
 /** Mockup 53. Regenerating needs a server endpoint that does not exist yet, so the row is disabled. */
 export function AnonymousLinkSettings() {
   const router = useRouter();
-  const { account, ready, requireAccount } = useAppSession();
+  const { session: account, ready, requireAccount } = useAppSession();
   const { link, setLink, busy, setEnabled, copy, share, shareSheet } = useInboxLink();
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
@@ -296,7 +296,7 @@ export function AnonymousLinkSettings() {
 export function AnonymousThread({ threadId }: { threadId: string }) {
   const router = useRouter();
   const toast = useToast();
-  const { account, ready, requireAccount } = useAppSession();
+  const { session: account, ready, requireAccount } = useAppSession();
   const [messages, setMessages] = useState<InboxMessage[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [draft, setDraft] = useState('');

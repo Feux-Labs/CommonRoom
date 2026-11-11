@@ -3,7 +3,9 @@
 import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { BottomNav, type BottomNavItemLabel } from '@/components/cr/primitives';
+import { ROOM_ENABLED } from '@/lib/features';
 import { useAppSession } from './AppSession';
+import { SignInNudge } from './SignInNudge';
 
 const ROUTES: Record<BottomNavItemLabel, string> = {
   Room: '/room',
@@ -20,9 +22,11 @@ export function AppShell({ active, children, hideNav = false }: { active: Bottom
   return (
     <div className="cr-app">
       {children}
+      {hideNav ? null : <SignInNudge />}
       {hideNav ? null : (
         <BottomNav
           active={active}
+          showRoom={ROOM_ENABLED}
           onNavigate={(item) => {
             if (item === 'Me' && ready && isGuest) {
               openAuth('sign-in');

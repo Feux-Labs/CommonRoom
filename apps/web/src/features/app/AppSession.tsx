@@ -9,6 +9,7 @@ import { Onboarding } from '@/features/auth/Onboarding';
 import type { EducationStatus, OnboardingProfile } from '@/lib/contracts';
 import { getBrowserSupabase, isSupabaseConfigured } from '@/lib/supabase-browser';
 import { guestSignInOptions } from '@/lib/turnstile';
+import { AgeGate } from './AgeGate';
 import { apiRequest, errorMessage } from './api';
 import { removeUserMedia, uploadUserMedia } from './media';
 
@@ -65,6 +66,13 @@ type AppSessionValue = {
   account: Session | null;
   profile: Profile | null;
   isGuest: boolean;
+  /** True once this visitor (guest or member) has said they are 18+ and accepted the terms. */
+  adult: boolean;
+  /**
+   * Call before an action that needs the 18+ confirmation (post, like, comment, message). Returns true when the person has
+   * already confirmed. Otherwise it opens the quick popup, returns false, and runs `next` once they confirm.
+   */
+  ensureAdult: (next?: () => void) => boolean;
   /** Opens the account flow; returns false so callers can `if (!requireAccount()) return`. */
   requireAccount: (route?: AuthRoute) => boolean;
   openAuth: (route: AuthRoute) => void;
@@ -102,6 +110,9 @@ function AppSessionProvider({ children }: { children: ReactNode }) {
   const [authOpen, setAuthOpen] = useState(false);
   const [authRoute, setAuthRoute] = useState<AuthRoute>('welcome');
   const [recoverySession, setRecoverySession] = useState(false);
+  const [adultConfirmed, setAdultConfirmed] = useState(false);
+  const [ageGateOpen, setAgeGateOpen] = useState(false);
+  const afterAge = useRef<(() => void) | null>(null);
   const userSignOut = useRef(false);
   const lastRegisteredUserId = useRef<string | null>(null);
 
@@ -196,6 +207,43 @@ function AppSessionProvider({ children }: { children: ReactNode }) {
   const account = session && !session.user.is_anonymous ? session : null;
   const isGuest = !account || !profile;
 
+  // Has this visitor already confirmed 18+? Members who ticked the box at sign-up count; guests are checked on the server.
+  const sessionUserId = session?.user.id ?? null;
+  const adult = adultConfirmed || Boolean(profile?.ageEligibilityConfirmed);
+  useEffect(() => {
+    if (!sessionUserId || !session) return;
+    let active = true;
+    void (async () => {
+      try {
+        await Promise.resolve();
+        const answer = await apiRequest<{ confirmed: boolean }>('/api/v1/age-confirmation', { session });
+        if (active) setAdultConfirmed(answer.confirmed);
+      } catch {
+        // Could not check: leave it as "not confirmed". The popup will ask, and the server decides.
+      }
+    })();
+    return () => { active = false; };
+    // Only when the visitor changes, not on every token refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionUserId]);
+
+  const ensureAdult = useCallback((next?: () => void) => {
+    if (adult) return true;
+    afterAge.current = next ?? null;
+    setAgeGateOpen(true);
+    return false;
+  }, [adult]);
+
+  const confirmAdult = useCallback(async () => {
+    if (!session) throw new Error('No session');
+    await apiRequest('/api/v1/age-confirmation', { session, method: 'POST' });
+    setAdultConfirmed(true);
+    setAgeGateOpen(false);
+    const next = afterAge.current;
+    afterAge.current = null;
+    next?.();
+  }, [session]);
+
   const requireAccount = useCallback((route: AuthRoute = 'sign-in') => {
     if (account && profile) return true;
     openAuth(route);
@@ -251,12 +299,14 @@ function AppSessionProvider({ children }: { children: ReactNode }) {
     account,
     profile,
     isGuest,
+    adult,
+    ensureAdult,
     requireAccount,
     openAuth,
     signOut,
     reloadProfile,
     setProfile: setProfileState,
-  }), [account, configured, isGuest, openAuth, profile, ready, reloadProfile, requireAccount, session, signOut]);
+  }), [account, adult, configured, ensureAdult, isGuest, openAuth, profile, ready, reloadProfile, requireAccount, session, signOut]);
 
   // Read from the address bar when needed (not usePathname, which would block prerendering of every page).
   // Only used after the session has loaded, so server and first client render always agree.
@@ -289,6 +339,7 @@ function AppSessionProvider({ children }: { children: ReactNode }) {
           route={authRoute}
         />
       ) : null}
+      <AgeGate onClose={() => { afterAge.current = null; setAgeGateOpen(false); }} onConfirm={confirmAdult} open={ageGateOpen} />
     </AppSessionContext.Provider>
   );
 }

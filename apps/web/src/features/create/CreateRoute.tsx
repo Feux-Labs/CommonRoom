@@ -7,12 +7,13 @@ import { CreatePost, type CreateDestination } from './CreatePost';
 
 /** Guests are asked to sign in before the composer opens. */
 export function CreateRoute({ destination }: { destination: CreateDestination }) {
-  const { ready, isGuest, requireAccount } = useAppSession();
+  const { ready, isGuest, session, requireAccount } = useAppSession();
+  const anonymous = destination === 'anonymous';
 
   useEffect(() => {
-    if (ready && isGuest) requireAccount('sign-up-email');
-  }, [isGuest, ready, requireAccount]);
+    if (ready && isGuest && !anonymous) requireAccount('sign-up-email');
+  }, [anonymous, isGuest, ready, requireAccount]);
 
-  if (!ready || isGuest) return <BootScreen label="Opening composer" />;
+  if (!ready || (anonymous ? !session : isGuest)) return <BootScreen label="Opening composer" />;
   return <CreatePost destination={destination} />;
 }

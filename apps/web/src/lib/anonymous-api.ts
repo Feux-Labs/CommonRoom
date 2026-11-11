@@ -6,9 +6,27 @@ type AnonymousRequestContext =
   | { supabase: SupabaseClient; userId: string }
   | { response: NextResponse };
 
+const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH']);
+
+/**
+ * Everyone, guests included, must have confirmed "I am 18 or older and I agree to the terms" before posting, liking,
+ * commenting or messaging. Checked here on the server so it cannot be skipped. Reporting is always allowed, and so is
+ * deleting your own post. If the check itself fails, the write is refused (safe side).
+ */
+export async function requireAdult(supabase: SupabaseClient) {
+  const { data, error } = await supabase.rpc('is_age_confirmed');
+  if (error) return apiError('age_check_failed', 'We could not check that right now. Try again.', 503);
+  return data === true ? null : apiError('age_confirmation_required', 'Confirm you are 18 or older to continue.', 403);
+}
+
 export async function authenticateAnonymousRequest(request: Request): Promise<AnonymousRequestContext> {
   const result = await authenticateRequest(request);
-  return isAuthenticatedRequest(result) ? { supabase: result.supabase, userId: result.user.id } : { response: result };
+  if (!isAuthenticatedRequest(result)) return { response: result };
+  if (WRITE_METHODS.has(request.method) && !new URL(request.url).pathname.endsWith('/anonymous/reports')) {
+    const refused = await requireAdult(result.supabase);
+    if (refused) return { response: refused };
+  }
+  return { supabase: result.supabase, userId: result.user.id };
 }
 
 export async function parseAnonymousBody(request: Request) {

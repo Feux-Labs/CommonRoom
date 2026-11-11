@@ -1,6 +1,7 @@
 import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, isRecord, parseJson } from '@/lib/supabase-server';
 import { rateLimit } from '@/lib/rate-limit';
 import { mediaUrlFor } from '@/lib/media-url';
+import { requireAdult } from '@/lib/anonymous-api';
 import { presignUpload, R2NotConfiguredError } from '@/lib/r2';
 
 const EXTENSIONS: Record<string, string> = {
@@ -27,6 +28,11 @@ export async function POST(request: Request) {
   if (limited) return limited;
 
   const body = await parseJson(request);
+  // Anonymous uploads are part of posting, so they need the 18+ confirmation too.
+  if (isRecord(body) && body.kind === 'anonymous') {
+    const refused = await requireAdult(auth.supabase);
+    if (refused) return refused;
+  }
   if (!isRecord(body) || typeof body.contentType !== 'string' || typeof body.size !== 'number') {
     return apiError('invalid_body', 'Choose a photo or video to upload.', 400);
   }

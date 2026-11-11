@@ -12,7 +12,7 @@ import { useToast } from '@/components/cr/Toast';
 import { apiRequest, errorMessage } from '@/features/app/api';
 import { toProfile, useAppSession, type ProfileApiRecord } from '@/features/app/AppSession';
 import { removeUserMedia, uploadUserMedia } from '@/features/app/media';
-import { ONBOARDING_INTERESTS, profilePhotoProblem } from '@/features/auth/Onboarding';
+import { profilePhotoProblem } from '@/features/auth/Onboarding';
 import { DEFAULT_QUERY, fetchListings } from '@/features/market/api';
 import { compactCount, formatNaira } from '@/lib/format';
 import { institutions } from '@/lib/institutions';
@@ -165,7 +165,6 @@ export function EditProfile() {
   const [course, setCourse] = useState(profile?.course ?? '');
   const [year, setYear] = useState(profile?.year ?? '');
   const [school, setSchool] = useState(profile?.school ?? '');
-  const [interests, setInterests] = useState<string[]>(profile?.interests ?? []);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarRemoved, setAvatarRemoved] = useState(false);
   const [avatarError, setAvatarError] = useState('');
@@ -202,7 +201,7 @@ export function EditProfile() {
           educationStatus: school ? 'currently_in_school' : profile.educationStatus === 'currently_in_school' ? 'prefer_not_to_say' : profile.educationStatus,
           showSchoolOnProfile: profile.showSchoolOnProfile,
           ageEligibilityConfirmed: true,
-          interests,
+          interests: profile.interests,
           avatarUrl: uploaded ? uploaded.url : avatarRemoved ? null : profile.avatarUrl,
         },
       });
@@ -275,13 +274,6 @@ export function EditProfile() {
             <label className="cr-label" htmlFor="cr-edit-year">Level</label>
             <div className="cr-input"><input id="cr-edit-year" maxLength={40} onChange={(event) => setYear(event.target.value)} placeholder="e.g. 200L" value={year} /></div>
           </div>
-        </div>
-        <span className="cr-label" id="cr-edit-interests">Interests</span>
-        <div aria-labelledby="cr-edit-interests" className="cr-chips" role="group">
-          {ONBOARDING_INTERESTS.map((interest) => {
-            const on = interests.includes(interest);
-            return <button aria-pressed={on} className={on ? 'cr-chip on' : 'cr-chip'} key={interest} onClick={() => setInterests((list) => (on ? list.filter((item) => item !== interest) : [...list, interest]))} type="button">{interest}</button>;
-          })}
         </div>
         {error ? <div className="cr-create__error" role="alert"><span>{error}</span></div> : null}
       </form>
@@ -378,7 +370,6 @@ export function PersonProfileScreen({ id }: { id: string }) {
             <div className="cr-btnrow">
               <button aria-pressed={person.following} className={person.following ? 'cr-ghost cr-ghost--l' : 'cr-pbtn cr-pbtn--l'} disabled={busy} onClick={() => void toggleFollow()} type="button">{person.following ? 'Following' : 'Follow'}</button>
             </div>
-            {person.interests.length ? <div className="cr-chips cr-profile__interests">{person.interests.map((interest) => <span className="cr-chip" key={interest}>{interest}</span>)}</div> : null}
           </section>
           <div className="cr-tabbar cr-tabbar--flush" role="tablist" aria-label="Profile sections"><button aria-selected="true" role="tab" type="button">Posts</button></div>
           <PostGrid posts={person.posts} />

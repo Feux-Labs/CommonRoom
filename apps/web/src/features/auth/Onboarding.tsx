@@ -2,21 +2,16 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent, ReactNode } from 'react';
-import { Banner, Chip, DotsProgress, Input } from '@/components/cr/primitives';
+import { Banner, DotsProgress, Input } from '@/components/cr/primitives';
 import { Icon } from '@/components/cr/Icon';
 import type { OnboardingProfile } from '@/lib/contracts';
 import { institutions } from '@/lib/institutions';
 
-export const ONBOARDING_INTERESTS = [
-  'Study tips', 'Tech', 'Campus life', 'Career', 'Music', 'Sports',
-  'Comedy', 'Fashion', 'Food', 'Faith', 'Business', 'Gaming',
-] as const;
-
-const MIN_INTERESTS = 3;
 export const PROFILE_PHOTO_TYPES = ['image/jpeg', 'image/png'];
 export const PROFILE_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
-type Step = 'interests' | 'school' | 'photo';
+type Step = 'student' | 'school' | 'photo';
+type StudentAnswer = 'yes' | 'no' | 'skip';
 
 /** Returns an error message, or null when the file can be used as a profile photo. */
 export function profilePhotoProblem(file: File): string | null {
@@ -26,7 +21,7 @@ export function profilePhotoProblem(file: File): string | null {
 }
 
 /**
- * Screens 5–7: interests (at least three), optional school, optional photo.
+ * Short steps after sign-up: "Are you a student?" (yes goes on to pick a school; no or skip leaves school out), then an optional photo.
  * Saves once at the end through onComplete so a half-finished profile is never stored.
  */
 export function Onboarding({
@@ -41,8 +36,8 @@ export function Onboarding({
   onComplete: (profile: OnboardingProfile, avatarFile: File | null) => Promise<void>;
   onSignOut: () => void;
 }) {
-  const [step, setStep] = useState<Step>('interests');
-  const [interests, setInterests] = useState<string[]>([]);
+  const [step, setStep] = useState<Step>('student');
+  const [student, setStudent] = useState<StudentAnswer | null>(null);
   const [displayName, setDisplayName] = useState(initialName);
   const [school, setSchool] = useState('');
   const [schoolQuery, setSchoolQuery] = useState('');
@@ -62,10 +57,6 @@ export function Onboarding({
 
   const needsName = !initialName.trim();
 
-  const toggleInterest = (interest: string) => {
-    setInterests((current) => (current.includes(interest) ? current.filter((item) => item !== interest) : [...current, interest]));
-  };
-
   const chooseAvatar = (file: File | undefined) => {
     if (!file) return;
     const problem = profilePhotoProblem(file);
@@ -76,6 +67,9 @@ export function Onboarding({
     setAvatarError('');
     setAvatarFile(file);
   };
+
+  // School details only count when the person said they are a student.
+  const schoolChosen = student === 'yes' ? school : '';
 
   const finish = async (withPhoto: boolean) => {
     if (needsName && !displayName.trim()) {
@@ -90,14 +84,14 @@ export function Onboarding({
     setError('');
     try {
       await onComplete({
-        educationStatus: school ? 'currently_in_school' : 'prefer_not_to_say',
-        school: school || null,
-        showSchoolOnProfile: Boolean(school),
+        educationStatus: student === 'yes' ? 'currently_in_school' : student === 'no' ? 'not_in_school_yet' : 'prefer_not_to_say',
+        school: schoolChosen || null,
+        showSchoolOnProfile: Boolean(schoolChosen),
         displayName: displayName.trim(),
-        course: school ? course.trim() : '',
-        year: school ? year.trim() : '',
+        course: schoolChosen ? course.trim() : '',
+        year: schoolChosen ? year.trim() : '',
         ageEligibilityConfirmed: true,
-        interests,
+        interests: [],
       }, withPhoto ? avatarFile : null);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Your profile could not be saved. Try again.');
@@ -112,25 +106,34 @@ export function Onboarding({
     </>
   );
 
-  if (step === 'interests') {
+  if (step === 'student') {
+    const choose = (answer: StudentAnswer) => {
+      if (needsName && !displayName.trim()) {
+        setError('Enter your name.');
+        return;
+      }
+      setError('');
+      setStudent(answer);
+      setStep(answer === 'yes' ? 'school' : 'photo');
+    };
     return (
       <Surface>
         <div className="cr-auth__brand-row" style={{ marginBottom: 8 }}>
-          <DotsProgress current={1} />
+          <DotsProgress current={1} total={3} />
           <button className="cr-auth__link" onClick={onSignOut} type="button">Sign out</button>
         </div>
-        {heading('What are you into?', `Pick at least ${MIN_INTERESTS}. This shapes your feed.`)}
-        <div className="cr-onboard__chips" role="group" aria-label="Interests">
-          {ONBOARDING_INTERESTS.map((interest) => (
-            <Chip active={interests.includes(interest)} key={interest} label={interest} onClick={() => toggleInterest(interest)} />
-          ))}
+        {heading('Are you a student?', 'This helps show you your campus. You can skip it.')}
+        <div className="cr-auth__form" style={{ flex: 1 }}>
+          {needsName ? (
+            <Input inputProps={{ autoComplete: 'name', maxLength: 80, required: true }} label="Full name" onChange={(event) => setDisplayName(event.target.value)} placeholder="Your name" value={displayName} />
+          ) : null}
+          {error ? <p className="msg e" role="alert">{error}</p> : null}
+          <button className="cr-auth__btn cr-auth__btn--push" onClick={() => choose('yes')} type="button">Yes, I’m a student</button>
+          <button className="ghost" onClick={() => choose('no')} type="button">No</button>
+          <p className="cr-auth__center">
+            <button className="cr-auth__link" onClick={() => choose('skip')} type="button">Skip for now</button>
+          </p>
         </div>
-        <p className="cr-onboard__count" aria-live="polite">
-          {interests.length < MIN_INTERESTS ? `${MIN_INTERESTS - interests.length} more to go` : `${interests.length} selected`}
-        </p>
-        <button className="cr-auth__btn cr-auth__btn--push" disabled={interests.length < MIN_INTERESTS} onClick={() => setStep('school')} type="button">
-          Continue
-        </button>
       </Surface>
     );
   }
@@ -138,22 +141,15 @@ export function Onboarding({
   if (step === 'school') {
     const submit = (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      if (needsName && !displayName.trim()) {
-        setError('Enter your name.');
-        return;
-      }
       setError('');
       setStep('photo');
     };
     return (
       <Surface>
-        <BackButton onClick={() => setStep('interests')} />
-        <DotsProgress current={2} />
-        {heading('Where do you study?', 'Optional. Skip if you are not in school.')}
+        <BackButton onClick={() => setStep('student')} />
+        <DotsProgress current={2} total={3} />
+        {heading('Which school?', 'Pick your school. You can skip this too.')}
         <form className="cr-auth__form" noValidate onSubmit={submit} style={{ flex: 1 }}>
-          {needsName ? (
-            <Input inputProps={{ autoComplete: 'name', maxLength: 80, required: true }} label="Full name" onChange={(event) => setDisplayName(event.target.value)} placeholder="Your name" value={displayName} />
-          ) : null}
           <SchoolPicker onQueryChange={setSchoolQuery} onSelect={setSchool} query={schoolQuery} selected={school} />
           <Input inputProps={{ maxLength: 80, disabled: !school }} label="Department" onChange={(event) => setCourse(event.target.value)} placeholder="e.g. Computer Science" value={course} />
           <Input inputProps={{ maxLength: 40, disabled: !school }} label="Level" onChange={(event) => setYear(event.target.value)} placeholder="e.g. 300L" value={year} />
@@ -161,7 +157,7 @@ export function Onboarding({
           {error ? <p className="msg e" role="alert">{error}</p> : null}
           <button className="cr-auth__btn cr-auth__btn--push" disabled={!school} type="submit">Continue</button>
           <p className="cr-auth__center">
-            <button className="cr-auth__link" onClick={() => { setSchool(''); setSchoolQuery(''); setCourse(''); setYear(''); if (needsName && !displayName.trim()) { setError('Enter your name.'); return; } setError(''); setStep('photo'); }} type="button">Skip for now</button>
+            <button className="cr-auth__link" onClick={() => { setSchool(''); setSchoolQuery(''); setCourse(''); setYear(''); setError(''); setStep('photo'); }} type="button">Skip for now</button>
           </p>
         </form>
       </Surface>
@@ -170,8 +166,8 @@ export function Onboarding({
 
   return (
     <Surface>
-      <BackButton onClick={() => setStep('school')} />
-      <DotsProgress current={3} />
+      <BackButton onClick={() => setStep(student === 'yes' ? 'school' : 'student')} />
+      <DotsProgress current={3} total={3} />
       {heading('Add a photo', 'Helps people recognise you. JPG or PNG, up to 5 MB.')}
       <input
         accept={PROFILE_PHOTO_TYPES.join(',')}

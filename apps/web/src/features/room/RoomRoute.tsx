@@ -8,6 +8,7 @@ import { useToast } from '@/components/cr/Toast';
 import { AppShell, BootScreen } from '@/features/app/AppShell';
 import { apiRequest } from '@/features/app/api';
 import { useAppSession } from '@/features/app/AppSession';
+import { ROOM_ENABLED } from '@/lib/features';
 import { NotificationsPanel, type NotificationsPayload } from '@/features/notifications/NotificationsScreen';
 
 /**
@@ -36,6 +37,18 @@ export function RoomRoute({ focusPostId = null }: { focusPostId?: string | null 
     })();
     return () => { active = false; };
   }, [ready, session, isGuest]);
+
+  if (!ROOM_ENABLED) {
+    return (
+      <AppShell active={null}>
+        <main className="cr-boot" style={{ flexDirection: 'column', gap: 10, textAlign: 'center', padding: 24 }}>
+          <h1 style={{ fontSize: 20, margin: 0 }}>Room is resting</h1>
+          <p style={{ margin: 0, opacity: 0.75 }}>We’re focusing on Anonymous and Market for now. Room will be back.</p>
+          <button className="cr-pbtn cr-pbtn--l" onClick={() => router.push('/anonymous')} type="button">Go to Anonymous</button>
+        </main>
+      </AppShell>
+    );
+  }
 
   if (!ready) return <AppShell active="Room"><BootScreen /></AppShell>;
 

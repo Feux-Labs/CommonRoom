@@ -52,8 +52,10 @@ const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
 export function CreatePost({ destination }: { destination: CreateDestination }) {
   const router = useRouter();
   const toast = useToast();
-  const { account, profile } = useAppSession();
+  const { account: member, session, profile } = useAppSession();
   const anonymous = destination === 'anonymous';
+  // Anonymous posts are open to guests too; Room posts need a signed-in member.
+  const account = anonymous ? session : member;
   const maxLength = anonymous ? ANON_POST_MAX : ROOM_POST_MAX;
   const draftKey = `commonroom:draft:${destination}`;
   // The composer only renders on the client once the session is ready, so reading storage in the initial state is safe.

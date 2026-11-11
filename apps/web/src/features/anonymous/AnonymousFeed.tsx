@@ -33,7 +33,9 @@ import { AnonymousNameSheet } from './AnonymousNameSheet';
 export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusPostId?: string | null; pinPostId?: string | null }) {
   const router = useRouter();
   const toast = useToast();
-  const { session, account, isGuest, requireAccount, ready } = useAppSession();
+  // Guests (anonymous sessions) take part too: `account` here means the current visitor, member or guest.
+  const { session, isGuest, requireAccount, ensureAdult, ready } = useAppSession();
+  const account = session;
   const [posts, setPosts] = useState<AnonPost[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [cursor, setCursor] = useState<string | null>(null);
@@ -133,7 +135,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
 
   /** Runs `action` once the user has an account and an anonymous identity. */
   const withIdentity = (action: () => void) => {
-    if (!requireAccount('sign-in')) return;
+    if (!ensureAdult(() => withIdentity(action))) return;
     if (identity) {
       action();
       return;
@@ -177,6 +179,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
       requireAccount('sign-in');
       return;
     }
+    if (!ensureAdult()) throw new Error('Quick check first (18+), then send your comment again.');
     if (!identity) {
       setNameSheet(() => () => undefined);
       throw new Error('Set up Anonymous first, then send your comment again.');
@@ -214,7 +217,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
   };
 
   const openCreate = () => {
-    if (requireAccount('sign-up-email')) router.push('/create?to=anonymous');
+    if (ensureAdult(() => router.push('/create?to=anonymous'))) router.push('/create?to=anonymous');
   };
 
   const sheetComments: SheetComment[] = comments.map((comment) => ({
@@ -287,7 +290,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
                   {post.is_mine ? (
                     <button aria-label="Delete your post" className="cr-act cr-actions__end" onClick={() => setDeleteTarget(post)} type="button"><Icon name="trash" /></button>
                   ) : (
-                    <button aria-label="Report post" className="cr-act cr-actions__end" onClick={() => { if (requireAccount('sign-in')) setReportTarget({ kind: 'post', id: post.id }); }} type="button"><Icon name="flag" /></button>
+                    <button aria-label="Report post" className="cr-act cr-actions__end" onClick={() => setReportTarget({ kind: 'post', id: post.id })} type="button"><Icon name="flag" /></button>
                   )}
                 </div>
               </div>
