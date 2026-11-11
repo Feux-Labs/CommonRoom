@@ -1,5 +1,7 @@
 import { apiError, apiSuccess, authenticateRequest, createPublicSupabase, isAuthenticatedRequest, requireRegisteredUser } from '@/lib/supabase-server';
 import { attachRoomViewerFields, mapRoomPost } from '@/lib/room-map';
+import { scheduleTextScan } from '@/lib/moderation/media-scan';
+import { prisma } from '@/lib/prisma';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -38,6 +40,19 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const caption = typeof body?.caption === 'string' ? body.caption.trim() : undefined;
   const location = typeof body?.location === 'string' ? body.location.trim() : undefined;
 
+  if (caption !== undefined && caption.length > 2200) return apiError('invalid_caption', 'Keep your post to 2,200 characters.', 422);
+
+  // Only the author can edit, and not once the post has been reported or flagged by the automatic checks:
+  // from then on a moderator decides. The same lookup answers "is it yours" so nobody can probe other people's posts.
+  const state = await prisma.$queryRaw<Array<{ mine: boolean; locked: boolean }>>`
+    select
+      exists (select 1 from public.posts p where p.id = ${id}::uuid and p.author_id = ${auth.user.id}::uuid) as mine,
+      (exists (select 1 from public.post_reports r where r.post_id = ${id}::uuid)
+        or exists (select 1 from public.auto_flags f where f.target_kind = 'room_post' and f.target_id = ${id}::uuid and f.status = 'open')) as locked`.catch(() => null);
+  if (!state) return apiError('post_update_failed', 'This post could not be updated.', 500);
+  if (!state[0]?.mine) return apiError('post_not_found', 'This post could not be found or you do not have permission to edit it.', 404);
+  if (state[0].locked) return apiError('post_locked', 'This post has been reported or is being reviewed, so it can’t be edited now.', 409);
+
   const updates: Record<string, unknown> = {};
   if (caption !== undefined) updates.caption = caption;
   if (location !== undefined) updates.location = location;
@@ -53,6 +68,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (error) return apiError('post_update_failed', 'This post could not be updated.', 500);
   if (!data) return apiError('post_not_found', 'This post could not be found or you do not have permission to edit it.', 404);
 
+  if (caption) scheduleTextScan('room_post', id, caption);
   const [row] = await attachRoomViewerFields(auth.supabase, auth.user.id, [data as unknown as Record<string, unknown>]);
   return apiSuccess(mapRoomPost(row));
 }

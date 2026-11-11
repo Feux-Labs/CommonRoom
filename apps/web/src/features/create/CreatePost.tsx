@@ -90,6 +90,20 @@ export function CreatePost({ destination }: { destination: CreateDestination }) 
   useEffect(() => { textareaRef.current?.focus(); }, []);
 
   // Drafts: text and options are saved on this device while typing. Photos and video are not kept.
+  // Next keeps the old composer in memory after you leave it, so a finished post must clear it. Otherwise tapping "+" again
+  // shows the last post, still stuck on "Posting…".
+  const resetComposer = () => {
+    setCaption('');
+    setFiles([]);
+    setKind(null);
+    setIsPoll(false);
+    setPollOptions(['', '']);
+    setSoundName(null);
+    setProgress(null);
+    setPublishing(false);
+    setError('');
+    setDraftRestored(false);
+  };
   const clearDraft = () => {
     try { window.localStorage.removeItem(draftKey); } catch { /* storage blocked: nothing to clear */ }
   };
@@ -221,6 +235,7 @@ export function CreatePost({ destination }: { destination: CreateDestination }) 
       });
       toast.show('Posted');
       clearDraft();
+      resetComposer();
       router.push('/room');
     } catch (publishError) {
       await removeUserMedia(uploadedPaths);
@@ -248,6 +263,7 @@ export function CreatePost({ destination }: { destination: CreateDestination }) 
       });
       toast.show('Posted anonymously');
       clearDraft();
+      resetComposer();
       router.push(`/anonymous?posted=${encodeURIComponent(created.id)}`);
     } catch (publishError) {
       await removeUserMedia(uploadedPaths);

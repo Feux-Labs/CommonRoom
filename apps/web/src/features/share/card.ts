@@ -86,61 +86,42 @@ export async function renderShareCard(options: {
 
   const marginX = 96;
   const maxWidth = CARD_WIDTH - marginX * 2;
+  const centerX = CARD_WIDTH / 2;
+  context.textAlign = 'center';
+  context.textBaseline = 'alphabetic';
+  const measure = (value: string) => context.measureText(value).width;
 
-  // Brand row.
+  // Watermark: the three dots and the name, centred at the top.
   context.fillStyle = '#fff';
   for (let index = 0; index < 3; index += 1) {
     context.globalAlpha = index === 0 ? 1 : index === 1 ? 0.55 : 0.3;
-    context.beginPath(); context.arc(marginX + 14 + index * 34, 150, 12, 0, Math.PI * 2); context.fill();
+    context.beginPath(); context.arc(centerX - 40 + index * 40, 150, 14, 0, Math.PI * 2); context.fill();
   }
   context.globalAlpha = 1;
-  context.font = `500 40px ${family}`;
-  context.textBaseline = 'alphabetic';
-  context.textAlign = 'left';
-  context.fillText('common room', marginX + 124, 164);
+  context.font = `600 56px ${family}`;
+  context.fillText('common room', centerX, 245);
 
-  // Everything below is centred.
-  const centerX = CARD_WIDTH / 2;
-  context.textAlign = 'center';
-  const kickerY = question ? 470 : 640;
-  if (kicker) {
-    context.globalAlpha = 0.8;
-    context.font = `500 38px ${family}`;
-    context.fillText(kicker, centerX, kickerY);
-    context.globalAlpha = 1;
-  }
-
-  // Public reply cards: the question sits on a white panel above the answer.
-  let replyTop = kicker ? 720 : 560;
+  // Lay the content out first, so the whole group can sit in the middle of the card.
+  const kickerHeight = kicker ? 90 : 0;
+  let questionLines: string[] = [];
+  const questionFont = `500 54px ${family}`;
+  const questionLineHeight = 70;
+  let panelHeight = 0;
   if (question) {
-    const panelFont = `500 54px ${family}`;
-    context.font = panelFont;
-    let questionLines = wrapText((value) => context.measureText(value).width, question.trim(), maxWidth - 120);
+    context.font = questionFont;
+    questionLines = wrapText(measure, question.trim(), maxWidth - 120);
     if (questionLines.length > 6) {
       questionLines = questionLines.slice(0, 6);
       questionLines[5] = `${questionLines[5].replace(/\s+\S*$/, '')}…`;
     }
-    const questionLineHeight = 70;
-    const panelTop = kickerY + 50;
-    const panelHeight = questionLines.length * questionLineHeight + 100;
-    context.fillStyle = '#ffffff';
-    context.beginPath();
-    context.roundRect(marginX, panelTop, maxWidth, panelHeight, 48);
-    context.fill();
-    context.fillStyle = '#14183a';
-    context.font = panelFont;
-    let questionY = panelTop + 50 + 54;
-    for (const line of questionLines) { context.fillText(line, centerX, questionY); questionY += questionLineHeight; }
-    replyTop = panelTop + panelHeight + 130;
+    panelHeight = questionLines.length * questionLineHeight + 100;
   }
-
-  // The words: the largest size that fits about 12 lines.
   const maxLines = question ? 8 : 12;
   let size = question ? 72 : 88;
   let lines: string[] = [];
   for (; size >= 40; size -= 4) {
     context.font = `500 ${size}px ${family}`;
-    lines = wrapText((value) => context.measureText(value).width, text.trim(), maxWidth);
+    lines = wrapText(measure, text.trim(), maxWidth);
     if (lines.length <= maxLines) break;
   }
   if (lines.length > maxLines) {
@@ -148,16 +129,44 @@ export async function renderShareCard(options: {
     lines[maxLines - 1] = `${lines[maxLines - 1].replace(/\s+\S*$/, '')}…`;
   }
   const lineHeight = Math.round(size * 1.28);
-  const blockHeight = lines.length * lineHeight;
-  let y = question ? replyTop + size * 0.4 : Math.max(kicker ? 720 : 560, (CARD_HEIGHT - blockHeight) / 2 + size * 0.4);
+  const textHeight = lines.length * lineHeight;
+  const gap = question ? 110 : 0;
+  const groupHeight = kickerHeight + (question ? panelHeight + gap : 0) + textHeight;
+  const areaTop = 330;
+  const areaBottom = CARD_HEIGHT - 300;
+  let y = areaTop + Math.max(0, (areaBottom - areaTop - groupHeight) / 2);
+
+  if (kicker) {
+    context.globalAlpha = 0.85;
+    context.font = `500 40px ${family}`;
+    context.fillStyle = '#fff';
+    context.fillText(kicker, centerX, y + 40);
+    context.globalAlpha = 1;
+    y += kickerHeight;
+  }
+  if (question) {
+    context.fillStyle = '#ffffff';
+    context.beginPath();
+    context.roundRect(marginX, y, maxWidth, panelHeight, 48);
+    context.fill();
+    context.fillStyle = '#14183a';
+    context.font = questionFont;
+    let questionY = y + 50 + 54;
+    for (const line of questionLines) { context.fillText(line, centerX, questionY); questionY += questionLineHeight; }
+    y += panelHeight + gap;
+  }
   context.fillStyle = '#fff';
   context.font = `500 ${size}px ${family}`;
-  for (const line of lines) { context.fillText(line, centerX, y); y += lineHeight; }
+  let lineY = y + size * 0.85;
+  for (const line of lines) { context.fillText(line, centerX, lineY); lineY += lineHeight; }
 
-  // Small link line.
-  context.globalAlpha = 0.85;
-  context.font = `500 36px ${family}`;
-  context.fillText(shortLink(link), centerX, CARD_HEIGHT - 150);
+  // Footer: the link people follow, and a small invitation to get their own.
+  context.globalAlpha = 0.9;
+  context.font = `500 38px ${family}`;
+  context.fillText(shortLink(link), centerX, CARD_HEIGHT - 190);
+  context.globalAlpha = 0.7;
+  context.font = `400 30px ${family}`;
+  context.fillText('Get your own anonymous link at commonroom.feuxlabs.com.ng', centerX, CARD_HEIGHT - 130);
   context.globalAlpha = 1;
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));

@@ -183,6 +183,10 @@ export function RoomExperience({
   const [replyTo, setReplyTo] = useState<Record<string, RoomComment | null>>({});
   const [menuPostId, setMenuPostId] = useState<string | null>(null);
   const [reportModalPost, setReportModalPost] = useState<RoomPost | null>(null);
+  const [editPost, setEditPost] = useState<RoomPost | null>(null);
+  const [editText, setEditText] = useState('');
+  const [editBusy, setEditBusy] = useState(false);
+  const [editError, setEditError] = useState('');
   const [viewer, setViewer] = useState<ViewerState | null>(null);
   const [openProfile, setOpenProfile] = useState<RoomProfile | null>(null);
   const [mediaIndex, setMediaIndex] = useState<Record<string, number>>({});
@@ -721,6 +725,22 @@ export function RoomExperience({
     setMenuPostId(null);
     setActiveIndex((current) => Math.max(0, current - 1));
     onNotice('We will show you fewer posts like this');
+  };
+
+  const saveEdit = async () => {
+    if (!editPost || editBusy) return;
+    setEditBusy(true);
+    setEditError('');
+    try {
+      await roomRequest(`/api/v1/posts/${editPost.id}`, accessToken, 'PATCH', { caption: editText.trim() });
+      setPosts((current) => current.map((item) => (item.id === editPost.id ? { ...item, caption: editText.trim() } : item)));
+      setEditPost(null);
+      onNotice('Your post was updated');
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : 'This post could not be updated.');
+    } finally {
+      setEditBusy(false);
+    }
   };
 
   const deletePost = async (post: RoomPost) => {
@@ -1847,6 +1867,21 @@ export function RoomExperience({
 
               {activeMenuPost.authorId === profile.id ? (
                 <button
+                  className="post-option-item"
+                  onClick={() => {
+                    setEditText(activeMenuPost.caption ?? '');
+                    setEditError('');
+                    setEditPost(activeMenuPost);
+                    setMenuPostId(null);
+                  }}
+                  type="button"
+                >
+                  <span>Edit post</span>
+                </button>
+              ) : null}
+
+              {activeMenuPost.authorId === profile.id ? (
+                <button
                   className="post-option-item destructive"
                   onClick={() => void deletePost(activeMenuPost)}
                   type="button"
@@ -1855,6 +1890,23 @@ export function RoomExperience({
                   <span>Delete post</span>
                 </button>
               ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {editPost ? (
+        <div className="post-options-backdrop" onClick={() => setEditPost(null)}>
+          <div className="post-options-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Edit post">
+            <div className="post-options-handle" />
+            <div className="post-options-header">
+              <strong>Edit post</strong>
+            </div>
+            <textarea aria-label="Post text" maxLength={2200} onChange={(event) => setEditText(event.target.value)} rows={5} style={{ width: '100%', padding: 12, borderRadius: 12 }} value={editText} />
+            {editError ? <p role="alert" style={{ color: '#b3261e' }}>{editError}</p> : null}
+            <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+              <button className="post-option-item" onClick={() => setEditPost(null)} type="button"><span>Cancel</span></button>
+              <button className="post-option-item" disabled={editBusy || editText.trim() === (editPost.caption ?? '')} onClick={() => void saveEdit()} type="button"><span>{editBusy ? 'Saving…' : 'Save'}</span></button>
             </div>
           </div>
         </div>

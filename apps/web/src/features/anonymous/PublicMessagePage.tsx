@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Icon, type IconName } from '@/components/cr/Icon';
 import { useAppSession } from '@/features/app/AppSession';
 import { CARD_GRADIENTS, isCardTheme } from '@/features/share/card';
+import { limitWords, wordLimitOf } from './prompt-templates';
 import './prompt.css';
 import { AnonymousApiError, anonRequest, type AnonIdentity } from './api';
 
@@ -97,6 +98,8 @@ export function PublicMessagePage({ token }: { token: string }) {
   };
 
   const showComposer = state === 'ready' || state === 'sending' || state === 'failed';
+  // "3 words max" in the prompt becomes a real limit on what a visitor can type.
+  const wordLimit = wordLimitOf(prompt?.text);
 
   return (
     <main className="cr-web">
@@ -130,14 +133,14 @@ export function PublicMessagePage({ token }: { token: string }) {
               disabled={state === 'sending'}
               id="cr-web-message"
               maxLength={MAX_LENGTH}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder="Say something honest…"
+              onChange={(event) => setDraft(wordLimit ? limitWords(event.target.value, wordLimit) : event.target.value)}
+              placeholder={wordLimit ? `Your hint (${wordLimit} words max)` : 'Say something honest…'}
               rows={4}
               value={draft}
             />
             <div className="cr-sp cr-web__count">
               <span className="cr-cnt">{state === 'failed' ? '' : 'Need a prompt?'}</span>
-              <span className="cr-cnt">{draft.length} / {MAX_LENGTH}</span>
+              <span className="cr-cnt">{wordLimit ? `${draft.split(/\s+/).filter(Boolean).length} / ${wordLimit} words` : `${draft.length} / ${MAX_LENGTH}`}</span>
             </div>
             {state !== 'failed' ? (
               <div className="cr-web__prompts">
@@ -154,6 +157,13 @@ export function PublicMessagePage({ token }: { token: string }) {
           </form>
           <p className="cr-web__privacy"><Icon name="lock" /><span>Your identity is never shared. Messages are private, and the person you’re messaging chooses whether to share anything publicly.</span></p>
         </>
+      ) : null}
+
+      {state === 'ready' || state === 'sending' || state === 'failed' || state === 'sent' ? (
+        <footer className="cr-web__get">
+          <p className="cr-web__mark"><span aria-hidden="true" className="cr-brand-dots"><i /><i /><i /></span> common room</p>
+          <p>Want your own anonymous link? <Link href="/anonymous?s=link">Get yours in 10 seconds</Link></p>
+        </footer>
       ) : null}
 
       {state === 'sent' ? (

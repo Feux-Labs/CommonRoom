@@ -6,6 +6,7 @@ import { BottomNav, type BottomNavItemLabel } from '@/components/cr/primitives';
 import { ROOM_ENABLED } from '@/lib/features';
 import { useFlag } from '@/lib/use-flags';
 import { useAppSession } from './AppSession';
+import { InstallPrompt } from './InstallPrompt';
 import { SignInNudge } from './SignInNudge';
 
 const ROUTES: Record<BottomNavItemLabel, string> = {
@@ -26,6 +27,7 @@ export function AppShell({ active, children, hideNav = false }: { active: Bottom
   return (
     <div className="cr-app">
       {children}
+      {hideNav ? null : <InstallPrompt />}
       {hideNav || !nudgeFlag ? null : <SignInNudge />}
       {hideNav ? null : (
         <BottomNav

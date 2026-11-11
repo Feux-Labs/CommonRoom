@@ -8,6 +8,8 @@
 - [x] 5. Analytics and post insights (migration 0038: app_events keyed by user id incl. guests + is_anonymous + first-touch ?s= source; author-only post insights for Anonymous and Room posts, UI on Anonymous; admin Growth tab; real 20 + admin 2 + browser 5 checks)
 - [x] 6. People You May Know (migration 0039 suggest_people: mutual follows + same public school, excludes blocked/muted/followed, hidden schools never used or shown; shown on Search when the box is empty; real 19 + browser 4 checks)
 - [x] 6b. Inbox prompt templates + AI generate (optional) + public reply cards + Messages you sent + edit own Anonymous posts + centred text (migrations 0040-0043; fixed a real bug: inbox links could not be created on Supabase; real 22 + 11 + 21 checks, AI unit 8, browser templates 13 + edit 5)
+- [x] 6c. Polish round: composer reset after posting (the stuck "+" bug), hint template as an instruction with a real 3-word limit, share cards centred with watermark + "Get your own anonymous link" footer, link page CTA, Add-to-home-screen prompt from the 2nd visit (service worker + iOS instructions), Room post editing with report/flag lock (real 11, browser 13)
+- [ ] 6d. Web push notifications for installed app (needs VAPID keys + subscription table; not started)
 - [ ] 7. Communities
 - [ ] 8. Levels and Pro
 - [ ] 9. Sponsored ads
