@@ -31,3 +31,5 @@
 - Dark mode: follows the phone, Light/Dark/Auto in Settings > Appearance (applied before first paint). Room feed fixed to use theme colours.
 - Chat streaks (TikTok style, migration 0064): days in a row both people message in an Anonymous inbox conversation; badge from 3 days with the Ghaul pet, hourglass after 6 pm if today is not done. Removed from the profile card.
 - Male stage 5 art added. Ranks never drop; a broken streak only stops streak points.
+
+- Profile redesign: rank card rebuilt as a hero (avatar, name, rank line, All ranks, animated character stage with breathing glow, floating figure, rippling platform, sparkles; richer per phase; Female/Male picker, points, 5 stars, progress). Moon/sun theme button on the profile.

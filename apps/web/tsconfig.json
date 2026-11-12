@@ -118,7 +118,11 @@
     ".next-a47/types/**/*.ts",
     ".next-a47/dev/types/**/*.ts",
     ".next-a48/types/**/*.ts",
-    ".next-a48/dev/types/**/*.ts"
+    ".next-a48/dev/types/**/*.ts",
+    ".next-a49/types/**/*.ts",
+    ".next-a49/dev/types/**/*.ts",
+    ".next-a50/types/**/*.ts",
+    ".next-a50/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

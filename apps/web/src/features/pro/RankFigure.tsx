@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAppSession } from '@/features/app/AppSession';
 
 const PHASES = ['Lapo Baby', 'Nepo Baby', 'Legendary', 'Awakening', 'The Divine'] as const;
 export type Figure = 'female' | 'male';
@@ -51,37 +50,6 @@ export function useFigure(): [Figure, (next: Figure) => void] {
     try { window.localStorage.setItem(KEY, next); } catch { /* storage unavailable */ }
   };
   return [figure, choose];
-}
-
-/**
- * The character that grows in glory with your phase. Pictures live in /public/avatars/<female|male>/. If the picture for a stage
- * is missing the highest earlier one is shown, and if none can be shown nothing is.
- */
-export function RankFigure({ phase }: { phase: string }) {
-  const { session } = useAppSession();
-  const [figure, choose] = useFigure();
-  const [broken, setBroken] = useState(false);
-  const src = figureSrc(figure, stageOf(phase), session?.user.id ?? 'guest');
-
-  return (
-    <div className="cr-figure" hidden={!src || broken}>
-      {src ? (
-        // eslint-disable-next-line @next/next/no-img-element -- transparent artwork served from /public
-        <img
-          alt={`Your character, stage ${stageOf(phase)} of 5`}
-          className={`cr-figure__img cr-figure__img--${stageOf(phase)}`}
-          key={src}
-          onError={() => setBroken(true)}
-          onLoad={() => setBroken(false)}
-          src={src}
-        />
-      ) : null}
-      <span aria-label="Choose your character" className="cr-figure__pick" role="group">
-        <button aria-pressed={figure === 'female'} onClick={() => choose('female')} type="button">Female</button>
-        <button aria-pressed={figure === 'male'} onClick={() => choose('male')} type="button">Male</button>
-      </span>
-    </div>
-  );
 }
 
 /** All five stages at once: where the climb leads. The dots show which stage you are on. */

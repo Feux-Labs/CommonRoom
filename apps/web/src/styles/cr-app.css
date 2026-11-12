@@ -1085,3 +1085,4 @@ body {
 .cr-themepick { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--cr-subtle, #f0f0f0); }
 .cr-themepick button { border: 0; background: none; color: inherit; padding: 6px 12px; border-radius: 8px; font: inherit; font-size: 0.8rem; cursor: pointer; }
 .cr-themepick button[aria-pressed='true'] { background: var(--cr-text, #0b0b0b); color: var(--cr-surface, #fff); }
+.cr-hd__actions { display: inline-flex; align-items: center; gap: 2px; }
