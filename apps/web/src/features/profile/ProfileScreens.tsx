@@ -180,6 +180,7 @@ export function EditProfile() {
   const [course, setCourse] = useState(profile?.course ?? '');
   const [year, setYear] = useState(profile?.year ?? '');
   const [school, setSchool] = useState(profile?.school ?? '');
+  const [gender, setGender] = useState<string>(profile?.gender ?? 'prefer_not_to_say');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarRemoved, setAvatarRemoved] = useState(false);
   const [avatarError, setAvatarError] = useState('');
@@ -213,6 +214,7 @@ export function EditProfile() {
           course: course.trim(),
           year: year.trim(),
           school: school || null,
+          gender,
           educationStatus: school ? 'currently_in_school' : profile.educationStatus === 'currently_in_school' ? 'prefer_not_to_say' : profile.educationStatus,
           showSchoolOnProfile: profile.showSchoolOnProfile,
           ageEligibilityConfirmed: true,
@@ -274,6 +276,12 @@ export function EditProfile() {
         <label className="cr-label" htmlFor="cr-edit-username">Username</label>
         <div className="cr-input cr-input--readonly"><input id="cr-edit-username" readOnly value={profile.username ? `@${profile.username}` : ''} /></div>
         <p className="cr-msg">Usernames can’t be changed yet.</p>
+        <label className="cr-label" htmlFor="cr-edit-gender">I am</label>
+        <select className="cr-select" id="cr-edit-gender" onChange={(event) => setGender(event.target.value)} value={gender}>
+          <option value="female">Female</option>
+          <option value="male">Male</option>
+          <option value="prefer_not_to_say">Prefer not to say</option>
+        </select>
         <label className="cr-label" htmlFor="cr-edit-school">School</label>
         <select className="cr-select" id="cr-edit-school" onChange={(event) => setSchool(event.target.value)} value={school}>
           <option value="">Not in school / prefer not to say</option>

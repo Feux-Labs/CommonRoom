@@ -4,7 +4,7 @@ import { readProfileCache, writeProfileCache, type CachedProfile } from '@/lib/p
 import { isOwnStorageUrl } from '@/lib/media-url';
 import { normaliseUsername, usernameError, usernameFromName, withSuffix } from '@/lib/username';
 
-const profileFields = 'id, display_name, username, avatar_url, education_status, school, show_school_on_profile, course, year, age_eligibility_confirmed, interests';
+const profileFields = 'id, display_name, username, avatar_url, education_status, gender, school, show_school_on_profile, course, year, age_eligibility_confirmed, interests';
 const educationStatuses: EducationStatus[] = [
   'currently_in_school',
   'not_in_school_yet',
@@ -60,6 +60,7 @@ export async function PUT(request: Request) {
   const course = typeof body.course === 'string' ? body.course.trim() : '';
   const year = typeof body.year === 'string' ? body.year.trim() : '';
   const ageConfirmed = body.ageEligibilityConfirmed === true;
+  const gender = body.gender;
   const showSchool = body.showSchoolOnProfile === true;
   const avatarUrl = body.avatarUrl;
   const interests = Array.isArray(body.interests)
@@ -68,6 +69,9 @@ export async function PUT(request: Request) {
 
   if (!educationStatuses.includes(educationStatus as EducationStatus)) {
     return apiError('invalid_education_status', 'Choose a valid education status.', 422);
+  }
+  if (gender !== undefined && gender !== null && !['male', 'female', 'prefer_not_to_say'].includes(gender as string)) {
+    return apiError('invalid_gender', 'Choose male, female or prefer not to say.', 422);
   }
   if (!displayName || displayName.length > 80) {
     return apiError('invalid_display_name', 'Display name must contain 1 to 80 characters.', 422);
@@ -101,6 +105,8 @@ export async function PUT(request: Request) {
     year: year.slice(0, 40),
     age_eligibility_confirmed: ageConfirmed,
     interests: [...new Set(interests)],
+    // Only changed when sent, so saving the profile from a screen that does not ask keeps the earlier answer.
+    ...(typeof gender === 'string' ? { gender } : {}),
     ...(avatarUrl !== undefined ? { avatar_url: avatarUrl } : {}),
   };
 

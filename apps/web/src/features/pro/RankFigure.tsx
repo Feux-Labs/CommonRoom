@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useAppSession } from '@/features/app/AppSession';
 
 const PHASES = ['Lapo Baby', 'Nepo Baby', 'Legendary', 'Awakening', 'The Divine'] as const;
 export type Figure = 'female' | 'male';
-const KEY = 'commonroom:figure';
 
 /** How many pictures exist for each stage (stage-<n>-<variant>.webp). Where a stage has several, each person gets one of them, always the same one. */
 const VARIANTS: Record<Figure, Record<number, number>> = {
@@ -31,30 +30,16 @@ export function figureSrc(figure: Figure, stage: number, seed: string): string |
   return null;
 }
 
-/** The chosen character (female or male), remembered on this device. */
-export function useFigure(): [Figure, (next: Figure) => void] {
-  const [figure, setFigure] = useState<Figure>('female');
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      await Promise.resolve();
-      try {
-        const saved = window.localStorage.getItem(KEY);
-        if (active && (saved === 'male' || saved === 'female')) setFigure(saved);
-      } catch { /* storage unavailable */ }
-    })();
-    return () => { active = false; };
-  }, []);
-  const choose = (next: Figure) => {
-    setFigure(next);
-    try { window.localStorage.setItem(KEY, next); } catch { /* storage unavailable */ }
-  };
-  return [figure, choose];
+/** Which character to show: the one for the gender chosen at sign-up. With "prefer not to say" (or no answer, or a guest) it is one of the two, always the same for the same person. */
+export function useFigure(): Figure {
+  const { profile, session } = useAppSession();
+  if (profile?.gender === 'male' || profile?.gender === 'female') return profile.gender;
+  return pick(session?.user.id ?? 'guest', 0, 2) === 1 ? 'female' : 'male';
 }
 
 /** All five stages at once: where the climb leads. The dots show which stage you are on. */
 export function RankPath({ phase }: { phase: string }) {
-  const [figure] = useFigure();
+  const figure = useFigure();
   const stage = stageOf(phase);
   return (
     <figure className="cr-path">

@@ -6,7 +6,7 @@ import type { Session } from '@supabase/supabase-js';
 import { ToastProvider, useToast } from '@/components/cr/Toast';
 import { AuthFlow, type AuthRoute } from '@/features/auth/AuthFlow';
 import { Onboarding } from '@/features/auth/Onboarding';
-import type { EducationStatus, OnboardingProfile } from '@/lib/contracts';
+import type { EducationStatus, Gender, OnboardingProfile } from '@/lib/contracts';
 import { getBrowserSupabase, isSupabaseConfigured } from '@/lib/supabase-browser';
 import { guestSignInOptions } from '@/lib/turnstile';
 import { captureSource, trackEvent } from '@/lib/analytics';
@@ -20,6 +20,7 @@ export type Profile = {
   username: string | null;
   avatarUrl: string | null;
   educationStatus: EducationStatus;
+  gender: Gender | null;
   school: string | null;
   showSchoolOnProfile: boolean;
   course: string;
@@ -34,6 +35,7 @@ export type ProfileApiRecord = {
   username: string | null;
   avatar_url?: string | null;
   education_status: EducationStatus;
+  gender?: Gender | null;
   school: string | null;
   show_school_on_profile: boolean;
   course: string;
@@ -49,6 +51,7 @@ export function toProfile(record: ProfileApiRecord, fallbackAvatarUrl: string | 
     username: record.username,
     avatarUrl: record.avatar_url ?? fallbackAvatarUrl,
     educationStatus: record.education_status,
+    gender: record.gender ?? null,
     school: record.school,
     showSchoolOnProfile: record.show_school_on_profile,
     course: record.course ?? '',

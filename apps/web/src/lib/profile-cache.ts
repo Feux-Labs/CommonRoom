@@ -8,6 +8,7 @@ export type CachedProfile = {
   username: string | null;
   avatar_url?: string | null;
   education_status: string;
+  gender?: string | null;
   school: string | null;
   show_school_on_profile: boolean;
   course: string;

@@ -19,7 +19,7 @@ const SPARKS = Array.from({ length: 16 }, (_, index) => ({ left: 6 + ((index * 5
 export function ProfileHero({ name, avatarUrl, guest, fallback }: { name: string; avatarUrl?: string | null; guest?: boolean; fallback?: ReactNode }) {
   const { session } = useAppSession();
   const level = useMyLevel();
-  const [figure, chooseFigure] = useFigure();
+  const figure = useFigure();
   if (!level) return <>{fallback ?? null}</>;
 
   const stage = stageOf(level.phase);
@@ -54,10 +54,6 @@ export function ProfileHero({ name, avatarUrl, guest, fallback }: { name: string
 
       <div className="ph-points">
         <p><b>{level.points.toLocaleString()}</b> points</p>
-        <span aria-label="Choose your character" className="ph-pick" role="group">
-          <button aria-pressed={figure === 'female'} onClick={() => chooseFigure('female')} type="button">Female</button>
-          <button aria-pressed={figure === 'male'} onClick={() => chooseFigure('male')} type="button">Male</button>
-        </span>
       </div>
 
       <div className="ph-stars">

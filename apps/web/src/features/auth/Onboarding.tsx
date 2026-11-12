@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent, ReactNode } from 'react';
 import { Banner, DotsProgress, Input } from '@/components/cr/primitives';
 import { Icon } from '@/components/cr/Icon';
-import type { OnboardingProfile } from '@/lib/contracts';
+import type { Gender, OnboardingProfile } from '@/lib/contracts';
 import { institutions } from '@/lib/institutions';
 
 export const PROFILE_PHOTO_TYPES = ['image/jpeg', 'image/png'];
@@ -38,6 +38,7 @@ export function Onboarding({
 }) {
   const [step, setStep] = useState<Step>('student');
   const [student, setStudent] = useState<StudentAnswer | null>(null);
+  const [gender, setGender] = useState<Gender | null>(null);
   const [displayName, setDisplayName] = useState(initialName);
   const [school, setSchool] = useState('');
   const [schoolQuery, setSchoolQuery] = useState('');
@@ -84,6 +85,7 @@ export function Onboarding({
     setError('');
     try {
       await onComplete({
+        gender: gender ?? 'prefer_not_to_say',
         educationStatus: student === 'yes' ? 'currently_in_school' : student === 'no' ? 'not_in_school_yet' : 'prefer_not_to_say',
         school: schoolChosen || null,
         showSchoolOnProfile: Boolean(schoolChosen),
@@ -127,6 +129,12 @@ export function Onboarding({
           {needsName ? (
             <Input inputProps={{ autoComplete: 'name', maxLength: 80, required: true }} label="Full name" onChange={(event) => setDisplayName(event.target.value)} placeholder="Your name" value={displayName} />
           ) : null}
+          <p className="cr-auth__ask">I am</p>
+          <div aria-label="I am" className="cr-auth__chips" role="group">
+            {([['female', 'Female'], ['male', 'Male'], ['prefer_not_to_say', 'Prefer not to say']] as const).map(([value, label]) => (
+              <button aria-pressed={gender === value} key={value} onClick={() => setGender(value)} type="button">{label}</button>
+            ))}
+          </div>
           {error ? <p className="msg e" role="alert">{error}</p> : null}
           <button className="cr-auth__btn cr-auth__btn--push" onClick={() => choose('yes')} type="button">Yes, I’m a student</button>
           <button className="ghost" onClick={() => choose('no')} type="button">No</button>

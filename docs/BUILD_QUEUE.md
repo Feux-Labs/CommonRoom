@@ -33,3 +33,5 @@
 - Male stage 5 art added. Ranks never drop; a broken streak only stops streak points.
 
 - Profile redesign: rank card rebuilt as a hero (avatar, name, rank line, All ranks, animated character stage with breathing glow, floating figure, rippling platform, sparkles; richer per phase; Female/Male picker, points, 5 stars, progress). Moon/sun theme button on the profile.
+
+- Gender asked at sign-up (female / male / prefer not to say; migration 0065), editable in Edit profile; the profile character follows it. No picker on the profile.

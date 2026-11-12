@@ -40,7 +40,10 @@ export type FeedPost = {
   allowReuse?: boolean;
 };
 
+export type Gender = 'male' | 'female' | 'prefer_not_to_say';
+
 export type OnboardingProfile = {
+  gender?: Gender;
   educationStatus: EducationStatus;
   school: string | null;
   showSchoolOnProfile: boolean;

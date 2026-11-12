@@ -707,3 +707,8 @@
 .cr-auth__social { display: flex; align-items: center; justify-content: center; gap: 10px; box-sizing: border-box; width: 100%; max-width: 400px; height: 40px; margin: 0 auto; padding: 0 12px; border: 1px solid #dadce0; border-radius: 4px; background: #fff; color: #3c4043; font: 500 14px/1 var(--cr-font-family, system-ui, sans-serif); text-decoration: none; cursor: pointer; }
 .cr-auth__social:hover { background: #f8f9fa; }
 .cr-auth__social:disabled, .cr-auth__social[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+
+.cr-auth__ask { margin: 4px 0 0; font-size: 0.85rem; font-weight: 600; }
+.cr-auth__chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 6px; }
+.cr-auth__chips button { padding: 9px 14px; border-radius: 999px; border: 1px solid var(--cr-border, #d4d4d4); background: var(--cr-surface, #fff); color: var(--cr-text, #0b0b0b); font: inherit; font-size: 0.85rem; cursor: pointer; }
+.cr-auth__chips button[aria-pressed='true'] { background: var(--cr-text, #0b0b0b); color: var(--cr-surface, #fff); border-color: var(--cr-text, #0b0b0b); }
