@@ -154,6 +154,11 @@ export default function AdminPage() {
   // Who this person is in the dashboard (their staff role and what it allows). Set by the server, never by an email in the page.
   const [me, setMe] = useState<AdminMe | null>(null);
   const [meChecked, setMeChecked] = useState(false);
+  // First-run setup: true until the owner account exists, so the very first visit can create it.
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [setupDone, setSetupDone] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [setupBusy, setSetupBusy] = useState(false);
 
   // Dashboard Data
   const [dashboardLoading, setDashboardLoading] = useState(false);
@@ -176,6 +181,20 @@ export default function AdminPage() {
   // Status feedback
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const response = await fetch('/api/v1/admin/setup', { headers: { Accept: 'application/json' } });
+        const result = (await response.json().catch(() => null)) as { data?: { open?: boolean } } | null;
+        if (active) setSetupOpen(result?.data?.open === true);
+      } catch {
+        if (active) setSetupOpen(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   const configured = isSupabaseConfigured();
   const supabase = configured ? getBrowserSupabase() : null;
@@ -299,6 +318,45 @@ export default function AdminPage() {
     });
     if (signInError) setError(signInError.message);
     setPassword('');
+  };
+
+  const createOwner = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!supabase) return;
+    setError('');
+    if (password !== confirmPassword) { setError('The two passwords do not match.'); return; }
+    setSetupBusy(true);
+    try {
+      const response = await fetch('/api/v1/admin/setup', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ email: emailInput.trim(), password }) });
+      const result = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+      if (!response.ok) { setError(result?.error?.message ?? 'The account could not be created.'); return; }
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email: emailInput.trim(), password });
+      if (signInError) setError(signInError.message);
+      setSetupOpen(false);
+      setSetupDone(true);
+      setPassword('');
+      setConfirmPassword('');
+    } finally {
+      setSetupBusy(false);
+    }
+  };
+
+  const claimOwner = async () => {
+    if (!session) return;
+    setError('');
+    setSetupBusy(true);
+    try {
+      const response = await fetch('/api/v1/admin/setup', { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, Accept: 'application/json' } });
+      const result = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+      if (!response.ok) { setError(result?.error?.message ?? 'Could not make this account the owner.'); return; }
+      setSetupOpen(false);
+      const info = await adminCall<AdminMe>(session, '/api/v1/admin/me');
+      setMe(info);
+    } catch (claimError) {
+      setError(claimError instanceof Error ? claimError.message : 'Could not make this account the owner.');
+    } finally {
+      setSetupBusy(false);
+    }
   };
 
   const signOut = async () => {
@@ -541,6 +599,27 @@ export default function AdminPage() {
     );
   }
 
+  if (!session && setupOpen) {
+    return (
+      <AppRouteShell active={null}>
+        <main className="admin-page">
+          <form className="admin-auth-card" onSubmit={(event) => void createOwner(event)}>
+            <span className="admin-mark"><ShieldCheck size={22} /></span>
+            <span className="eyebrow">FIRST-TIME SETUP</span>
+            <h1>Create the owner account</h1>
+            <p>No owner exists yet. Choose the email and password you will use to run Common Room. This screen disappears for good once you create it.</p>
+            <label>Email<input autoComplete="username" onChange={(event) => setEmailInput(event.target.value)} required type="email" value={emailInput} /></label>
+            <label>Password (10 or more characters)<input autoComplete="new-password" minLength={10} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} /></label>
+            <label>Repeat the password<input autoComplete="new-password" minLength={10} onChange={(event) => setConfirmPassword(event.target.value)} required type="password" value={confirmPassword} /></label>
+            {error ? <div className="feedback error-banner" role="alert">{error}</div> : null}
+            <button className="primary-button" disabled={setupBusy} type="submit">{setupBusy ? 'Creating…' : 'Create owner account'}</button>
+            <p style={{ fontSize: 12, opacity: 0.7 }}>Already have a Common Room account? Create the owner with that same email by signing in on the app first, then come back here.</p>
+          </form>
+        </main>
+      </AppRouteShell>
+    );
+  }
+
   if (!session) {
     return (
       <AppRouteShell active={null}>
@@ -600,6 +679,12 @@ export default function AdminPage() {
             <span className="eyebrow">ACCESS RESTRICTED</span>
             <h1>No admin access</h1>
             <p>This signed-in account is not authorized to use the admin console.</p>
+            {setupOpen ? (
+              <>
+                <p>No owner exists yet. You can make <b>this account</b> the owner.</p>
+                <button className="primary-button" disabled={setupBusy} onClick={() => void claimOwner()} type="button">{setupBusy ? 'Working…' : 'Make this account the owner'}</button>
+              </>
+            ) : null}
             {error ? (
               <div className="feedback error-banner" role="alert">
                 {error}

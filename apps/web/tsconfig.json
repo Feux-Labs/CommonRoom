@@ -88,7 +88,9 @@
     ".next-a32/types/**/*.ts",
     ".next-a32/dev/types/**/*.ts",
     ".next-a33/types/**/*.ts",
-    ".next-a33/dev/types/**/*.ts"
+    ".next-a33/dev/types/**/*.ts",
+    ".next-a34/types/**/*.ts",
+    ".next-a34/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
