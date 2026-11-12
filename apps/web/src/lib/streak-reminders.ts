@@ -19,10 +19,10 @@ export function rankAt(points: number): { name: string; phase: string } {
 /** Friendly the evening after a missed day, kind after 3 days, and dramatic after 7 for the Awakening and Divine ranks. */
 export function reminderMessage(away: number, run: number, points: number): PushPayload {
   const { name, phase } = rankAt(points);
-  if (away === 1) return { title: 'Your streak ends tonight', body: `Your ${run}-day streak is one visit away from breaking. Your Ghaul is waiting.`, url: '/me' };
+  if (away === 1) return { title: 'Your streak ends tonight', body: `Your ${run}-day streak is one visit away from breaking.`, url: '/me' };
   if (away === 3) return { title: 'We missed you', body: `Your ${run}-day streak slipped after 3 days away. Come back and start again today.`, url: '/me' };
   if (phase === 'Awakening' || phase === 'The Divine') return { title: `${away} days of silence`, body: `If the ways of the ${name} be broken, shall the ${name} body remain? Your ${run}-day streak is gone.`, url: '/me' };
-  return { title: 'Your Ghaul went back to its egg', body: `${away} days away. Your ${run}-day streak is gone. Show up today and begin again.`, url: '/me' };
+  return { title: 'Your streak is gone', body: `${away} days away. Your ${run}-day streak is gone. Show up today and begin again.`, url: '/me' };
 }
 
 const BATCH = 200;

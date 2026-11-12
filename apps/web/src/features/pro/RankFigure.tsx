@@ -10,7 +10,7 @@ const KEY = 'commonroom:figure';
 /** How many pictures exist for each stage (stage-<n>-<variant>.webp). Where a stage has several, each person gets one of them, always the same one. */
 const VARIANTS: Record<Figure, Record<number, number>> = {
   female: { 1: 1, 2: 5, 3: 7, 4: 1, 5: 1 },
-  male: { 1: 1, 2: 1, 3: 1, 4: 1, 5: 0 },
+  male: { 1: 1, 2: 1, 3: 1, 4: 1, 5: 1 },
 };
 
 export function stageOf(phase: string): number {

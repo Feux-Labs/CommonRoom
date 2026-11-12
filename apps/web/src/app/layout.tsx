@@ -8,6 +8,7 @@ import '../styles/cr-market-profile.css';
 import '../styles/cr-auth.css';
 import { CommonRoomIconSymbols } from '@/components/cr/Icon';
 import { AppProviders } from '@/features/app/AppSession';
+import { THEME_BOOT_SCRIPT } from '@/lib/theme';
 
 // Self-hosted at build time: no request to Google when someone opens the app, so it can't block the first paint.
 const hanken = Hanken_Grotesk({ subsets: ['latin'], weight: ['400', '500'], display: 'swap', variable: '--font-hanken' });
@@ -23,13 +24,15 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#ffffff',
+  themeColor: [{ media: '(prefers-color-scheme: light)', color: '#ffffff' }, { media: '(prefers-color-scheme: dark)', color: '#161616' }],
+  colorScheme: 'light dark',
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    // The design is light-only; data-theme stops the dark token overrides from following the OS setting.
-    <html className={hanken.variable} data-theme="light" lang="en" style={{ colorScheme: 'light' }}>
+    // Light or dark follows the phone unless the member chose in Settings (the script below applies that choice before first paint).
+    <html className={hanken.variable} lang="en" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} /></head>
       <body>
         <CommonRoomIconSymbols />
         <AppProviders>{children}</AppProviders>

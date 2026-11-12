@@ -27,3 +27,7 @@
 
 - Admin: Users (normal sign-ups, no passwords, no sign-in-as) and Moderator accounts (seeded accounts: password, login as, post, comment, reply, edit post, match, sign up new ones; acting-as works only on these). Analytics shows Active now + unique visitors/users. Admin screens cache what they last loaded in the browser tab (passwords never cached). Shorter admin text and clearer forms.
 - Streak reminders are claimed in batches (migration 0063) and a GitHub Actions workflow (.github/workflows/scheduled-jobs.yml) calls the route every 15 minutes (needs repo secrets APP_URL and CRON_SECRET).
+
+- Dark mode: follows the phone, Light/Dark/Auto in Settings > Appearance (applied before first paint). Room feed fixed to use theme colours.
+- Chat streaks (TikTok style, migration 0064): days in a row both people message in an Anonymous inbox conversation; badge from 3 days with the Ghaul pet, hourglass after 6 pm if today is not done. Removed from the profile card.
+- Male stage 5 art added. Ranks never drop; a broken streak only stops streak points.

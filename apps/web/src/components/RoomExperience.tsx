@@ -138,7 +138,7 @@ export function RoomExperience({
   hasUnreadNotifications = false,
   initialFeedSection = 'For You',
   onOpenProfile,
-  theme = 'light',
+  theme,
 }: {
   accessToken: string;
   profile: { id: string; displayName: string; username: string | null; school: string | null };
@@ -1052,7 +1052,7 @@ export function RoomExperience({
     >
       <div className="room-feed-main">
         {/* Top Header Bar matching mockup Screen 3 & 4 */}
-        <CRHeader className="room-topbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: '#fff', borderBottom: '1px solid #f0f0f0' }}>
+        <CRHeader className="room-topbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: 'var(--cr-surface)', borderBottom: '1px solid var(--cr-soft-border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
               aria-label="Account menu"
@@ -1061,11 +1061,11 @@ export function RoomExperience({
               type="button"
               style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
             >
-              <span className="a36 s" style={{ width: 32, height: 32, borderRadius: '50%', background: '#0b0b0b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>
+              <span className="a36 s" style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--cr-text)', color: 'var(--cr-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>
                 {profile.displayName ? profile.displayName.slice(0, 1).toUpperCase() : 'Y'}
               </span>
             </button>
-            <span style={{ fontSize: 18, fontWeight: 500, color: '#0b0b0b', letterSpacing: '-0.2px' }}>
+            <span style={{ fontSize: 18, fontWeight: 500, color: 'var(--cr-text)', letterSpacing: '-0.2px' }}>
               {isRoomFeed ? 'Room' : 'Common Room'}
             </span>
           </div>
@@ -1074,7 +1074,7 @@ export function RoomExperience({
               aria-label="Search"
               onClick={onOpenSearch}
               type="button"
-              style={{ background: 'none', border: 'none', color: '#0b0b0b', cursor: 'pointer', padding: 4 }}
+              style={{ background: 'none', border: 'none', color: 'var(--cr-text)', cursor: 'pointer', padding: 4 }}
             >
               <Search size={18} strokeWidth={1.8} />
             </button>
@@ -1082,7 +1082,7 @@ export function RoomExperience({
               aria-label="Notifications"
               onClick={onOpenNotifications}
               type="button"
-              style={{ background: 'none', border: 'none', color: '#0b0b0b', cursor: 'pointer', padding: 4, position: 'relative' }}
+              style={{ background: 'none', border: 'none', color: 'var(--cr-text)', cursor: 'pointer', padding: 4, position: 'relative' }}
             >
               <Bell size={18} strokeWidth={1.8} />
               {hasUnreadNotifications ? (
@@ -1161,8 +1161,8 @@ export function RoomExperience({
                   className="room-post-card"
                   style={{
                     padding: '14px 16px',
-                    borderBottom: '1px solid #f0f0f0',
-                    background: '#ffffff',
+                    borderBottom: '1px solid var(--cr-soft-border)',
+                    background: 'var(--cr-surface)',
                   }}
                 >
                   {/* Header: Author + Time + Options */}
@@ -1188,8 +1188,8 @@ export function RoomExperience({
                           width: 34,
                           height: 34,
                           borderRadius: '50%',
-                          background: '#0b0b0b',
-                          color: '#fff',
+                          background: 'var(--cr-text)',
+                          color: 'var(--cr-surface)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -1205,10 +1205,10 @@ export function RoomExperience({
                         )}
                       </div>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: '#0b0b0b', lineHeight: 1.3 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--cr-text)', lineHeight: 1.3 }}>
                           {post.authorName}
                         </div>
-                        <div style={{ fontSize: 11.5, color: '#6b6b6b' }}>
+                        <div style={{ fontSize: 11.5, color: 'var(--cr-muted)' }}>
                           @{post.authorUsername} · {post.time}{post.edited ? ' · edited' : ''}
                         </div>
                       </div>
@@ -1221,7 +1221,7 @@ export function RoomExperience({
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: '#6b6b6b',
+                        color: 'var(--cr-muted)',
                         cursor: 'pointer',
                         padding: 6,
                         borderRadius: 6,
@@ -1237,7 +1237,7 @@ export function RoomExperience({
                       style={{
                         fontSize: 13,
                         lineHeight: 1.45,
-                        color: '#0b0b0b',
+                        color: 'var(--cr-text)',
                         margin: '6px 0 8px',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word',
@@ -1251,7 +1251,7 @@ export function RoomExperience({
                   {post.tags && post.tags.length > 0 ? (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
                       {post.tags.map((tag) => (
-                        <span key={tag} style={{ fontSize: 11.5, color: '#6b6b6b' }}>
+                        <span key={tag} style={{ fontSize: 11.5, color: 'var(--cr-muted)' }}>
                           #{tag.replace(/^#/, '')}
                         </span>
                       ))}
@@ -1266,8 +1266,8 @@ export function RoomExperience({
                         alignItems: 'center',
                         gap: 4,
                         fontSize: 11.5,
-                        color: '#6b6b6b',
-                        background: '#f7f7f7',
+                        color: 'var(--cr-muted)',
+                        background: 'var(--cr-subtle)',
                         padding: '3px 8px',
                         borderRadius: 8,
                         marginBottom: 10,
@@ -1284,7 +1284,7 @@ export function RoomExperience({
                       style={{
                         borderRadius: 14,
                         overflow: 'hidden',
-                        background: '#0b0b0b',
+                        background: 'var(--cr-text)',
                         marginBottom: 10,
                         maxHeight: 460,
                         display: 'flex',
@@ -1326,7 +1326,7 @@ export function RoomExperience({
                   {post.pollOptions && post.pollOptions.length > 0 ? (
                     <div
                       style={{
-                        background: '#f8f8f8',
+                        background: 'var(--cr-subtle)',
                         borderRadius: 14,
                         padding: 12,
                         marginBottom: 10,
@@ -1338,7 +1338,7 @@ export function RoomExperience({
                           display: 'flex',
                           justifyContent: 'space-between',
                           fontSize: 11.5,
-                          color: '#6b6b6b',
+                          color: 'var(--cr-muted)',
                           marginBottom: 8,
                         }}
                       >
@@ -1369,8 +1369,8 @@ export function RoomExperience({
                                 padding: '9px 12px',
                                 borderRadius: 10,
                                 border: '1px solid #e5e5e5',
-                                background: isSelected ? '#0b0b0b' : '#fff',
-                                color: isSelected ? '#fff' : '#0b0b0b',
+                                background: isSelected ? 'var(--cr-text)' : 'var(--cr-surface)',
+                                color: isSelected ? 'var(--cr-surface)' : 'var(--cr-text)',
                                 fontSize: 12.5,
                                 cursor: 'pointer',
                                 position: 'relative',
@@ -1416,7 +1416,7 @@ export function RoomExperience({
                       gap: 18,
                       paddingTop: 4,
                       fontSize: 12,
-                      color: '#6b6b6b',
+                      color: 'var(--cr-muted)',
                     }}
                   >
                     <button
@@ -1429,7 +1429,7 @@ export function RoomExperience({
                         gap: 5,
                         background: 'none',
                         border: 'none',
-                        color: post.liked ? '#ef4444' : '#6b6b6b',
+                        color: post.liked ? '#ef4444' : 'var(--cr-muted)',
                         cursor: 'pointer',
                         padding: 0,
                         fontSize: 12,
@@ -1448,7 +1448,7 @@ export function RoomExperience({
                         gap: 5,
                         background: 'none',
                         border: 'none',
-                        color: '#6b6b6b',
+                        color: 'var(--cr-muted)',
                         cursor: 'pointer',
                         padding: 0,
                         fontSize: 12,
@@ -1467,7 +1467,7 @@ export function RoomExperience({
                         gap: 5,
                         background: 'none',
                         border: 'none',
-                        color: '#6b6b6b',
+                        color: 'var(--cr-muted)',
                         cursor: 'pointer',
                         padding: 0,
                         fontSize: 12,
@@ -1519,17 +1519,17 @@ export function RoomExperience({
           ========================================================================= */}
       {commentsOpen && activePost ? (
         <div className="room-comments-backdrop" onClick={() => setCommentsOpen(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-          <div className="room-comments-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Comments" style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '12px 16px 16px', maxHeight: '82vh', display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 540, margin: '0 auto', boxShadow: '0 -4px 20px rgba(0,0,0,0.15)' }}>
-            <div className="grab" style={{ width: 36, height: 4, borderRadius: 4, background: '#d4d4d4', margin: '0 auto 12px' }} />
+          <div className="room-comments-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Comments" style={{ background: 'var(--cr-surface)', borderRadius: '20px 20px 0 0', padding: '12px 16px 16px', maxHeight: '82vh', display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 540, margin: '0 auto', boxShadow: '0 -4px 20px rgba(0,0,0,0.15)' }}>
+            <div className="grab" style={{ width: 36, height: 4, borderRadius: 4, background: 'var(--cr-border)', margin: '0 auto 12px' }} />
             <div className="sp" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span className="sh" style={{ fontSize: 14, fontWeight: 500, color: '#0b0b0b' }}>
+              <span className="sh" style={{ fontSize: 14, fontWeight: 500, color: 'var(--cr-text)' }}>
                 Comments · {activePost.comments}
               </span>
               <button
                 aria-label="Close comments"
                 onClick={() => setCommentsOpen(null)}
                 type="button"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#0b0b0b' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--cr-text)' }}
               >
                 <X size={18} />
               </button>
@@ -1544,8 +1544,8 @@ export function RoomExperience({
 
                 if (roots.length === 0) {
                   return (
-                    <div style={{ textAlign: 'center', padding: '32px 16px', color: '#6b6b6b', fontSize: 13 }}>
-                      <p style={{ margin: 0, fontWeight: 500, color: '#0b0b0b' }}>No comments yet</p>
+                    <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--cr-muted)', fontSize: 13 }}>
+                      <p style={{ margin: 0, fontWeight: 500, color: 'var(--cr-text)' }}>No comments yet</p>
                       <p style={{ margin: '4px 0 0', fontSize: 12 }}>Be the first to join the conversation.</p>
                     </div>
                   );
@@ -1559,11 +1559,11 @@ export function RoomExperience({
                       </div>
                       <div style={{ flex: 1 }}>
                         <div>
-                          <b style={{ fontWeight: 500, color: '#0b0b0b' }}>{comment.author_name}</b>{' '}
-                          <span className="m" style={{ color: '#6b6b6b', fontSize: 11.5 }}>@{comment.author_username}</span>
+                          <b style={{ fontWeight: 500, color: 'var(--cr-text)' }}>{comment.author_name}</b>{' '}
+                          <span className="m" style={{ color: 'var(--cr-muted)', fontSize: 11.5 }}>@{comment.author_username}</span>
                         </div>
-                        <div style={{ color: '#0b0b0b', marginTop: 2 }}>{renderWithMentions(comment.body, showProfileByUsername)}</div>
-                        <div className="act" style={{ display: 'flex', gap: 14, color: '#6b6b6b', fontSize: 11.5, marginTop: 4, alignItems: 'center' }}>
+                        <div style={{ color: 'var(--cr-text)', marginTop: 2 }}>{renderWithMentions(comment.body, showProfileByUsername)}</div>
+                        <div className="act" style={{ display: 'flex', gap: 14, color: 'var(--cr-muted)', fontSize: 11.5, marginTop: 4, alignItems: 'center' }}>
                           <button
                             aria-label="Like comment"
                             onClick={() => toggleCommentLike(comment.id)}
@@ -1599,11 +1599,11 @@ export function RoomExperience({
                         </div>
                         <div style={{ flex: 1 }}>
                           <div>
-                            <b style={{ fontWeight: 500, color: '#0b0b0b' }}>{reply.author_name}</b>{' '}
-                            <span className="m" style={{ color: '#6b6b6b', fontSize: 11.5 }}>@{reply.author_username}</span>
+                            <b style={{ fontWeight: 500, color: 'var(--cr-text)' }}>{reply.author_name}</b>{' '}
+                            <span className="m" style={{ color: 'var(--cr-muted)', fontSize: 11.5 }}>@{reply.author_username}</span>
                           </div>
-                          <div style={{ color: '#0b0b0b', marginTop: 2 }}>{renderWithMentions(reply.body, showProfileByUsername)}</div>
-                          <div className="act" style={{ display: 'flex', gap: 14, color: '#6b6b6b', fontSize: 11.5, marginTop: 4, alignItems: 'center' }}>
+                          <div style={{ color: 'var(--cr-text)', marginTop: 2 }}>{renderWithMentions(reply.body, showProfileByUsername)}</div>
+                          <div className="act" style={{ display: 'flex', gap: 14, color: 'var(--cr-muted)', fontSize: 11.5, marginTop: 4, alignItems: 'center' }}>
                             <button
                               aria-label="Like reply"
                               onClick={() => toggleCommentLike(reply.id)}
@@ -1628,7 +1628,7 @@ export function RoomExperience({
 
             {/* Reply Target Notice */}
             {replyTo[activePost.id] ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#f5f5f5', borderRadius: 8, fontSize: 12, marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'var(--cr-subtle)', borderRadius: 8, fontSize: 12, marginBottom: 8 }}>
                 <span>Replying to <strong>@{replyTo[activePost.id]?.author_username}</strong></span>
                 <button
                   onClick={() => setReplyTo((cur) => ({ ...cur, [activePost.id]: null }))}
@@ -1642,7 +1642,7 @@ export function RoomExperience({
 
             {/* Mention Autocomplete Menu */}
             {mentionSuggestions.length > 0 ? (
-              <div className="mention-autocomplete-menu" role="listbox" style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, padding: 4, marginBottom: 6, maxHeight: 140, overflowY: 'auto' }}>
+              <div className="mention-autocomplete-menu" role="listbox" style={{ background: 'var(--cr-surface)', border: '1px solid var(--cr-soft-border)', borderRadius: 8, padding: 4, marginBottom: 6, maxHeight: 140, overflowY: 'auto' }}>
                 {mentionSuggestions.map((user) => (
                   <button
                     key={user.id}
@@ -1651,11 +1651,11 @@ export function RoomExperience({
                     type="button"
                     style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 8px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', borderRadius: 6 }}
                   >
-                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#0b0b0b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, flexShrink: 0 }}>
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--cr-text)', color: 'var(--cr-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, flexShrink: 0 }}>
                       {user.avatar ? <img alt={user.name} src={user.avatar} style={{ width: '100%', height: '100%', borderRadius: '50%' }} /> : initials(user.name)}
                     </div>
                     <div style={{ fontSize: 12 }}>
-                      <strong style={{ fontWeight: 500 }}>{user.name}</strong> <span style={{ color: '#6b6b6b' }}>@{user.username}</span>
+                      <strong style={{ fontWeight: 500 }}>{user.name}</strong> <span style={{ color: 'var(--cr-muted)' }}>@{user.username}</span>
                     </div>
                   </button>
                 ))}
@@ -1664,7 +1664,7 @@ export function RoomExperience({
 
             {/* Comment Form */}
             <form onSubmit={(e) => void submitComment(e, activePost.id)} style={{ display: 'flex', gap: 8, alignItems: 'center', paddingTop: 10, borderTop: '1px solid #ececec' }}>
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#0b0b0b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--cr-text)', color: 'var(--cr-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}>
                 {profile.displayName ? profile.displayName.slice(0, 1).toUpperCase() : 'Y'}
               </div>
               <input
@@ -1684,13 +1684,13 @@ export function RoomExperience({
                 }}
                 placeholder={replyTo[activePost.id] ? `Reply to @${replyTo[activePost.id]?.author_username}…` : 'Add a comment…'}
                 value={commentDrafts[activePost.id] ?? ''}
-                style={{ flex: 1, height: 36, borderRadius: 999, border: '1px solid #d4d4d4', padding: '0 12px', fontSize: 12.5, outline: 'none' }}
+                style={{ flex: 1, height: 36, borderRadius: 999, border: '1px solid var(--cr-border)', padding: '0 12px', fontSize: 12.5, outline: 'none' }}
               />
               <button
                 aria-label="Send comment"
                 disabled={!(commentDrafts[activePost.id] ?? '').trim()}
                 type="submit"
-                style={{ width: 34, height: 34, borderRadius: '50%', background: (commentDrafts[activePost.id] ?? '').trim() ? '#0b0b0b' : '#e0e0e0', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (commentDrafts[activePost.id] ?? '').trim() ? 'pointer' : 'default', flexShrink: 0 }}
+                style={{ width: 34, height: 34, borderRadius: '50%', background: (commentDrafts[activePost.id] ?? '').trim() ? 'var(--cr-text)' : 'var(--cr-border)', color: 'var(--cr-surface)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (commentDrafts[activePost.id] ?? '').trim() ? 'pointer' : 'default', flexShrink: 0 }}
               >
                 <Send size={15} />
               </button>
@@ -2184,7 +2184,7 @@ export function RoomExperience({
                   aria-label="Like reel"
                 >
                   <Heart
-                    color={currentReelPost.liked ? '#ef4444' : '#ffffff'}
+                    color={currentReelPost.liked ? '#ef4444' : 'var(--cr-surface)'}
                     fill={currentReelPost.liked ? '#ef4444' : 'none'}
                     size={28}
                   />
@@ -2200,7 +2200,7 @@ export function RoomExperience({
                   type="button"
                   aria-label="Comments"
                 >
-                  <MessageCircle color="#ffffff" size={28} />
+                  <MessageCircle color="#fff" size={28} />
                   <span>{formatCount(currentReelPost.comments)}</span>
                 </button>
 
@@ -2211,7 +2211,7 @@ export function RoomExperience({
                   aria-label="Save reel"
                 >
                   <Bookmark
-                    color={currentReelPost.saved ? '#f59e0b' : '#ffffff'}
+                    color={currentReelPost.saved ? '#f59e0b' : 'var(--cr-surface)'}
                     fill={currentReelPost.saved ? '#f59e0b' : 'none'}
                     size={28}
                   />
@@ -2223,7 +2223,7 @@ export function RoomExperience({
                   type="button"
                   aria-label="Share reel"
                 >
-                  <Send color="#ffffff" size={26} />
+                  <Send color="#fff" size={26} />
                 </button>
               </div>
 
@@ -2603,7 +2603,7 @@ export function RoomExperience({
                   type="button"
                 >
                   <Heart
-                    color={storyLiked[activeStoryItem.id] ? '#ef4444' : '#ffffff'}
+                    color={storyLiked[activeStoryItem.id] ? '#ef4444' : 'var(--cr-surface)'}
                     fill={storyLiked[activeStoryItem.id] ? '#ef4444' : 'none'}
                     size={22}
                   />

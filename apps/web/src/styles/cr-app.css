@@ -1081,3 +1081,7 @@ body {
 .cr-legal--compact h3 { font-size: 13.5px; margin: 14px 0 4px; }
 .cr-legal--compact p, .cr-legal--compact li { font-size: 13px; }
 .cr-legal--compact ul { padding-left: 18px; margin: 6px 0 10px; }
+
+.cr-themepick { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--cr-subtle, #f0f0f0); }
+.cr-themepick button { border: 0; background: none; color: inherit; padding: 6px 12px; border-radius: 8px; font: inherit; font-size: 0.8rem; cursor: pointer; }
+.cr-themepick button[aria-pressed='true'] { background: var(--cr-text, #0b0b0b); color: var(--cr-surface, #fff); }

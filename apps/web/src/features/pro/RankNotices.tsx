@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAppSession } from '@/features/app/AppSession';
-import { BreakingBody, Ghaul } from './Ghaul';
+import { BreakingBody } from './Ghaul';
 import { fetchMyLevel, type MyLevel } from './api';
 import { Star } from './RankStars';
 import './pro.css';
@@ -28,7 +28,7 @@ export function withArticle(rank: string): string {
 
 /** Words for someone who has been away: friendly first, then more dramatic at the top ranks. */
 export function streakMessage(days: number, lost: number, rank: string, phase: string): { title: string; text: string; dramatic: boolean } {
-  if (days < 7) return { title: 'We missed you', text: `Your ${lost}-day streak slipped after ${days} days away. Your Ghaul is waiting for you. Come back every day and it will grow again.`, dramatic: false };
+  if (days < 7) return { title: 'We missed you', text: `Your ${lost}-day streak slipped after ${days} days away. Come back every day and build it again.`, dramatic: false };
   if (phase === 'Awakening' || phase === 'The Divine') {
     return { title: `${days} days of silence`, text: `Your ${lost}-day streak is gone. If the ways of the ${rank} be broken, shall the ${rank} body remain?`, dramatic: true };
   }
@@ -107,7 +107,7 @@ export function RankNotices() {
   return (
     <div aria-label="Streak notice" aria-modal="true" className="cr-rn-backdrop" role="dialog">
       <div className="cr-rn-card cr-rn-card--dark">
-        {message.dramatic ? <BreakingBody /> : <Ghaul days={0} size={72} />}
+        {message.dramatic ? <BreakingBody /> : null}
         <h2>{message.title}</h2>
         <p>{message.text}</p>
         <button className="cr-pbtn cr-pbtn--l" onClick={close} type="button">{streak > 0 ? 'Start again today' : 'I am back'}</button>

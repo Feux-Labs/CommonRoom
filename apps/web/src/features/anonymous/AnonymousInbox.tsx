@@ -15,6 +15,7 @@ import { useToast } from '@/components/cr/Toast';
 import { useAppSession } from '@/features/app/AppSession';
 import { dayLabel, shortAge } from '@/lib/format';
 import { isCardTheme, type CardTheme } from '@/features/share/card';
+import { ChatStreakBadge, ChatStreakLine, useChatStreaks } from './ChatStreak';
 import { anonRequest, inboxLinkUrl, type AnonIdentity, type InboxLink, type InboxMessage, type InboxThread } from './api';
 import { AnonymousNameSheet } from './AnonymousNameSheet';
 import { PromptPickerSheet } from './PromptPickerSheet';
@@ -101,6 +102,7 @@ export function AnonymousInbox() {
   const [promptOpen, setPromptOpen] = useState(false);
   const [threads, setThreads] = useState<InboxThread[]>([]);
   const [sent, setSent] = useState<InboxThread[]>([]);
+  const streaks = useChatStreaks(account);
   // When the list was fetched. Used to split New vs Earlier; read here, never during render.
   const [loadedAt, setLoadedAt] = useState(0);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -159,7 +161,7 @@ export function AnonymousInbox() {
     <button className="cr-row-btn" key={thread.id} onClick={() => router.push(`/anonymous/inbox/thread/${thread.id}`)} type="button">
       <AnonAvatar />
       <span className="cr-row-btn__main">
-        <span className="cr-row-btn__title">{thread.participant || 'Anonymous'}</span>
+        <span className="cr-row-btn__title">{thread.participant || 'Anonymous'}<ChatStreakBadge info={streaks.get(thread.id)} /></span>
         <span className="cr-row-btn__sub">{thread.last_message ?? 'Private conversation'}</span>
       </span>
       <span className="cr-row-btn__meta">
@@ -237,7 +239,7 @@ export function AnonymousInbox() {
                 <button className="cr-row-btn" key={thread.id} onClick={() => router.push(`/anonymous/inbox/thread/${thread.id}?from=sent`)} type="button">
                   <AnonAvatar />
                   <span className="cr-row-btn__main">
-                    <span className="cr-row-btn__title">To {thread.participant || 'Anonymous'}</span>
+                    <span className="cr-row-btn__title">To {thread.participant || 'Anonymous'}<ChatStreakBadge info={streaks.get(thread.id)} /></span>
                     <span className="cr-row-btn__sub">{thread.last_message ?? 'Private conversation'}</span>
                   </span>
                   <span className="cr-row-btn__meta">
@@ -365,6 +367,7 @@ export function AnonymousThread({ threadId }: { threadId: string }) {
   const [blockOpen, setBlockOpen] = useState(false);
   const [blocking, setBlocking] = useState(false);
   const bottom = useRef<HTMLDivElement | null>(null);
+  const threadStreak = useChatStreaks(account).get(threadId);
 
   const [attempt, setAttempt] = useState(0);
   const reload = () => {
@@ -480,6 +483,8 @@ export function AnonymousThread({ threadId }: { threadId: string }) {
         </div>
         <button aria-label="Block this conversation" className="cr-icon-btn" onClick={() => setBlockOpen(true)} type="button"><Icon name="blk" /></button>
       </header>
+
+      <ChatStreakLine info={threadStreak} />
 
       {hintInfo && hintInfo.count > 0 ? (
         <p className="cr-hints" role="note">

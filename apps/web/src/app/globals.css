@@ -13,10 +13,14 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+}
+:root[data-theme="dark"] {
+  --background: #0a0a0a;
+  --foreground: #ededed;
 }
 
 body {
@@ -8935,8 +8939,8 @@ html, body, div, main, section, aside, nav, article {
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-.app-shell:has(.room-layout-container[data-theme="light"]) .content-scroll {
-  background-color: #f3f3f3;
+.app-shell:has(.room-layout-container) .content-scroll {
+  background-color: var(--cr-page);
 }
 
 .room-layout-container[data-feed-mode="home"] {

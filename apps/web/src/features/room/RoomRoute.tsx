@@ -77,7 +77,6 @@ export function RoomRoute({ focusPostId = null }: { focusPostId?: string | null 
           school: profile?.school ?? null,
         }}
         refreshToken={refreshToken}
-        theme="light"
       />
       {panelOpen ? <NotificationsPanel onClose={() => setPanelOpen(false)} onSeen={() => setUnread(false)} /> : null}
       <button aria-label="New post" className="cr-fab" onClick={() => { if (requireAccount('sign-up-email')) router.push('/create'); }} type="button"><Icon name="plus" /></button>

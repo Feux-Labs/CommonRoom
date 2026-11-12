@@ -1,13 +1,13 @@
-/** Your Ghaul: it starts as an egg and grows as your daily streak grows. Miss days and it falls back to an egg. */
+/** The Ghaul: the pet of a chat streak. It starts as an egg and grows as the streak grows; miss a day and the streak (and the pet) start over. */
 export type GhaulStage = { key: 'sleeping' | 'egg' | 'baby' | 'young' | 'fighter' | 'unbeatable'; name: string; line: string };
 
 export function ghaulStage(days: number): GhaulStage {
-  if (days >= 60) return { key: 'unbeatable', name: 'Unbeatable Ghaul', line: 'Nothing can stop it. 60 days and counting.' };
-  if (days >= 30) return { key: 'fighter', name: 'Fighter Ghaul', line: 'It fights for you now. Keep it fed to reach 60 days.' };
-  if (days >= 14) return { key: 'young', name: 'Young Ghaul', line: 'Growing fast. 30 days makes it a fighter.' };
-  if (days >= 7) return { key: 'baby', name: 'Baby Ghaul', line: 'It hatched. 14 days and it grows again.' };
-  if (days >= 1) return { key: 'egg', name: 'Ghaul egg', line: 'Visit daily and it will hatch at 7 days.' };
-  return { key: 'sleeping', name: 'Sleeping egg', line: 'Open Common Room today to wake it.' };
+  if (days >= 60) return { key: 'unbeatable', name: 'Unbeatable Ghaul', line: 'Nothing can stop it.' };
+  if (days >= 30) return { key: 'fighter', name: 'Fighter Ghaul', line: 'It fights for you now.' };
+  if (days >= 14) return { key: 'young', name: 'Young Ghaul', line: 'Growing fast.' };
+  if (days >= 7) return { key: 'baby', name: 'Baby Ghaul', line: 'It hatched.' };
+  if (days >= 1) return { key: 'egg', name: 'Ghaul egg', line: 'It hatches at 7 days.' };
+  return { key: 'sleeping', name: 'Sleeping egg', line: 'Chat today to wake it.' };
 }
 
 export function Ghaul({ days, size = 56 }: { days: number; size?: number }) {

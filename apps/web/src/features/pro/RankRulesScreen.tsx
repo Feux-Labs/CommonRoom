@@ -40,8 +40,13 @@ export function RankRulesScreen() {
       </section>
 
       <section id="streak">
-        <h2>Daily streak and your Ghaul</h2>
-        <p>Open Common Room on consecutive days to build a streak. Your Ghaul grows with it: a <b>Ghaul egg</b> from day 1, a <b>Baby Ghaul</b> at 7 days, a <b>Young Ghaul</b> at 14, a <b>Fighter Ghaul</b> at 30 and an <b>Unbeatable Ghaul</b> at 60. Miss a whole day and the streak starts again. If you stay away, we will tell you gently when you come back.</p>
+        <h2>Daily streak</h2>
+        <p>Open Common Room on consecutive days to build a streak. It earns points (2 a day, up to 30 days). Miss a whole day and it starts again. Your rank never drops because of a broken streak. You just stop gaining streak points until you build it again.</p>
+      </section>
+
+      <section id="chat-streaks">
+        <h2>Chat streaks</h2>
+        <p>In a private conversation, a streak counts the days in a row that both of you send a message. It shows after 3 days, with a pet: a <b>Ghaul egg</b>, a <b>Baby Ghaul</b> at 7 days, a <b>Young Ghaul</b> at 14, a <b>Fighter Ghaul</b> at 30 and an <b>Unbeatable Ghaul</b> at 60. After 6 pm an hourglass warns you if today is not done yet. Miss a day and the streak and the pet start over.</p>
       </section>
 
       <section>

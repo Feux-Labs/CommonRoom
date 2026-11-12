@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -14,6 +14,7 @@ import { toProfile, useAppSession, type ProfileApiRecord } from '@/features/app/
 import { PASSWORD_RULES, passwordMeetsRules } from '@/features/auth/auth-config';
 import { describeAuthError } from '@/features/auth/auth-errors';
 import { getBrowserSupabase } from '@/lib/supabase-browser';
+import { applyTheme, readTheme, type ThemeChoice } from '@/lib/theme';
 
 /**
  * Mockups 45–47 and 52, limited to settings the backend actually stores.
@@ -84,6 +85,9 @@ export function SettingsScreen() {
       ) : null}
       <Link className="cr-row-btn" href="/me/edit"><span className="cr-row-btn__main"><span className="cr-row-btn__title">Edit profile</span></span><Icon name="rt" /></Link>
 
+      <p className="cr-section-label">Appearance</p>
+      <ThemeChooser />
+
       <PushToggle />
       <Link className="cr-row-btn" href="/help"><span className="cr-row-btn__main"><span className="cr-row-btn__title">Help and report a problem</span><span className="cr-row-btn__sub">Tell us what went wrong. We reply here.</span></span><Icon name="rt" /></Link>
 
@@ -118,6 +122,26 @@ export function SettingsScreen() {
 
       <DeleteAccountSheet onClose={() => setDeleteOpen(false)} open={deleteOpen} />
     </main>
+  );
+}
+
+function ThemeChooser() {
+  const [choice, setChoice] = useState<ThemeChoice>('system');
+  useEffect(() => {
+    let active = true;
+    void (async () => { await Promise.resolve(); if (active) setChoice(readTheme()); })();
+    return () => { active = false; };
+  }, []);
+  const pick = (next: ThemeChoice) => { setChoice(next); applyTheme(next); };
+  return (
+    <div className="cr-setrow">
+      <div className="cr-setrow__main"><span>Theme</span><small>Matches your phone unless you choose</small></div>
+      <span aria-label="Theme" className="cr-themepick" role="group">
+        {(['system', 'light', 'dark'] as const).map((value) => (
+          <button aria-pressed={choice === value} key={value} onClick={() => pick(value)} type="button">{value === 'system' ? 'Auto' : value === 'light' ? 'Light' : 'Dark'}</button>
+        ))}
+      </span>
+    </div>
   );
 }
 
