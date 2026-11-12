@@ -6,6 +6,7 @@ import { adminCall } from './adminApi';
 import './admin-extra.css';
 
 type Row = { at: string; kind: string; method: string | null; path: string | null; query: string | null; ip: string | null; userAgent: string | null; country: string | null; userId: string | null; status: number | null; flag: string | null };
+type Block = { ip: string; reason: string; auto: boolean; blockedAt: string; expiresAt: string | null };
 type Security = {
   window: string;
   summary: { requests: number; distinctIps: number; attackAttempts: number; scriptRequests: number; failedSignIns: number; staffDenied: number; rateLimited: number };
@@ -27,10 +28,15 @@ export function SecurityPanel({ session }: { session: Session }) {
   const [query, setQuery] = useState('');
   const [data, setData] = useState<Security | null>(null);
   const [error, setError] = useState('');
+  const [blocks, setBlocks] = useState<Block[]>([]);
+  const [blockIp, setBlockIp] = useState('');
+  const [blockHours, setBlockHours] = useState('24');
+  const [blockReason, setBlockReason] = useState('');
 
   const load = useCallback(async (q: string) => {
     try {
       setData(await adminCall<Security>(session, `/api/v1/admin/security?window=${window}&q=${encodeURIComponent(q)}`));
+      setBlocks(await adminCall<Block[]>(session, '/api/v1/admin/security/blocks'));
       setError('');
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Could not load the log.');
@@ -42,6 +48,19 @@ export function SecurityPanel({ session }: { session: Session }) {
     void (async () => { await Promise.resolve(); if (active) await load(''); })();
     return () => { active = false; };
   }, [load]);
+
+  const block = async (ip: string, hours: string, reason: string) => {
+    try {
+      await adminCall(session, '/api/v1/admin/security/blocks', 'POST', { ip, hours: hours || undefined, reason });
+      setBlockIp('');
+      await load(query);
+    } catch (blockError) {
+      setError(blockError instanceof Error ? blockError.message : 'Could not block that address.');
+    }
+  };
+  const unblock = async (ip: string) => {
+    try { await adminCall(session, '/api/v1/admin/security/blocks', 'DELETE', { ip }); await load(query); } catch (unblockError) { setError(unblockError instanceof Error ? unblockError.message : 'Could not unblock.'); }
+  };
 
   const s = data?.summary;
   const flagClass = (flag: string | null) => (flag?.startsWith('attack') ? 'adm-flag' : 'adm-flag adm-flag--script');
@@ -69,6 +88,21 @@ export function SecurityPanel({ session }: { session: Session }) {
             <div><span>Rate limited</span><b>{s.rateLimited.toLocaleString()}</b><small>Too many requests</small></div>
           </div>
 
+          <h3 className="adm-h3">Blocked addresses ({blocks.length})</h3>
+          <p className="admin-muted">Blocked addresses are turned away at the door within about 5 seconds. Five attack-looking requests from one address in ten minutes blocks it for 24 hours automatically, and you are alerted. An address that staff have recently used is never blocked automatically.</p>
+          <div className="admin-table-wrap"><table>
+            <thead><tr><th>IP</th><th>Why</th><th>Until</th><th /></tr></thead>
+            <tbody>{blocks.length === 0 ? <tr><td colSpan={4}>No blocked addresses.</td></tr> : blocks.map((row) => (
+              <tr key={row.ip}><td>{row.ip}</td><td>{row.auto ? 'Automatic: ' : ''}{row.reason}</td><td>{row.expiresAt ? time(row.expiresAt) : 'For good'}</td><td><button className="admin-btn-action" onClick={() => void unblock(row.ip)} type="button">Unblock</button></td></tr>
+            ))}</tbody>
+          </table></div>
+          <form className="adm-form" onSubmit={(event) => { event.preventDefault(); void block(blockIp, blockHours, blockReason); }} style={{ maxWidth: 520 }}>
+            <label>Block an address<input onChange={(event) => setBlockIp(event.target.value)} placeholder="e.g. 45.9.9.9" required value={blockIp} /></label>
+            <label>For how many hours (empty = for good)<input min={1} onChange={(event) => setBlockHours(event.target.value)} type="number" value={blockHours} /></label>
+            <label>Reason (optional)<input maxLength={200} onChange={(event) => setBlockReason(event.target.value)} value={blockReason} /></label>
+            <button className="admin-btn-action" type="submit">Block</button>
+          </form>
+
           <h3 className="adm-h3">Suspected attacks</h3>
           <div className="admin-table-wrap"><table>
             <thead><tr><th>When</th><th>IP</th><th>Request</th><th>Why</th></tr></thead>
@@ -87,8 +121,8 @@ export function SecurityPanel({ session }: { session: Session }) {
 
           <h3 className="adm-h3">Busiest IPs</h3>
           <div className="admin-table-wrap"><table>
-            <thead><tr><th>IP</th><th>Country</th><th>Requests</th><th>Flagged</th><th>Failed auth</th></tr></thead>
-            <tbody>{data.topIps.map((row) => <tr key={row.ip}><td>{row.ip}</td><td>{row.country ?? '—'}</td><td>{row.calls}</td><td>{row.flagged}</td><td>{row.failed}</td></tr>)}</tbody>
+            <thead><tr><th>IP</th><th>Country</th><th>Requests</th><th>Flagged</th><th>Failed auth</th><th /></tr></thead>
+            <tbody>{data.topIps.map((row) => <tr key={row.ip}><td>{row.ip}</td><td>{row.country ?? '—'}</td><td>{row.calls}</td><td>{row.flagged}</td><td>{row.failed}</td><td><button className="admin-btn-action" onClick={() => void block(row.ip, '24', 'Blocked from the busiest IPs list')} type="button">Block 24h</button></td></tr>)}</tbody>
           </table></div>
 
           <h3 className="adm-h3">Most-called endpoints</h3>

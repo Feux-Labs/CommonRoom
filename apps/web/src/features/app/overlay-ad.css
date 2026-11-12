@@ -1,0 +1,5 @@
+.cr-overlay { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(8, 10, 30, 0.72); }
+.cr-overlay__box { width: 100%; max-width: 440px; max-height: 92vh; overflow: auto; }
+.cr-overlay__box .cr-ad { margin: 0 0 10px; }
+.cr-overlay__close { display: block; margin: 0 auto; padding: 10px 22px; border: 0; border-radius: 999px; background: #fff; color: #14183a; font-weight: 600; cursor: pointer; }
+.cr-overlay__close:disabled { opacity: 0.6; cursor: default; }

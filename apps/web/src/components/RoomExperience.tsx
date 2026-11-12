@@ -1209,7 +1209,7 @@ export function RoomExperience({
                           {post.authorName}
                         </div>
                         <div style={{ fontSize: 11.5, color: '#6b6b6b' }}>
-                          @{post.authorUsername} · {post.time}
+                          @{post.authorUsername} · {post.time}{post.edited ? ' · edited' : ''}
                         </div>
                       </div>
                     </button>

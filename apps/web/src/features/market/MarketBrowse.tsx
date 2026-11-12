@@ -10,6 +10,7 @@ import { useToast } from '@/components/cr/Toast';
 import { apiRequest, errorMessage } from '@/features/app/api';
 import { SponsoredCard, type Ad } from '@/features/anonymous/SponsoredCard';
 import { useAppSession } from '@/features/app/AppSession';
+import { cacheGet, cacheSet } from '@/lib/client-cache';
 import { formatNaira, relativeAge } from '@/lib/format';
 import { institutions } from '@/lib/institutions';
 import type { MarketplaceListing } from '@/lib/marketplace-contracts';
@@ -70,9 +71,22 @@ export function MarketBrowse() {
   useEffect(() => {
     if (!ready) return;
     const id = ++request.current;
-    fetchListings(session, query)
-      .then((found) => { if (id === request.current) setResult({ key: queryKey, listings: found, failed: false }); })
-      .catch(() => { if (id === request.current) setResult({ key: queryKey, listings: [], failed: true }); });
+    // What this person already loaded for this search is shown at once; the fresh answer replaces it quietly.
+    const cacheKey = `market:${session?.user.id ?? 'public'}:${queryKey}`;
+    void (async () => {
+      await Promise.resolve();
+      const cachedListings = cacheGet<MarketplaceListing[]>(cacheKey);
+      if (cachedListings && id === request.current) setResult({ key: queryKey, listings: cachedListings, failed: false });
+      try {
+        const found = await fetchListings(session, query);
+        if (id !== request.current) return;
+        cacheSet(cacheKey, found);
+        setResult({ key: queryKey, listings: found, failed: false });
+      } catch {
+        // A failed refresh keeps showing the cached listings; with nothing cached it shows the error.
+        if (id === request.current && !cachedListings) setResult({ key: queryKey, listings: [], failed: true });
+      }
+    })();
   }, [query, queryKey, ready, retries, session]);
 
   // Debounce typing into the search box.

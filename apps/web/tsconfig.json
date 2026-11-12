@@ -90,7 +90,15 @@
     ".next-a33/types/**/*.ts",
     ".next-a33/dev/types/**/*.ts",
     ".next-a34/types/**/*.ts",
-    ".next-a34/dev/types/**/*.ts"
+    ".next-a34/dev/types/**/*.ts",
+    ".next-a35/types/**/*.ts",
+    ".next-a35/dev/types/**/*.ts",
+    ".next-a36/types/**/*.ts",
+    ".next-a36/dev/types/**/*.ts",
+    ".next-a37/types/**/*.ts",
+    ".next-a37/dev/types/**/*.ts",
+    ".next-a38/types/**/*.ts",
+    ".next-a38/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

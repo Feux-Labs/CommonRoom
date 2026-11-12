@@ -1,6 +1,7 @@
 import { authenticateAdmin, isAdminAuthenticated } from '@/lib/admin-auth';
 import { apiError, apiSuccess, isRecord, parseJson } from '@/lib/supabase-server';
 import { prisma } from '@/lib/prisma';
+import { sendPushToUsers } from '@/lib/push';
 
 type TicketRow = {
   id: string; kind: string; subject: string; status: string; context: Record<string, unknown>; created_at: Date; user_id: string | null;
@@ -60,6 +61,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (reply) {
     await prisma.$executeRaw`insert into public.support_messages (ticket_id, author, staff_id, body) values (${id}::uuid, 'staff', ${auth.user.id}::uuid, ${reply})`;
     if (found[0].user_id) {
+      await sendPushToUsers([found[0].user_id], { title: 'Common Room support replied', body: 'We wrote back to your issue. Tap to read it.', url: '/help' });
       await prisma.$executeRaw`insert into public.notifications (user_id, kind, title, link) values (${found[0].user_id}::uuid, 'system', 'Common Room support replied to your issue', '/help')`.catch(() => undefined);
     }
   }

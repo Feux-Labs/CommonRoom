@@ -1,5 +1,6 @@
 import { after } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { autoBlockIfNeeded } from '@/lib/ip-block';
 
 /**
  * What people call, so the owner can see which endpoints are used and spot someone probing the app.
@@ -56,6 +57,7 @@ export async function writeLog(row: LogRow): Promise<void> {
     await prisma.$executeRaw`
       insert into public.request_log (kind, method, path, query, ip, ua, country, user_id, status, flag)
       values (${row.kind}, ${row.method}, ${row.path.slice(0, 300)}, ${row.query.slice(0, 500)}, ${row.ip}, ${row.ua.slice(0, 300)}, ${row.country}, ${row.userId}::uuid, ${row.status}, ${row.flag})`;
+    if (row.flag?.startsWith('attack:')) await autoBlockIfNeeded(row.ip, row.flag);
     // Keep two weeks. Tidy up now and then rather than on a schedule.
     if (Math.random() < 0.01) await prisma.$executeRaw`delete from public.request_log where ts < now() - interval '14 days'`;
   } catch {

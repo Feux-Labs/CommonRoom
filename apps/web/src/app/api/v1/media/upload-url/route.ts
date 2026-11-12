@@ -3,6 +3,7 @@ import { rateLimit } from '@/lib/rate-limit';
 import { mediaUrlFor } from '@/lib/media-url';
 import { requireAdult } from '@/lib/anonymous-api';
 import { presignUpload, R2NotConfiguredError } from '@/lib/r2';
+import { signRelayTicket } from '@/lib/upload-relay';
 
 const EXTENSIONS: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
     const uploadUrl = await presignUpload(path, body.contentType, body.size);
     const url = mediaUrlFor(path);
     if (!url) throw new R2NotConfiguredError();
-    return apiSuccess({ path, url, uploadUrl }, 201);
+    return apiSuccess({ path, url, uploadUrl, relayTicket: signRelayTicket(auth.user.id, path, body.contentType, body.size) }, 201);
   } catch (error) {
     if (error instanceof R2NotConfiguredError) return apiError('storage_not_configured', 'Media uploads are not set up yet.', 503);
     console.error('Media upload URL could not be created.', error instanceof Error ? error.message : 'unknown');

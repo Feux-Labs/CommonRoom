@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { prisma } from '@/lib/prisma';
 import type { Audience, MediaItem, MediaType } from '@/lib/contracts';
 import type { RoomPost } from '@/lib/room-contracts';
 
@@ -155,4 +156,18 @@ export async function attachRoomViewerFields(
       total_poll_votes: totalPollVotes,
     };
   });
+}
+
+/** Marks posts whose author edited them. A lookup failure just leaves the label off. */
+export async function withEditedLabel(posts: RoomPost[]): Promise<RoomPost[]> {
+  if (posts.length === 0) return posts;
+  try {
+    const ids = posts.map((post) => post.id);
+    const rows = await prisma.$queryRaw<Array<{ id: string }>>`select id::text as id from public.posts where id = any(${ids}::uuid[]) and edited_at is not null`;
+    if (rows.length === 0) return posts;
+    const edited = new Set(rows.map((row) => row.id));
+    return posts.map((post) => (edited.has(post.id) ? { ...post, edited: true } : post));
+  } catch {
+    return posts;
+  }
 }

@@ -1,5 +1,5 @@
 import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest } from '@/lib/supabase-server';
-import { attachRoomViewerFields, mapRoomPost } from '@/lib/room-map';
+import { attachRoomViewerFields, mapRoomPost, withEditedLabel } from '@/lib/room-map';
 import { prisma } from '@/lib/prisma';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -42,10 +42,10 @@ export async function GET(request: Request, { params }: RouteContext) {
     following: Boolean(follow),
     follower_count: followerCount ?? 0,
     interests: profile.interests ?? [],
-    posts: (await attachRoomViewerFields(
+    posts: await withEditedLabel((await attachRoomViewerFields(
       auth.supabase,
       auth.user.id,
       (posts ?? []).map((row) => ({ ...(row as unknown as Record<string, unknown>), author_avatar: profile.avatar_url })),
-    )).map(mapRoomPost),
+    )).map(mapRoomPost)),
   });
 }

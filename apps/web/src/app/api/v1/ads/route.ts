@@ -8,11 +8,11 @@ type AdRow = {
   objective: string; media_type: string; media_path: string | null;
 };
 
-const placements = ['anonymous_feed', 'room', 'marketplace'];
+const placements = ['anonymous_feed', 'room', 'marketplace', 'overlay'];
 
 /**
  * GET /api/v1/ads?placement=anonymous_feed|room|marketplace: at most one sponsored post for this visitor, or none.
- * Everyone can see sponsored posts, Pro members included. An ad runs where its advertiser chose: any mix of schools, towns,
+ * Everyone can see sponsored posts, Pro members included. The full-screen overlay is the exception: Pro members never get it, and it only ever shows an ad the staff made for the overlay (no such ad, no overlay). An ad runs where its advertiser chose: any mix of schools, towns,
  * states or all of Nigeria. The viewer's school is only used on the server to match; it is never sent out.
  */
 export async function GET(request: Request) {
@@ -28,6 +28,7 @@ export async function GET(request: Request) {
       select a.id::text as id, a.advertiser, a.title, a.body, a.image_url, a.cta_label, a.link_url, a.objective, a.media_type, a.media_path
       from public.ads a
       where a.status = 'active' and ${placement} = any(a.placements) and a.ends_at is not null and now() between a.starts_at and a.ends_at
+        and (${placement} <> 'overlay' or not public.is_pro(${auth.user.id}::uuid))
         and (cardinality(a.targets) = 0 or a.targets && ${keys}::text[])
       order by random()
       limit 1`;

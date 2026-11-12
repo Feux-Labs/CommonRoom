@@ -1,3 +1,4 @@
+import { prisma } from '@/lib/prisma';
 import { apiError, apiSuccess, authenticateRequest, isAuthenticatedRequest, isRecord, parseJson, requireRegisteredUser } from '@/lib/supabase-server';
 
 export async function POST(request: Request) {
@@ -27,7 +28,9 @@ export async function POST(request: Request) {
     ],
     { onConflict: 'follower_id,following_id', ignoreDuplicates: true },
   );
-  await auth.supabase.from('invites').update({ use_count: (invite.use_count ?? 0) + 1 }).eq('code', invite.code);
+  // Each person can be invited once, so one account cannot pump an inviter's count (which feeds their rank points).
+  const fresh = await prisma.$queryRaw<Array<{ user_id: string }>>`insert into public.invite_redemptions (user_id, code) values (${auth.user.id}::uuid, ${invite.code}) on conflict (user_id) do nothing returning user_id::text as user_id`;
+  if (fresh.length > 0) await prisma.$executeRaw`update public.invites set use_count = use_count + 1 where code = ${invite.code}`;
 
   const { data: profile } = await auth.supabase
     .from('profiles')

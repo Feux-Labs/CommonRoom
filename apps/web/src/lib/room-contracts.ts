@@ -12,6 +12,8 @@ export type RoomPost = FeedPost & {
   pollVotes?: number[];
   userPollVote?: number | null;
   totalPollVotes?: number;
+  /** True when the author changed the text after posting. */
+  edited?: boolean;
 };
 
 export type RoomComment = {

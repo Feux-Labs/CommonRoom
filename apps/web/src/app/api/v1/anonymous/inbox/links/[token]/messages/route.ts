@@ -3,6 +3,8 @@ import { anonymousInvalidBody, anonymousRpcError, authenticateAnonymousRequest, 
 import { rejectUnsafeAnonymousText } from '@/lib/text-filter';
 import { isFlagEnabled } from '@/lib/flags';
 import { prisma } from '@/lib/prisma';
+import { after } from 'next/server';
+import { sendPushToUsers } from '@/lib/push';
 
 const HINT_KEYS = ['school', 'year', 'course'] as const;
 
@@ -40,6 +42,13 @@ export async function POST(request: Request, context: { params: Promise<{ token:
       // The message is already sent; hints are a bonus.
       console.error('Hints could not be saved.', hintError instanceof Error ? hintError.message : 'unknown');
     }
+  }
+  if (sent?.thread_id) {
+    const threadId = sent.thread_id;
+    after(async () => {
+      const owner = await prisma.$queryRaw<Array<{ owner_id: string }>>`select l.owner_id::text as owner_id from public.anonymous_inbox_threads t join public.anonymous_inbox_links l on l.id = t.link_id where t.id = ${threadId}::uuid`.catch(() => []);
+      if (owner[0]) await sendPushToUsers([owner[0].owner_id], { title: 'New anonymous message', body: 'Someone sent you a message. Tap to read it.', url: `/anonymous/inbox/thread/${threadId}` });
+    });
   }
   return apiSuccess(sent, 201);
 }

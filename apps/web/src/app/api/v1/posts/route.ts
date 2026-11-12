@@ -3,7 +3,7 @@ import { mediaKeyFromUrl, scheduleMediaScan, scheduleTextScan } from '@/lib/mode
 import { isOwnStorageUrl } from '@/lib/media-url';
 import type { Audience, MediaItem, MediaType } from '@/lib/contracts';
 import type { RoomScope } from '@/lib/room-contracts';
-import { attachRoomViewerFields, decodeRoomCursor, encodeRoomCursor, mapRoomPost } from '@/lib/room-map';
+import { attachRoomViewerFields, decodeRoomCursor, encodeRoomCursor, mapRoomPost, withEditedLabel } from '@/lib/room-map';
 
 const feedSelect = 'id, author_id, author_name, author_username, school_label, caption, poll_options, media_items, media_type, location, audience, age_restricted, allow_comments, allow_reuse, created_at, post_likes(count), post_comments(count)';
 const audiences: Audience[] = ['Public', 'Followers', 'Private'];
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
     const page = rows.slice(0, limit);
     const last = page.at(-1);
     return apiSuccess({
-      posts: page.map(mapRoomPost),
+      posts: await withEditedLabel(page.map(mapRoomPost)),
       hasMore,
       nextCursor: hasMore && last ? encodeRoomCursor(String(last.created_at), String(last.id)) : null,
     });
@@ -60,7 +60,7 @@ export async function GET(request: Request) {
     const rows = rpcData.slice(0, limit) as Record<string, unknown>[];
     const last = rows.at(-1);
     return apiSuccess({
-      posts: rows.map(mapRoomPost),
+      posts: await withEditedLabel(rows.map(mapRoomPost)),
       hasMore,
       nextCursor: hasMore && last ? encodeRoomCursor(String(last.created_at), String(last.id)) : null,
     });
@@ -122,7 +122,7 @@ function computePostScore(
   const page = rows.slice(0, limit);
   const last = page.at(-1);
   return apiSuccess({
-    posts: page.map(mapRoomPost),
+    posts: await withEditedLabel(page.map(mapRoomPost)),
     hasMore,
     nextCursor: hasMore && last ? encodeRoomCursor(String(last.created_at), String(last.id)) : null,
   });

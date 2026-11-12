@@ -17,14 +17,24 @@ export function mediaExtension(file: File): string | undefined {
   return MEDIA_EXTENSIONS[file.type];
 }
 
-type UploadTicket = { path: string; url: string; uploadUrl: string };
+type UploadTicket = { path: string; url: string; uploadUrl: string; relayTicket?: string };
 
-async function putToStorage(ticket: UploadTicket, file: File): Promise<void> {
+async function putToStorage(ticket: UploadTicket, file: File, session: Session): Promise<void> {
   let response: Response;
   try {
     response = await fetch(ticket.uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
   } catch {
-    throw new Error('The upload failed. Check your connection and try again.');
+    // The browser was not allowed to talk to storage directly (a blocked cross-site request looks like a network failure).
+    // Send the file through our own server instead: slower, but it works from anywhere.
+    if (!ticket.relayTicket) throw new Error('The upload failed. Check your connection and try again.');
+    let relayed: Response;
+    try {
+      relayed = await fetch(`/api/v1/media/relay?ticket=${encodeURIComponent(ticket.relayTicket)}`, { method: 'PUT', headers: { 'Content-Type': file.type, Authorization: `Bearer ${session.access_token}` }, body: file });
+    } catch {
+      throw new Error('The upload failed. Check your connection and try again.');
+    }
+    if (!relayed.ok) throw new Error(relayed.status === 413 ? 'This file is too large to upload. Try a smaller one.' : 'The upload failed. Try again.');
+    return;
   }
   if (!response.ok) throw new Error('The upload failed. Try again.');
 }
@@ -45,7 +55,7 @@ export async function uploadUserMedia(
     method: 'POST',
     body: { contentType: file.type, size: file.size, kind, prefix: kind === 'user' ? prefix : undefined },
   });
-  await putToStorage(ticket, file);
+  await putToStorage(ticket, file, session);
   return { path: ticket.path, url: ticket.url };
 }
 

@@ -1,5 +1,5 @@
 import { apiError, apiSuccess, authenticateRequest, createPublicSupabase, isAuthenticatedRequest, requireRegisteredUser } from '@/lib/supabase-server';
-import { attachRoomViewerFields, mapRoomPost } from '@/lib/room-map';
+import { attachRoomViewerFields, mapRoomPost, withEditedLabel } from '@/lib/room-map';
 import { scheduleTextScan } from '@/lib/moderation/media-scan';
 import { prisma } from '@/lib/prisma';
 
@@ -20,14 +20,14 @@ export async function GET(request: Request, { params }: RouteContext) {
     });
     if (error) return apiError('post_read_failed', 'This post could not be loaded.', 500);
     const post = (data as Record<string, unknown>[] | null)?.[0];
-    return post ? apiSuccess(mapRoomPost(post)) : apiError('post_not_found', 'This post is unavailable.', 404);
+    return post ? apiSuccess((await withEditedLabel([mapRoomPost(post)]))[0]) : apiError('post_not_found', 'This post is unavailable.', 404);
   }
   const { data, error } = await auth.supabase.from('posts').select(feedSelect).eq('id', id).maybeSingle();
   if (error) return apiError('post_read_failed', 'This post could not be loaded.', 500);
   if (!data) return apiError('post_not_found', 'This post is unavailable.', 404);
 
   const [row] = await attachRoomViewerFields(auth.supabase, auth.user.id, [data as unknown as Record<string, unknown>]);
-  return apiSuccess(mapRoomPost(row));
+  return apiSuccess((await withEditedLabel([mapRoomPost(row)]))[0]);
 }
 
 export async function PATCH(request: Request, { params }: RouteContext) {
@@ -69,8 +69,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (!data) return apiError('post_not_found', 'This post could not be found or you do not have permission to edit it.', 404);
 
   if (caption) scheduleTextScan('room_post', id, caption);
+  if (caption !== undefined) await prisma.$executeRaw`update public.posts set edited_at = now() where id = ${id}::uuid`;
   const [row] = await attachRoomViewerFields(auth.supabase, auth.user.id, [data as unknown as Record<string, unknown>]);
-  return apiSuccess(mapRoomPost(row));
+  return apiSuccess((await withEditedLabel([mapRoomPost(row)]))[0]);
 }
 
 export async function DELETE(request: Request, { params }: RouteContext) {

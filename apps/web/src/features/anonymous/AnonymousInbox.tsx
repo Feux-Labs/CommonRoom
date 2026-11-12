@@ -18,6 +18,7 @@ import { isCardTheme, type CardTheme } from '@/features/share/card';
 import { anonRequest, inboxLinkUrl, type AnonIdentity, type InboxLink, type InboxMessage, type InboxThread } from './api';
 import { AnonymousNameSheet } from './AnonymousNameSheet';
 import { PromptPickerSheet } from './PromptPickerSheet';
+import { PushToggle } from '@/features/app/PushToggle';
 import { DEFAULT_PROMPT } from './prompt-templates';
 import './prompt.css';
 
@@ -179,6 +180,7 @@ export function AnonymousInbox() {
         <button aria-label="Link settings" className="cr-icon-btn" onClick={() => router.push('/anonymous/link')} type="button"><Icon name="cog" /></button>
       </header>
 
+      <PushToggle compact />
       {isGuest ? (
         <p className="cr-note" role="note" style={{ margin: '0 14px 8px' }}>
           Your inbox works without an account. Sign in to keep your message history if you change phone or clear your browser.{' '}

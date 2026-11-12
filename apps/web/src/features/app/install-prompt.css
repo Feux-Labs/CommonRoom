@@ -3,3 +3,6 @@
 .cr-install__acts { display: flex; flex-direction: column; gap: 4px; }
 .cr-install__go { border: 0; border-radius: 10px; padding: 8px 14px; font-weight: 600; background: #fff; color: #14183a; cursor: pointer; }
 .cr-install__later { border: 0; background: none; color: inherit; opacity: 0.75; font-size: 12px; cursor: pointer; padding: 2px; }
+
+.cr-push { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 14px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(20, 24, 58, 0.12); font-size: 0.85rem; line-height: 1.4; }
+.cr-push--compact { margin: 0 14px 8px; padding: 8px 12px; font-size: 0.8rem; }

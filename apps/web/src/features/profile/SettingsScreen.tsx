@@ -5,6 +5,7 @@ import type { FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BottomSheet } from '@/components/cr/BottomSheet';
+import { PushToggle } from '@/features/app/PushToggle';
 import { Icon } from '@/components/cr/Icon';
 import { Toggle } from '@/components/cr/primitives';
 import { useToast } from '@/components/cr/Toast';
@@ -83,6 +84,7 @@ export function SettingsScreen() {
       ) : null}
       <Link className="cr-row-btn" href="/me/edit"><span className="cr-row-btn__main"><span className="cr-row-btn__title">Edit profile</span></span><Icon name="rt" /></Link>
 
+      <PushToggle />
       <Link className="cr-row-btn" href="/help"><span className="cr-row-btn__main"><span className="cr-row-btn__title">Help and report a problem</span><span className="cr-row-btn__sub">Tell us what went wrong. We reply here.</span></span><Icon name="rt" /></Link>
 
       <p className="cr-section-label">Privacy</p>

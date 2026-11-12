@@ -5,15 +5,19 @@ import { useRouter } from 'next/navigation';
 import { StateBlock } from '@/components/cr/FeedStates';
 import { Icon } from '@/components/cr/Icon';
 import { useAppSession } from '@/features/app/AppSession';
-import { fetchMyLevel, ROMAN, type MyLevel } from './api';
+import { errorMessage } from '@/features/app/api';
+import { fetchBoost, fetchMyLevel, ROMAN, startBoost, type Boost, type MyLevel } from './api';
 import './pro.css';
 
 /** The whole ladder: five phases, twenty ranks, three steps each. Everyone can see the summit; ranks you have not reached are locked. */
 export function LevelsScreen() {
   const router = useRouter();
-  const { account, ready, requireAccount } = useAppSession();
+  const { account, ready, requireAccount, ensureAdult } = useAppSession();
   const [level, setLevel] = useState<MyLevel | null>(null);
   const [failed, setFailed] = useState(false);
+  const [boost, setBoost] = useState<Boost | null>(null);
+  const [boostBusy, setBoostBusy] = useState(false);
+  const [boostError, setBoostError] = useState('');
 
   useEffect(() => {
     if (!account) return;
@@ -23,6 +27,8 @@ export function LevelsScreen() {
         await Promise.resolve();
         const result = await fetchMyLevel(account);
         if (active) setLevel(result);
+        const quote = await fetchBoost(account).catch(() => null);
+        if (active) setBoost(quote);
       } catch {
         if (active) setFailed(true);
       }
@@ -40,6 +46,20 @@ export function LevelsScreen() {
     return groups;
   }, [level]);
 
+  const climb = async () => {
+    if (!account || boostBusy) return;
+    if (!ensureAdult(() => void climb())) return;
+    setBoostBusy(true);
+    setBoostError('');
+    try {
+      const checkout = await startBoost(account);
+      window.location.assign(checkout.authorizationUrl);
+    } catch (error) {
+      setBoostError(errorMessage(error, 'We could not start the payment.'));
+      setBoostBusy(false);
+    }
+  };
+
   return (
     <main className="cr-screen cr-levels">
       <header className="cr-hd">
@@ -53,6 +73,16 @@ export function LevelsScreen() {
       {level ? (
         <>
           <p className="cr-levels__you">You are <b>{level.rank} {ROMAN[level.step - 1]}</b> in the {level.phase} phase.</p>
+          {boost && !boost.atSummit ? (
+            <section aria-label="Climb one step" className="cr-levels__boost">
+              <h2>Climb one step</h2>
+              <p>Go from <b>{boost.from.toLocaleString()}</b> to <b>{boost.to?.toLocaleString()}</b> points right now for <b>₦{boost.priceNaira?.toLocaleString()}</b>. No surprises and nothing random: you get exactly that step. One boost every 24 hours. You must be 18 or older. Earning is still the main road, and boosted points never count toward the Hall of Fame.</p>
+              {boost.available
+                ? <button className="cr-pbtn cr-pbtn--l" disabled={boostBusy} onClick={() => void climb()} type="button">{boostBusy ? 'Opening Paystack…' : `Climb for ₦${boost.priceNaira?.toLocaleString()}`}</button>
+                : <p className="cr-levels__fine" role="status">You can climb again {boost.nextAvailableAt ? `after ${new Date(boost.nextAvailableAt).toLocaleString()}` : 'soon'}.</p>}
+              {boostError ? <p role="alert" style={{ color: '#b3261e' }}>{boostError}</p> : null}
+            </section>
+          ) : null}
           {phases.map((group) => (
             <section aria-label={group.phase} className="cr-levels__phase" key={group.phase}>
               <h2>{group.phase}</h2>
@@ -70,7 +100,7 @@ export function LevelsScreen() {
               </ol>
             </section>
           ))}
-          <p className="cr-levels__fine">Points: 5 for every post, 2 for every comment, 1 for every like and 2 for every comment you get from other people. Pro doubles points until the end of Doctore. Your rank never goes down.</p>
+          <p className="cr-levels__fine">How points work: 5 for a post (up to 5 posts a day count), 2 for a comment (up to 20 a day), likes and comments you get from other people (the first 10 on a post count in full, after that they count less), 2 for each day of your daily streak (up to 30 days), 20 for each friend who joins from your invite, and 5 for each report a moderator confirms. A strike takes 50 points away. Pro doubles points until the end of Doctore. Your rank only falls if you get a strike.</p>
         </>
       ) : null}
     </main>
