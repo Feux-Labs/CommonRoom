@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { adminCall } from './adminApi';
+import { adminCacheRead, adminCacheWrite, adminCall } from './adminApi';
 import './admin-extra.css';
 
 type Who = { userId: string | null; guest: boolean; email: string | null; name: string | null; anonymousId: string | null };
@@ -28,7 +28,11 @@ export function SupportPanel({ session }: { session: Session }) {
 
   const load = useCallback(async () => {
     try {
-      const result = await adminCall<{ openCount: number; tickets: Ticket[] }>(session, `/api/v1/admin/support?status=${filter}`);
+      const path = `/api/v1/admin/support?status=${filter}`;
+      const saved = adminCacheRead<{ openCount: number; tickets: Ticket[] }>(session, path);
+      if (saved) { setTickets(saved.tickets); setOpenCount(saved.openCount); }
+      const result = await adminCall<{ openCount: number; tickets: Ticket[] }>(session, path);
+      adminCacheWrite(session, path, result);
       setTickets(result.tickets);
       setOpenCount(result.openCount);
       setError('');

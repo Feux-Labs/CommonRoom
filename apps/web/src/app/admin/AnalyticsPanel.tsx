@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { adminCall, naira } from './adminApi';
+import { adminCacheRead, adminCacheWrite, adminCall, naira } from './adminApi';
 import { BarChart, BarList, LineChart } from './Charts';
 import './admin-extra.css';
 
 type Stats = {
   range: string;
-  users: { allTimeVisitors: number; guests: number; membersSeen: number; registered: number; activeToday: number; activeThisWeek: number; activeThisMonth: number; activeInRange: number };
+  users: { activeNow: number; activeNowMembers: number; uniqueInRange: number; uniqueMembersInRange: number; uniqueGuestsInRange: number; allTimeVisitors: number; guests: number; membersSeen: number; registered: number; activeToday: number; activeThisWeek: number; activeThisMonth: number; activeInRange: number };
   daily: Array<{ day: string; active: number; newVisitors: number; newMembers: number }>;
   revenue: { totalNaira: number; inRangeNaira: number; todayNaira: number; weekNaira: number; monthNaira: number; payments: number; daily: Array<{ day: string; naira: number }>; byProduct: Array<{ product: string; naira: number; count: number }> };
   demographics: Record<'countries' | 'cities' | 'devices' | 'systems' | 'browsers' | 'sources', Array<{ label: string; people: number }>>;
@@ -28,7 +28,11 @@ export function AnalyticsPanel({ session }: { session: Session }) {
     void (async () => {
       try {
         await Promise.resolve();
-        const result = await adminCall<Stats>(session, `/api/v1/admin/stats?range=${range}`);
+        const path = `/api/v1/admin/stats?range=${range}`;
+        const saved = adminCacheRead<Stats>(session, path);
+        if (saved && active) setStats(saved);
+        const result = await adminCall<Stats>(session, path);
+        adminCacheWrite(session, path, result);
         if (active) { setStats(result); setError(''); }
       } catch (loadError) {
         if (active) setError(loadError instanceof Error ? loadError.message : 'Could not load the numbers.');
@@ -53,9 +57,11 @@ export function AnalyticsPanel({ session }: { session: Session }) {
       {stats ? (
         <>
           <div className="adm-tiles">
-            <div><span>All-time visitors</span><b>{stats.users.allTimeVisitors.toLocaleString()}</b><small>Everyone who ever opened the app, guests too</small></div>
+            <div><span>Active now</span><b>{stats.users.activeNow.toLocaleString()}</b><small>Last 5 minutes · {stats.users.activeNowMembers.toLocaleString()} signed in</small></div>
+            <div><span>Unique visitors ({periodLabel.toLowerCase()})</span><b>{stats.users.uniqueInRange.toLocaleString()}</b><small>{stats.users.uniqueMembersInRange.toLocaleString()} users · {stats.users.uniqueGuestsInRange.toLocaleString()} guests</small></div>
+            <div><span>All-time visitors</span><b>{stats.users.allTimeVisitors.toLocaleString()}</b><small>Guests included</small></div>
             <div><span>Registered users</span><b>{stats.users.registered.toLocaleString()}</b><small>{stats.users.guests.toLocaleString()} guests have opened the app</small></div>
-            <div><span>Active today</span><b>{stats.users.activeToday.toLocaleString()}</b><small>Opened the app in the last 24 hours</small></div>
+            <div><span>Active today</span><b>{stats.users.activeToday.toLocaleString()}</b><small>Last 24 hours</small></div>
             <div><span>Active this week</span><b>{stats.users.activeThisWeek.toLocaleString()}</b><small>Last 7 days</small></div>
             <div><span>Active this month</span><b>{stats.users.activeThisMonth.toLocaleString()}</b><small>Last 30 days</small></div>
             <div><span>Revenue ({periodLabel.toLowerCase()})</span><b>{naira(stats.revenue.inRangeNaira)}</b><small>{naira(stats.revenue.totalNaira)} all time · {stats.revenue.payments} payments</small></div>
@@ -73,7 +79,7 @@ export function AnalyticsPanel({ session }: { session: Session }) {
           <BarList color="#4cd9a0" empty="No confirmed payments in this period." rows={stats.revenue.byProduct.map((row) => ({ label: `${PRODUCT_LABEL[row.product] ?? row.product} · ${naira(row.naira)}`, people: row.count }))} title={`Revenue by product (${periodLabel.toLowerCase()}, number of payments)`} />
 
           <h3 className="adm-h3">Who they are ({periodLabel.toLowerCase()})</h3>
-          <p className="admin-muted">From the connection and the browser, never from a profile. Counts people (not visits). Only people who opened the app since this tracking began are included.</p>
+          <p className="admin-muted">Counted by people, not visits.</p>
           <div className="adm-grid2">
             <BarList color="#6c8cff" rows={stats.demographics.countries} title="Countries" />
             <BarList color="#6c8cff" rows={stats.demographics.cities} title="Cities" />

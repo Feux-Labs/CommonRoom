@@ -10,7 +10,7 @@ import './overlay-ad.css';
 const LAST_KEY = 'commonroom:overlay-at';
 const FIRST_AFTER_MS = 75_000;
 const EVERY_MS = 6 * 3_600_000;
-const QUIET_PREFIXES = ['/create', '/admin', '/payments', '/advertise', '/help', '/pro', '/levels', '/terms', '/privacy', '/guidelines'];
+const QUIET_PREFIXES = ['/create', '/admin', '/payments', '/advertise', '/help', '/pro', '/levels', '/rank-rules', '/terms', '/privacy', '/guidelines'];
 
 /**
  * A full-screen sponsored message, shown rarely: once the person has used the app for a little over a minute, and at most

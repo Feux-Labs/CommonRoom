@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { adminCacheRead, adminCacheWrite } from './adminApi';
 import type { Session } from '@supabase/supabase-js';
 
 type Flag = { key: string; enabled: boolean; description: string; updatedAt: string };
@@ -27,7 +28,10 @@ export function FlagsPanel({ session }: { session: Session }) {
     void (async () => {
       try {
         await Promise.resolve();
+        const saved = adminCacheRead<{ flags: Flag[] }>(session, '/api/v1/admin/flags');
+        if (saved && active) setFlags(saved.flags);
         const result = await flagsRequest<{ flags: Flag[] }>(session, 'GET');
+        adminCacheWrite(session, '/api/v1/admin/flags', result);
         if (active) setFlags(result.flags);
       } catch (loadError) {
         if (active) setError(loadError instanceof Error ? loadError.message : 'Could not load the flags.');
@@ -52,7 +56,7 @@ export function FlagsPanel({ session }: { session: Session }) {
   return (
     <section className="admin-panel admin-section">
       <header><div><h2>Feature flags</h2></div></header>
-      <p className="admin-muted">Switch parts of the app on or off. Changes reach people within about a minute.</p>
+      <p className="admin-muted">Turn parts of the app on or off. Takes about a minute.</p>
       {error ? <p role="alert" style={{ color: '#ff8a8a' }}>{error}</p> : null}
       {flags === null && !error ? <p className="admin-muted">Loading…</p> : null}
       <div className="admin-table-wrap">

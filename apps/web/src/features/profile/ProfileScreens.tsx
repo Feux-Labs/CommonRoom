@@ -22,6 +22,7 @@ import { ReportSheet } from '@/components/cr/ReportSheet';
 import { SafetyMenu } from '@/features/safety/SafetyMenu';
 import { useHydrated } from '@/lib/use-hydrated';
 import { LevelCard } from '@/features/pro/LevelCard';
+import { GuestProfile } from './GuestProfile';
 import { MyNameTick } from '@/features/pro/MyNameTick';
 import { VerifiedTick } from '@/features/pro/VerifiedTick';
 import { fetchPerson, postThumbnail, setFollowing, type PersonProfile } from './api';
@@ -73,7 +74,7 @@ function ListingGrid({ listings }: { listings: MarketplaceListing[] }) {
 /** "Profile and status" and mockup 41 (listings tab). Status/badges are omitted until the server calculates them. */
 export function MyProfile() {
   const router = useRouter();
-  const { account, profile, ready, requireAccount } = useAppSession();
+  const { account, session, profile, ready, requireAccount } = useAppSession();
   const [tab, setTab] = useState<'posts' | 'listings'>('posts');
   const [person, setPerson] = useState<PersonProfile | null>(null);
   const [listings, setListings] = useState<MarketplaceListing[] | null>(null);
@@ -89,6 +90,8 @@ export function MyProfile() {
   useEffect(() => {
     if (!ready) return;
     if (!account) {
+      // Guests (anonymous sessions) get their own profile page with no popup; only a visit with no session at all is asked to sign in.
+      if (session) return;
       requireAccount('sign-in');
       router.replace('/anonymous');
       return;
@@ -105,13 +108,14 @@ export function MyProfile() {
       }
     })();
     return () => { active = false; };
-  }, [account, attempt, ready, requireAccount, router]);
+  }, [account, attempt, ready, requireAccount, router, session]);
 
   useEffect(() => {
     if (tab !== 'listings' || listings || !account) return;
     fetchListings(account, { ...DEFAULT_QUERY, tab: 'my_listings' }).then(setListings).catch(() => setListings([]));
   }, [account, listings, tab]);
 
+  if (!account && session) return <GuestProfile requireAccount={() => requireAccount('sign-in')} />;
   if (!profile) return <main className="cr-screen"><FeedSkeleton count={1} label="Loading profile" /></main>;
 
   return (

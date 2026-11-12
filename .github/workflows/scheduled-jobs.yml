@@ -1,0 +1,19 @@
+name: Scheduled jobs
+
+# Free scheduler for the streak reminders, which Vercel's free plan cannot run at a reliable time.
+# Needs two repository secrets: APP_URL (for example https://commonroom.feuxlabs.com.ng, no trailing slash) and CRON_SECRET (the same value as in Vercel).
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # streak reminders: the route itself only sends between 17:00 and 20:59 Nigeria time, once per person per gap
+  workflow_dispatch:
+
+jobs:
+  streak-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the streak reminders route
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail --silent --show-error --max-time 60 -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/streak-reminders"

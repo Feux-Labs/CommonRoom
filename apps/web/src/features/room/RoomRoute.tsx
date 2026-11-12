@@ -65,9 +65,9 @@ export function RoomRoute({ focusPostId = null }: { focusPostId?: string | null 
         }}
         onError={(message) => toast.show(message, 'error')}
         onNotice={(message) => toast.show(message)}
-        onOpenAccountMenu={() => (isGuest ? requireAccount('sign-in') : router.push('/me'))}
+        onOpenAccountMenu={() => router.push('/me')}
         onOpenNotifications={() => { if (isGuest) requireAccount('sign-in'); else setPanelOpen((open) => !open); }}
-        onOpenProfile={() => (isGuest ? requireAccount('sign-in') : router.push('/me'))}
+        onOpenProfile={() => router.push('/me')}
         onOpenSearch={() => router.push('/search')}
         onRequireAccount={() => requireAccount('sign-in')}
         profile={{

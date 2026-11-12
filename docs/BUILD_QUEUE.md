@@ -22,3 +22,8 @@
 
 
 - Overlay ads: the full-screen overlay now shows only ads that staff create for it in Admin > Ads (graphic upload + https link + placements). No overlay ad, no overlay. Never for Pro.
+
+- Ranks v2: new ladder (Lapo Baby, Nepo Baby, Legendary, Awakening, The Divine; 20 ranks), 5 small stars per rank, celebrations, rule book at /rank-rules, guest profile + ranks (no popup), streak Ghaul, away-notices, daily streak reminders (cron /api/cron/streak-reminders, needs CRON_SECRET), climb up to 5 times a day, character figure slot (needs art in public/avatars/<female|male>/stage-1..5.png). Migrations 0061, 0062.
+
+- Admin: Users (normal sign-ups, no passwords, no sign-in-as) and Moderator accounts (seeded accounts: password, login as, post, comment, reply, edit post, match, sign up new ones; acting-as works only on these). Analytics shows Active now + unique visitors/users. Admin screens cache what they last loaded in the browser tab (passwords never cached). Shorter admin text and clearer forms.
+- Streak reminders are claimed in batches (migration 0063) and a GitHub Actions workflow (.github/workflows/scheduled-jobs.yml) calls the route every 15 minutes (needs repo secrets APP_URL and CRON_SECRET).

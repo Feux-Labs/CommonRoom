@@ -9,11 +9,13 @@ export type MyLevel = {
   points: number; rankNumber: number; rank: string; phase: string; step: number; stepFloor: number; nextStepAt: number | null;
   ladder: LadderRank[]; pro: boolean; proUntil: string | null; ultimatePass: boolean;
   earnedPoints?: number; boostPriceNaira?: number | null; boostAvailableAt?: string | null;
+  streak: number; streakGap: number; priorStreak: number; guest: boolean;
 };
 
 export type Boost = { available: boolean; atSummit: boolean; from: number; to: number | null; priceNaira: number | null; nextAvailableAt: string | null };
 
-export const ROMAN = ['I', 'II', 'III'] as const;
+/** Every rank has five small stars; when all five are full the big star fills and you move up. */
+export const SMALL_STARS = 5;
 
 export const fetchMyLevel = (session: Session) => apiRequest<MyLevel>('/api/v1/me/level', { session });
 export const fetchBoost = (session: Session) => apiRequest<Boost>('/api/v1/me/boost', { session });

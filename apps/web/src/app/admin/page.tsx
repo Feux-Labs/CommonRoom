@@ -35,11 +35,12 @@ import { AnalyticsPanel } from './AnalyticsPanel';
 import { SupportPanel } from './SupportPanel';
 import { SecurityPanel } from './SecurityPanel';
 import { TeamPanel } from './TeamPanel';
-import { adminCall, type AdminMe } from './adminApi';
+import { adminCacheRead, adminCacheWrite, adminCall, type AdminMe } from './adminApi';
 import { AdsPanel } from './AdsPanel';
+import { ActAsModal, CreateModeratorForm } from './ModeratorTools';
 
 
-type Tab = 'overview' | 'users' | 'moderation' | 'announcements' | 'flags' | 'growth' | 'ads' | 'support' | 'security' | 'team';
+type Tab = 'overview' | 'users' | 'moderators' | 'moderation' | 'announcements' | 'flags' | 'growth' | 'ads' | 'support' | 'security' | 'team';
 
 type Analytics = {
   overview: Record<string, number>;
@@ -58,7 +59,8 @@ type UserItem = {
   displayName: string;
   username: string | null;
   email: string;
-  password?: string;
+  password?: string | null;
+  seeded?: boolean;
   school: string | null;
   course: string;
   year: string;
@@ -241,21 +243,29 @@ export default function AdminPage() {
   }, [session]);
 
   // The tab being shown: the one asked for if this role may use it, otherwise the first tab it may use.
-  const tabPermission: Record<Tab, string> = { overview: 'analytics', growth: 'analytics', users: 'users', moderation: 'moderation', support: 'support', security: 'security', announcements: 'broadcast', flags: 'flags', ads: 'ads', team: 'team_staff' };
+  const tabPermission: Record<Tab, string> = { overview: 'analytics', growth: 'analytics', users: 'users', moderators: 'impersonate', moderation: 'moderation', support: 'support', security: 'security', announcements: 'broadcast', flags: 'flags', ads: 'ads', team: 'team_staff' };
   const firstAllowed = (['overview', 'moderation', 'support', 'users', 'security', 'growth', 'team'] as Tab[]).find((tab) => has(tabPermission[tab]));
   const activeTab: Tab = has(tabPermission[requestedTab]) ? requestedTab : firstAllowed ?? requestedTab;
 
   const loadDashboard = useCallback(async () => {
     if (!session || !authorized) return;
-    setDashboardLoading(true);
+    // Show what was loaded last time straight away, then refresh quietly.
+    const savedAnalytics = adminCacheRead<Analytics>(session, '/api/v1/admin/analytics');
+    const savedReports = adminCacheRead<Reports>(session, '/api/v1/admin/reports');
+    const savedBroadcast = adminCacheRead<{ broadcast: Broadcast }>(session, '/api/v1/admin/broadcast');
+    if (savedAnalytics) setAnalytics(savedAnalytics);
+    if (savedReports) setReports(savedReports);
+    if (savedBroadcast) { setBroadcast(savedBroadcast.broadcast); setBroadcastDraft(savedBroadcast.broadcast?.message ?? ''); }
+    setDashboardLoading(!(savedAnalytics || savedReports));
     try {
       const [analyticsData, reportsData, broadcastData] = await Promise.all([
         has('analytics') ? adminRequest<Analytics>(session, '/api/v1/admin/analytics') : Promise.resolve(null),
         has('moderation') ? adminRequest<Reports>(session, '/api/v1/admin/reports') : Promise.resolve(null),
         adminRequest<{ broadcast: Broadcast }>(session, '/api/v1/admin/broadcast'),
       ]);
-      if (analyticsData) setAnalytics(analyticsData);
-      if (reportsData) setReports(reportsData);
+      if (analyticsData) { setAnalytics(analyticsData); adminCacheWrite(session, '/api/v1/admin/analytics', analyticsData); }
+      if (reportsData) { setReports(reportsData); adminCacheWrite(session, '/api/v1/admin/reports', reportsData); }
+      adminCacheWrite(session, '/api/v1/admin/broadcast', broadcastData);
       setBroadcast(broadcastData.broadcast);
       setBroadcastDraft(broadcastData.broadcast?.message ?? '');
       setError('');
@@ -268,12 +278,17 @@ export default function AdminPage() {
 
   const loadUsers = useCallback(
     async (page = 1, query = userSearchQuery, school = userSchoolFilter) => {
+      const kind = activeTab === 'moderators' ? 'seeded' : 'normal';
       if (!session || !authorized) return;
-      setUsersLoading(true);
+      const listPath = `/api/v1/admin/users?kind=${kind}&page=${page}&q=${encodeURIComponent(query)}&s=${encodeURIComponent(school)}`;
+      const savedUsers = adminCacheRead<UserDirectoryResponse>(session, listPath);
+      if (savedUsers) { setUserList(savedUsers.users); setUserPagination(savedUsers.pagination); }
+      setUsersLoading(!savedUsers);
       try {
         const params = new URLSearchParams({
           page: String(page),
           limit: '15',
+          kind,
           ...(query ? { query } : {}),
           ...(school ? { school } : {}),
         });
@@ -283,6 +298,8 @@ export default function AdminPage() {
         );
         setUserList(data.users);
         setUserPagination(data.pagination);
+        // Passwords are never written to the browser cache.
+        adminCacheWrite(session, listPath, { ...data, users: data.users.map((user) => ({ ...user, password: undefined })) });
         setError('');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to retrieve user directory.');
@@ -290,7 +307,7 @@ export default function AdminPage() {
         setUsersLoading(false);
       }
     },
-    [authorized, session, userSearchQuery, userSchoolFilter]
+    [activeTab, authorized, session, userSearchQuery, userSchoolFilter]
   );
 
   useEffect(() => {
@@ -300,7 +317,7 @@ export default function AdminPage() {
   }, [authorized, loadDashboard]);
 
   useEffect(() => {
-    if (!authorized || activeTab !== 'users') return;
+    if (!authorized || (activeTab !== 'users' && activeTab !== 'moderators')) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- legacy admin page, rebuilt as its own app in plan phase 5
     void loadUsers(1);
   }, [authorized, activeTab, loadUsers]);
@@ -443,6 +460,8 @@ export default function AdminPage() {
   const [commentPostIdDraft, setCommentPostIdDraft] = useState('');
   const [commentBodyDraft, setCommentBodyDraft] = useState('');
   const [matchModalUser, setMatchModalUser] = useState<UserItem | null>(null);
+  const [replyModalUser, setReplyModalUser] = useState<UserItem | null>(null);
+  const [editModalUser, setEditModalUser] = useState<UserItem | null>(null);
   const [matchTargetUserIdDraft, setMatchTargetUserIdDraft] = useState('');
   const [crudBusy, setCrudBusy] = useState(false);
 
@@ -762,7 +781,7 @@ export default function AdminPage() {
             disabled={dashboardLoading}
             onClick={() => {
               void loadDashboard();
-              if (activeTab === 'users') void loadUsers(userPagination.page);
+              if (activeTab === 'users' || activeTab === 'moderators') void loadUsers(userPagination.page);
             }}
             type="button"
           >
@@ -785,7 +804,7 @@ export default function AdminPage() {
         {/* Navigation Tabs */}
         <nav className="admin-nav-tabs" aria-label="Admin Navigation Tabs">
           {([
-            ['overview', 'analytics', 'Overview'], ['growth', 'analytics', 'Analytics'], ['users', 'users', 'Users'], ['moderation', 'moderation', 'Reports'],
+            ['overview', 'analytics', 'Overview'], ['growth', 'analytics', 'Analytics'], ['users', 'users', 'Users'], ['moderators', 'impersonate', 'Moderator accounts'], ['moderation', 'moderation', 'Reports'],
             ['support', 'support', 'User issues'], ['security', 'security', 'Security'], ['announcements', 'broadcast', 'Announcements'],
             ['flags', 'flags', 'Feature flags'], ['ads', 'ads', 'Ads'], ['team', 'team_staff', 'Team'],
           ] as Array<[Tab, string, string]>).filter(([, permission]) => has(permission)).map(([tab, , label]) => (
@@ -880,14 +899,16 @@ export default function AdminPage() {
         )}
 
         {/* TAB 2: USER MANAGEMENT & POWER CRUD */}
-        {activeTab === 'users' && (
+        {(activeTab === 'users' || activeTab === 'moderators') && (
           <section className="admin-panel admin-section">
             <header>
               <div>
                 <UserCheck size={17} />
-                <h2>Campus Directory & Account Power Console ({userPagination.total.toLocaleString()} members)</h2>
+                <h2>{activeTab === 'moderators' ? 'Moderator accounts' : 'Users'} ({userPagination.total.toLocaleString()})</h2>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {activeTab === 'moderators' ? (
+                  <>
                 <button
                   className="admin-btn-action admin-btn-danger"
                   disabled={crudBusy}
@@ -906,6 +927,8 @@ export default function AdminPage() {
                 >
                   <Trash2 size={12} /> Clear Seeded Accounts
                 </button>
+                  </>
+                ) : null}
                 <button
                   className="admin-btn-action"
                   disabled={usersLoading}
@@ -916,6 +939,8 @@ export default function AdminPage() {
                 </button>
               </div>
             </header>
+
+            {activeTab === 'moderators' && session ? <CreateModeratorForm onCreated={(message) => { setNotice(message); void loadUsers(1); }} session={session} /> : null}
 
             {/* Filter and Search Bar */}
             <div className="admin-filter-bar">
@@ -960,10 +985,10 @@ export default function AdminPage() {
                     <tr>
                       <th>Member</th>
                       <th>Email</th>
-                      <th>Password</th>
-                      <th>Institution / Role</th>
+                      {activeTab === 'moderators' ? <th>Password</th> : null}
+                      <th>School</th>
                       <th>Activity</th>
-                      <th>Impersonate & CRUD Powers</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1027,6 +1052,7 @@ export default function AdminPage() {
                         </td>
 
                         {/* 3. Password (Upfront with Show/Hide & Copy!) */}
+                        {activeTab === 'moderators' ? (
                         <td>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                             <code
@@ -1070,6 +1096,7 @@ export default function AdminPage() {
                             )}
                           </div>
                         </td>
+                        ) : null}
 
                         {/* 4. Institution */}
                         <td>
@@ -1096,6 +1123,8 @@ export default function AdminPage() {
                         {/* 6. Admin Powers & Actions */}
                         <td>
                           <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                            {activeTab === 'moderators' ? (
+                              <>
                             <button
                               className="admin-btn-action"
                               onClick={() => setLoginModalUser(user)}
@@ -1123,12 +1152,30 @@ export default function AdminPage() {
                             </button>
                             <button
                               className="admin-btn-action"
+                              onClick={() => setReplyModalUser(user)}
+                              title="Reply to a comment as this account"
+                              type="button"
+                            >
+                              <MessageSquare size={11} /> Reply
+                            </button>
+                            <button
+                              className="admin-btn-action"
+                              onClick={() => setEditModalUser(user)}
+                              title="Edit one of this account's posts"
+                              type="button"
+                            >
+                              <PenSquare size={11} /> Edit Post
+                            </button>
+                            <button
+                              className="admin-btn-action"
                               onClick={() => setMatchModalUser(user)}
                               title="Match this user with another profile"
                               type="button"
                             >
                               <Heart size={11} /> Match
                             </button>
+                              </>
+                            ) : null}
                             <button
                               className="admin-btn-action admin-btn-danger"
                               onClick={() => void handleDeleteUser(user.id, user.displayName)}
@@ -1569,6 +1616,9 @@ export default function AdminPage() {
         {/* =====================================================================
             CRUD MODAL 3: COMMENT AS USER
             ===================================================================== */}
+        {replyModalUser && session ? <ActAsModal kind="reply" onClose={() => setReplyModalUser(null)} onDone={(message) => { setNotice(message); setReplyModalUser(null); }} session={session} who={replyModalUser} /> : null}
+        {editModalUser && session ? <ActAsModal kind="edit" onClose={() => setEditModalUser(null)} onDone={(message) => { setNotice(message); setEditModalUser(null); }} session={session} who={editModalUser} /> : null}
+
         {commentModalUser ? (
           <div
             style={{

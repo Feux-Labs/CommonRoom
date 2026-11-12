@@ -6,9 +6,9 @@ import { fetchMyLevel, type MyLevel } from './api';
 
 const inflight = new Map<string, Promise<MyLevel>>();
 
-/** Your own rank and Pro status, loaded once per sign-in and shared by everything on screen that needs it. */
+/** Your own rank, streak and Pro status (guests have a rank too), loaded once per visitor and shared by everything on screen that needs it. */
 export function useMyLevel(): MyLevel | null {
-  const { account } = useAppSession();
+  const { session: account } = useAppSession();
   const [level, setLevel] = useState<MyLevel | null>(null);
   const token = account?.access_token ?? null;
 

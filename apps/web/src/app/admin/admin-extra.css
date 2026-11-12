@@ -38,3 +38,26 @@
 .adm-people { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 6px 14px; font-size: 12px; }
 .adm-people span { opacity: 0.6; display: block; font-size: 11px; }
 .adm-code { font-family: ui-monospace, monospace; word-break: break-all; font-size: 12px; }
+
+/* Readability pass: clear labels, roomy fields, visible focus */
+.admin-panel { padding: 18px; }
+.admin-section > header h2 { font-size: 1.05rem; letter-spacing: 0.01em; }
+.admin-section > .admin-muted { margin: 4px 0 14px; }
+.admin-broadcast-form, .admin-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 16px; margin: 12px 0 18px; padding: 16px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid #243044; align-items: end; }
+.admin-broadcast-form label, .admin-form-grid label { display: grid; gap: 6px; font-size: 12px; font-weight: 600; color: #e5ecf7; }
+.admin-broadcast-form input:not([type='checkbox']):not([type='file']), .admin-broadcast-form select, .admin-form-grid input, .admin-form-grid select, .admin-filter-bar input { background: #0d141e; border: 1px solid #2f3d56; border-radius: 9px; color: #eaf0fa; padding: 10px 12px; font: inherit; font-weight: 400; }
+.admin-broadcast-form input:focus, .admin-broadcast-form textarea:focus, .admin-form-grid input:focus, .admin-filter-bar input:focus { outline: 2px solid #4c8cff; outline-offset: 1px; }
+.admin-broadcast-form input[type='file'] { font-size: 12px; font-weight: 400; color: #a9b8d0; }
+.admin-broadcast-form fieldset { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 18px; border: 1px solid #2f3d56; border-radius: 10px; padding: 10px 14px; }
+.admin-broadcast-form fieldset legend { font-size: 12px; font-weight: 600; padding: 0 6px; }
+.admin-broadcast-form fieldset label { display: inline-flex; gap: 8px; align-items: center; font-weight: 400; }
+.admin-btn-primary { background: #3a47c4; border-color: #3a47c4; color: #fff; font-weight: 600; padding: 10px 16px; }
+.admin-table-wrap th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #8ea0bb; font-weight: 600; }
+.admin-table-wrap td { vertical-align: middle; padding-top: 10px; padding-bottom: 10px; }
+.admin-table-wrap tbody tr:hover { background: rgba(255, 255, 255, 0.035); }
+.adm-modal-backdrop { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0, 0, 0, 0.78); }
+.adm-modal { width: 100%; max-width: 480px; padding: 24px; display: grid; gap: 14px; }
+.adm-modal h3 { margin: 0; font-size: 1rem; }
+.adm-modal label { display: grid; gap: 6px; font-size: 12px; font-weight: 600; }
+.adm-modal input, .adm-modal textarea { background: #0d141e; border: 1px solid #2f3d56; border-radius: 8px; color: #eaf0fa; padding: 9px 11px; font: inherit; font-weight: 400; }
+.adm-modal-actions { display: flex; gap: 8px; justify-content: flex-end; }

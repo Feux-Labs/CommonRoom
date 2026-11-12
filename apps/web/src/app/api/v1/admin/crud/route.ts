@@ -2,6 +2,16 @@ import { authenticateAdmin, can, isAdminAuthenticated } from '@/lib/admin-auth';
 import { apiSuccess, apiError, parseJson, isRecord } from '@/lib/supabase-server';
 import { prisma } from '@/lib/prisma';
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/** Acting as someone is only allowed for moderator accounts (the seeded ones we created), never for people who signed up themselves. */
+async function allSeeded(ids: string[]): Promise<boolean> {
+  if (ids.some((id) => !UUID.test(id))) return false;
+  const rows = await prisma.$queryRaw<Array<{ n: bigint }>>`select count(*) as n from auth.users where id = any(${ids}::uuid[]) and raw_user_meta_data->>'seeded' = 'true'`;
+  return Number(rows[0]?.n ?? 0) === new Set(ids).size;
+}
+
 /**
  * POST /api/v1/admin/crud
  * Admin-only: Full CRUD operations for managing users, posts, comments, and impersonation.
@@ -18,6 +28,17 @@ export async function POST(request: Request) {
   const { action } = body;
   // Looking people up is for support; changing or impersonating them is for admins and the owner.
   if (action !== 'get_user_credentials' && !can(auth.role, 'impersonate')) return apiError('forbidden', 'Your role cannot do that.', 403);
+
+  // Everything that acts as a person (sign in as, post, comment, reply, edit, match) works on moderator accounts only.
+  const actingAs: Record<string, string[]> = {
+    login_as: [String(body.userId ?? '')],
+    create_post_as_user: [String(body.asUserId ?? '')],
+    create_comment_as_user: [String(body.asUserId ?? '')],
+    reply_as_user: [String(body.asUserId ?? '')],
+    edit_post_as_user: [String(body.asUserId ?? '')],
+    match_as_user: [String(body.fromUserId ?? ''), String(body.toUserId ?? '')],
+  };
+  if (actingAs[action] && !(await allSeeded(actingAs[action]))) return apiError('not_a_moderator_account', 'That only works on moderator accounts.', 403);
 
   try {
     // ─── 1. GET_USER_CREDENTIALS (Name, Email, Password upfront!) ───
@@ -203,6 +224,60 @@ export async function POST(request: Request) {
         },
       });
       return apiSuccess({ comment });
+    }
+
+    // ─── 4b. REPLY_AS_USER (reply to a comment as a moderator account) ───
+    if (action === 'reply_as_user') {
+      const postId = String(body.postId || '');
+      const parentId = String(body.parentId || '');
+      const replyBody = String(body.body || '').trim();
+      const asUserId = String(body.asUserId || '');
+      if (!UUID.test(postId) || !UUID.test(parentId) || !replyBody) return apiError('missing_fields', 'Provide postId, parentId and body.', 400);
+      const parent = await prisma.postComment.findFirst({ where: { id: parentId, postId }, select: { id: true } });
+      if (!parent) return apiError('comment_not_found', 'That comment is not on that post.', 404);
+      const reply = await prisma.postComment.create({ data: { postId, parentId, authorId: asUserId, body: replyBody } });
+      return apiSuccess({ comment: reply });
+    }
+
+    // ─── 4c. EDIT_POST_AS_USER (edit a post written by a moderator account) ───
+    if (action === 'edit_post_as_user') {
+      const postId = String(body.postId || '');
+      const caption = String(body.caption || '').trim();
+      const asUserId = String(body.asUserId || '');
+      if (!UUID.test(postId) || !caption) return apiError('missing_fields', 'Provide postId and caption.', 400);
+      const changed = await prisma.$executeRaw`update public.posts set caption = ${caption}, edited_at = now() where id = ${postId}::uuid and author_id = ${asUserId}::uuid`;
+      if (changed === 0) return apiError('post_not_found', 'That account has no such post.', 404);
+      return apiSuccess({ edited: true });
+    }
+
+    // ─── 4d. CREATE_MODERATOR_ACCOUNT (sign up a new moderator account) ───
+    if (action === 'create_moderator_account') {
+      const email = String(body.email || '').trim().toLowerCase();
+      const password = String(body.password || '');
+      const displayName = String(body.displayName || '').trim().slice(0, 60);
+      const school = typeof body.school === 'string' ? body.school.trim().slice(0, 120) : '';
+      if (!emailPattern.test(email) || email.length > 120) return apiError('invalid_email', 'Enter a valid email address.', 422);
+      if (password.length < 10 || password.length > 100) return apiError('weak_password', 'Use a password of at least 10 characters.', 422);
+      if (!displayName) return apiError('missing_name', 'Give the account a name.', 422);
+      try {
+        const created = await prisma.$queryRaw<Array<{ id: string }>>`
+          insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, recovery_token, email_change, email_change_token_new)
+          values ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', ${email}, extensions.crypt(${password}, extensions.gen_salt('bf')), now(),
+            '{"provider":"email","providers":["email"]}'::jsonb, jsonb_build_object('seeded', 'true', 'plain_password', ${password}::text, 'display_name', ${displayName}::text), now(), now(), '', '', '', '')
+          returning id::text as id`;
+        const id = created[0].id;
+        await prisma.$executeRaw`
+          insert into auth.identities (id, user_id, provider_id, identity_data, provider, created_at, updated_at, last_sign_in_at)
+          values (gen_random_uuid(), ${id}::uuid, ${id}, jsonb_build_object('sub', ${id}::text, 'email', ${email}::text), 'email', now(), now(), now())`;
+        const handle = `${displayName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 20) || 'member'}_${id.slice(0, 6)}`;
+        await prisma.$executeRaw`
+          insert into public.profiles (id, display_name, username, education_status, school, show_school_on_profile, age_eligibility_confirmed, interests)
+          values (${id}::uuid, ${displayName}, ${handle}, ${school ? 'currently_in_school' : 'prefer_not_to_say'}, ${school || null}, ${Boolean(school)}, true, '{}')`;
+        return apiSuccess({ userId: id, email, password, displayName }, 201);
+      } catch (createError) {
+        if (createError instanceof Error && /duplicate key|already exists|unique/i.test(createError.message)) return apiError('email_taken', 'An account with that email already exists.', 409);
+        throw createError;
+      }
     }
 
     // ─── 5. MATCH_AS_USER (Connect/Match any two users in Connect!) ───

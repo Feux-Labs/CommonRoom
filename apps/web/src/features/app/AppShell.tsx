@@ -8,6 +8,7 @@ import { ROOM_ENABLED } from '@/lib/features';
 import { useFlag } from '@/lib/use-flags';
 import { useAppSession } from './AppSession';
 import { InstallPrompt } from './InstallPrompt';
+import { RankNotices } from '@/features/pro/RankNotices';
 import { OverlayAd } from './OverlayAd';
 import { SignInNudge } from './SignInNudge';
 
@@ -30,6 +31,7 @@ export function AppShell({ active, children, hideNav = false }: { active: Bottom
     <div className="cr-app">
       {children}
       {hideNav ? null : <InstallPrompt />}
+      {hideNav ? null : <RankNotices />}
       {hideNav ? null : <Suspense fallback={null}><OverlayAd /></Suspense>}
       {hideNav || !nudgeFlag ? null : <SignInNudge />}
       {hideNav ? null : (

@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma';
 
 /**
  * GET /api/v1/admin/users
- * Admin-only: Paginated and searchable user directory with emails, passwords, and moderation counts
+ * Admin-only: paginated, searchable directory. ?kind=normal (default: people who signed up themselves) or ?kind=seeded (the moderator accounts we
+ * created, the only ones that have a stored password). A normal member's password is never in the response, and never exists in readable form.
  */
 export async function GET(request: Request) {
   const auth = await authenticateAdmin(request, 'users');
@@ -19,7 +20,13 @@ export async function GET(request: Request) {
     const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20', 10) || 20));
     const skip = (page - 1) * limit;
 
-    const where: Prisma.ProfileWhereInput = {};
+    const kind = url.searchParams.get('kind') === 'seeded' ? 'seeded' : 'normal';
+    // Moderator accounts are the seeded ones; seeded accounts are the only ones that keep a readable password.
+    if (kind === 'seeded' && !can(auth.role, 'impersonate')) return apiError('forbidden', 'Your role cannot open moderator accounts.', 403);
+    const seededRows: Array<{ id: string }> = await prisma.$queryRaw`select id::text as id from auth.users where raw_user_meta_data->>'seeded' = 'true'`;
+    const seededIds = seededRows.map((row) => row.id);
+
+    const where: Prisma.ProfileWhereInput = kind === 'seeded' ? { id: { in: seededIds } } : { id: { notIn: seededIds } };
 
     if (query) {
       where.OR = [
@@ -81,7 +88,9 @@ export async function GET(request: Request) {
         displayName: u.displayName || 'Unnamed User',
         username: u.username,
         email: credsMap[u.id]?.email || `${u.username || u.id}@commonroom.ng`,
-        password: can(auth.role, 'impersonate') ? credsMap[u.id]?.password || '(manual / oauth)' : '(hidden for your role)',
+        seeded: kind === 'seeded',
+        // Only moderator accounts have a password to show, and only to roles allowed to sign in as them.
+        ...(kind === 'seeded' && can(auth.role, 'impersonate') ? { password: credsMap[u.id]?.password ?? null } : {}),
         school: u.school,
         course: u.course,
         year: u.year,

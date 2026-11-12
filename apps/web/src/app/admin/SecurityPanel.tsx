@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { adminCall } from './adminApi';
+import { adminCacheRead, adminCacheWrite, adminCall } from './adminApi';
 import './admin-extra.css';
 
 type Row = { at: string; kind: string; method: string | null; path: string | null; query: string | null; ip: string | null; userAgent: string | null; country: string | null; userId: string | null; status: number | null; flag: string | null };
@@ -35,8 +35,17 @@ export function SecurityPanel({ session }: { session: Session }) {
 
   const load = useCallback(async (q: string) => {
     try {
-      setData(await adminCall<Security>(session, `/api/v1/admin/security?window=${window}&q=${encodeURIComponent(q)}`));
-      setBlocks(await adminCall<Block[]>(session, '/api/v1/admin/security/blocks'));
+      const path = `/api/v1/admin/security?window=${window}&q=${encodeURIComponent(q)}`;
+      const savedData = adminCacheRead<Security>(session, path);
+      const savedBlocks = adminCacheRead<Block[]>(session, '/api/v1/admin/security/blocks');
+      if (savedData) setData(savedData);
+      if (savedBlocks) setBlocks(savedBlocks);
+      const fresh = await adminCall<Security>(session, path);
+      adminCacheWrite(session, path, fresh);
+      setData(fresh);
+      const freshBlocks = await adminCall<Block[]>(session, '/api/v1/admin/security/blocks');
+      adminCacheWrite(session, '/api/v1/admin/security/blocks', freshBlocks);
+      setBlocks(freshBlocks);
       setError('');
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Could not load the log.');
@@ -73,7 +82,7 @@ export function SecurityPanel({ session }: { session: Session }) {
           {WINDOWS.map(([key, label]) => <button aria-selected={window === key} key={key} onClick={() => setWindow(key)} role="tab" type="button">{label}</button>)}
         </div>
       </header>
-      <p className="admin-muted">Every API call is recorded with where it came from. “Attack” rows match known attack patterns; “script” rows are curl, scripts and tools that are not a normal browser. These are signals, not proof: look at the IP and what it called.</p>
+      <p className="admin-muted">Attack = known attack patterns. Script = curl and tools. Signals, not proof.</p>
       {error ? <p role="alert" style={{ color: '#ff8a8a' }}>{error}</p> : null}
       {!data && !error ? <p className="admin-muted">Loading…</p> : null}
 
@@ -89,7 +98,7 @@ export function SecurityPanel({ session }: { session: Session }) {
           </div>
 
           <h3 className="adm-h3">Blocked addresses ({blocks.length})</h3>
-          <p className="admin-muted">Blocked addresses are turned away at the door within about 5 seconds. Five attack-looking requests from one address in ten minutes blocks it for 24 hours automatically, and you are alerted. An address that staff have recently used is never blocked automatically.</p>
+          <p className="admin-muted">Blocks apply in about 5 seconds. 5 attack requests in 10 minutes = 24-hour auto-block. Staff addresses are never auto-blocked.</p>
           <div className="admin-table-wrap"><table>
             <thead><tr><th>IP</th><th>Why</th><th>Until</th><th /></tr></thead>
             <tbody>{blocks.length === 0 ? <tr><td colSpan={4}>No blocked addresses.</td></tr> : blocks.map((row) => (

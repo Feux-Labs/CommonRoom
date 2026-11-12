@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { adminCall, type AdminMe } from './adminApi';
+import { adminCacheRead, adminCacheWrite, adminCall, type AdminMe } from './adminApi';
 import './admin-extra.css';
 
 type Member = { userId: string; role: AdminMe['role']; email: string | null; createdAt: string; you: boolean };
@@ -35,7 +35,10 @@ export function TeamPanel({ session, me, onLocked }: { session: Session; me: Adm
 
   const load = useCallback(async () => {
     try {
+      const saved = adminCacheRead<{ locked: boolean; team: Member[] }>(session, '/api/v1/admin/team');
+      if (saved) { setTeam(saved.team); setLocked(saved.locked); }
       const result = await adminCall<{ locked: boolean; team: Member[] }>(session, '/api/v1/admin/team');
+      adminCacheWrite(session, '/api/v1/admin/team', result);
       setTeam(result.team);
       setLocked(result.locked);
     } catch (loadError) {
@@ -99,7 +102,7 @@ export function TeamPanel({ session, me, onLocked }: { session: Session; me: Adm
       </table></div>
 
       <h3 className="adm-h3">Create an account</h3>
-      <p className="admin-muted">{locked ? 'Staff accounts are locked for good. You can still create normal user accounts.' : 'Creates a confirmed account they can sign in to straight away. Share the password with them privately; it is shown only once.'}</p>
+      <p className="admin-muted">{locked ? 'Staff creation is locked. Normal accounts are still allowed.' : 'They can sign in right away. The password is shown once.'}</p>
       <form className="adm-form" onSubmit={(event) => void create(event)}>
         <label>Email<input autoComplete="off" onChange={(event) => setForm({ ...form, email: event.target.value })} required type="email" value={form.email} /></label>
         <label>Name (optional)<input maxLength={60} onChange={(event) => setForm({ ...form, displayName: event.target.value })} value={form.displayName} /></label>

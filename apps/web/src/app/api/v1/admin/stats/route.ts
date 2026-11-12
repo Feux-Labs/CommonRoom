@@ -18,16 +18,23 @@ export async function GET(request: Request) {
   const range = new URL(request.url).searchParams.get('range') ?? 'week';
   const span = RANGES[range] ?? RANGES.week;
 
-  const [people, daily, signups, revenue, revenueDaily, byProduct, countries, cities, devices, systems, browsers, sources, signupsTotal] = await Promise.all([
-    prisma.$queryRaw<Array<{ visitors: bigint; guests: bigint; members: bigint; today: bigint; week: bigint; month: bigint; ranged: bigint }>>`
+  const [people, now, daily, signups, revenue, revenueDaily, byProduct, countries, cities, devices, systems, browsers, sources, signupsTotal] = await Promise.all([
+    prisma.$queryRaw<Array<{ visitors: bigint; guests: bigint; members: bigint; today: bigint; week: bigint; month: bigint; ranged: bigint; ranged_members: bigint; ranged_guests: bigint }>>`
       select count(distinct user_id) as visitors,
         count(distinct user_id) filter (where is_anonymous) as guests,
         count(distinct user_id) filter (where not is_anonymous) as members,
         count(distinct user_id) filter (where created_at > now() - interval '1 day') as today,
         count(distinct user_id) filter (where created_at > now() - interval '7 days') as week,
         count(distinct user_id) filter (where created_at > now() - interval '30 days') as month,
-        count(distinct user_id) filter (where created_at > now() - ${span}::interval) as ranged
+        count(distinct user_id) filter (where created_at > now() - ${span}::interval) as ranged,
+        count(distinct user_id) filter (where created_at > now() - ${span}::interval and not is_anonymous) as ranged_members,
+        count(distinct user_id) filter (where created_at > now() - ${span}::interval and is_anonymous) as ranged_guests
       from public.app_events where event = 'app_open'`,
+    // Active right now: people (guests included) whose app made a request in the last 5 minutes.
+    prisma.$queryRaw<Array<{ total: bigint; members: bigint }>>`
+      select count(distinct r.user_id) as total, count(distinct r.user_id) filter (where not coalesce(u.is_anonymous, true)) as members
+      from public.request_log r left join auth.users u on u.id = r.user_id
+      where r.user_id is not null and r.ts > now() - interval '5 minutes' and r.path not like '/api/v1/admin%'`,
     prisma.$queryRaw<Array<{ day: Date; active: bigint; fresh: bigint }>>`
       with days as (select generate_series((now() at time zone 'Africa/Lagos')::date - 29, (now() at time zone 'Africa/Lagos')::date, interval '1 day')::date as day),
       active as (select (created_at at time zone 'Africa/Lagos')::date as day, count(distinct user_id) as n from public.app_events where event = 'app_open' and created_at > now() - interval '31 days' group by 1),
@@ -66,6 +73,7 @@ export async function GET(request: Request) {
     range,
     users: {
       allTimeVisitors: n(p?.visitors), guests: n(p?.guests), membersSeen: n(p?.members), registered: n(signupsTotal[0]?.members),
+      activeNow: n(now[0]?.total), activeNowMembers: n(now[0]?.members), uniqueInRange: n(p?.ranged), uniqueMembersInRange: n(p?.ranged_members), uniqueGuestsInRange: n(p?.ranged_guests),
       activeToday: n(p?.today), activeThisWeek: n(p?.week), activeThisMonth: n(p?.month), activeInRange: n(p?.ranged),
     },
     daily: daily.map((row) => ({ day: row.day.toISOString().slice(0, 10), active: n(row.active), newVisitors: n(row.fresh), newMembers: signupByDay.get(row.day.toISOString().slice(0, 10)) ?? 0 })),

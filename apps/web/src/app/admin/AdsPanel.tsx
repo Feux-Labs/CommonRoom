@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { uploadUserMedia } from '@/features/app/media';
+import { adminCacheRead, adminCacheWrite } from './adminApi';
 import { compressMedia } from '@/lib/media-compression';
 
 const PLACEMENTS = [
@@ -42,7 +43,11 @@ export function AdsPanel({ session }: { session: Session }) {
 
   const load = useCallback(async () => {
     try {
-      setAds(await adsRequest<AdItem[]>(session, 'GET'));
+      const saved = adminCacheRead<AdItem[]>(session, '/api/v1/admin/ads');
+      if (saved) setAds(saved);
+      const fresh = await adsRequest<AdItem[]>(session, 'GET');
+      adminCacheWrite(session, '/api/v1/admin/ads', fresh);
+      setAds(fresh);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Could not load ads.');
     }
@@ -104,7 +109,7 @@ export function AdsPanel({ session }: { session: Session }) {
   return (
     <section className="admin-panel admin-section">
       <header><div><h2>Sponsored ads</h2></div></header>
-      <p className="admin-muted">Ads are always labelled “Sponsored”. Choose where each one runs. The full-screen overlay only ever shows an ad made for the overlay, and never to Pro members; with none, nothing appears. Views count once per person per hour.</p>
+      <p className="admin-muted">Always labelled “Sponsored”. Overlay ads never show to Pro members.</p>
       {error ? <p role="alert" style={{ color: '#ff8a8a' }}>{error}</p> : null}
 
       <form className="admin-broadcast-form" onSubmit={(event) => void create(event)}>
