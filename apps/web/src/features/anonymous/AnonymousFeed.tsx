@@ -331,7 +331,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null, tag = null
           <button aria-label="Back to Anonymous" className="cr-icon-btn" onClick={() => router.push('/anonymous')} type="button"><Icon name="back" /></button>
         ) : (
           <div>
-            <h1 className="cr-hd__big">Anonymous Range</h1>
+            <h1 className="cr-hd__big">Anonymous  <span className="lowercase-text">Ranpe</span></h1>
             <p className="cr-hd__sub">Talk! No one knows who you are.</p>
           </div>
         )}
