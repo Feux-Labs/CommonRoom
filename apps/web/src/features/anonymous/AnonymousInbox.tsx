@@ -14,7 +14,7 @@ import { ShareSheet } from '@/components/cr/ShareSheet';
 import { useToast } from '@/components/cr/Toast';
 import { useAppSession } from '@/features/app/AppSession';
 import { dayLabel, shortAge } from '@/lib/format';
-import { isCardTheme, type CardTheme } from '@/features/share/card';
+import { CARD_GRADIENTS, isCardTheme, type CardTheme } from '@/features/share/card';
 import { ChatStreakBadge, ChatStreakLine, useChatStreaks } from './ChatStreak';
 import { RecoveryCodeRow } from './RecoveryCodeRow';
 import { anonRequest, inboxLinkUrl, type AnonIdentity, type InboxLink, type InboxMessage, type InboxThread } from './api';
@@ -104,6 +104,7 @@ export function AnonymousInbox() {
   const [threads, setThreads] = useState<InboxThread[]>([]);
   const [sent, setSent] = useState<InboxThread[]>([]);
   const streaks = useChatStreaks(account);
+  const [tab, setTab] = useState<'received' | 'sent'>('received');
   // When the list was fetched. Used to split New vs Earlier; read here, never during render.
   const [loadedAt, setLoadedAt] = useState(0);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -155,6 +156,8 @@ export function AnonymousInbox() {
     return create();
   };
 
+  // The link card wears the colour of the prompt theme the person chose (blue by default).
+  const cardColors = CARD_GRADIENTS[link && isCardTheme(link.prompt_theme) ? link.prompt_theme : 'blue-hour'];
   const recent = threads.filter((thread) => thread.last_message_at && loadedAt - new Date(thread.last_message_at).getTime() < DAY_MS);
   const earlier = threads.filter((thread) => !recent.includes(thread));
 
@@ -182,12 +185,9 @@ export function AnonymousInbox() {
         </div>
         <button aria-label="Link settings" className="cr-icon-btn" onClick={() => router.push('/anonymous/link')} type="button"><Icon name="cog" /></button>
       </header>
-      <RecoveryCodeRow session={account} />
-
-      <PushToggle compact />
       {isGuest ? (
-        <p className="cr-note" role="note" style={{ margin: '0 14px 8px' }}>
-          Your inbox works without an account. Sign in to keep your message history if you change phone or clear your browser.{' '}
+        <p className="cr-inbox__guest" role="note">
+          Sign in to keep your messages if you change phone or clear your browser.{' '}
           <button className="cr-link" onClick={() => openAuth('sign-in')} type="button">Sign in</button>
         </p>
       ) : null}
@@ -197,46 +197,58 @@ export function AnonymousInbox() {
 
       {status === 'ready' ? (
         <>
-          <section aria-label="Your message link" className="cr-linkcard">
-            <p className="cr-linkcard__label">Your message link</p>
+          <section aria-label="Your message link" className="cr-linkcard" style={{ background: `linear-gradient(135deg, ${cardColors[0]}, ${cardColors[1]})` }}>
+            <div className="cr-linkcard__top">
+              <p className="cr-linkcard__label">Your message link</p>
+              {link ? (
+                <span className="cr-linkcard__toggle">
+                  <span>{link.enabled ? 'Active' : 'Paused'}</span>
+                  <Toggle className="cr-toggle--light" label="Accept messages" on={link.enabled} onChange={busy ? undefined : (value) => void setEnabled(value)} />
+                </span>
+              ) : null}
+            </div>
             {link ? (
               <>
+                <p className="cr-linkcard__prompt">“{link.prompt || DEFAULT_PROMPT}”</p>
                 <p className="cr-linkcard__url">{inboxLinkUrl(link.token).replace(/^https?:\/\//, '')}</p>
                 <div className="cr-linkcard__row">
-                  <button className="cr-linkcard__btn cr-linkcard__btn--light" onClick={() => void copy(link)} type="button"><Icon name="copy" />Copy</button>
-                  <button className="cr-linkcard__btn" onClick={() => void share(link)} type="button"><Icon name="up" />Share</button>
-                  <span className="cr-linkcard__toggle">
-                    <span>{link.enabled ? 'Active' : 'Paused'}</span>
-                    <Toggle className="cr-toggle--light" label="Accept messages" on={link.enabled} onChange={busy ? undefined : (value) => void setEnabled(value)} />
-                  </span>
+                  <button className="cr-linkcard__btn cr-linkcard__btn--solid" onClick={() => void copy(link)} type="button"><Icon name="copy" />Copy</button>
+                  <button className="cr-linkcard__btn cr-linkcard__btn--solid" onClick={() => void share(link)} type="button"><Icon name="up" />Share</button>
+                  <button className="cr-linkcard__btn" onClick={() => setPromptOpen(true)} type="button">Change prompt</button>
                 </div>
-                <p className="cr-linkcard__hint" style={{ textAlign: 'center' }}>“{link.prompt || DEFAULT_PROMPT}”</p>
-                <button className="cr-linkcard__btn cr-linkcard__btn--light" onClick={() => setPromptOpen(true)} type="button">Change prompt</button>
               </>
             ) : (
               <>
+                <p className="cr-linkcard__prompt">Get anonymous messages from anyone.</p>
                 <p className="cr-linkcard__hint">Create a link people can use to message you anonymously.</p>
-                <button className="cr-linkcard__btn cr-linkcard__btn--light" disabled={busy} onClick={() => void ensureLink()} type="button">{busy ? 'Creating…' : 'Create my link'}</button>
+                <button className="cr-linkcard__btn cr-linkcard__btn--solid" disabled={busy} onClick={() => void ensureLink()} type="button">{busy ? 'Creating…' : 'Create my link'}</button>
               </>
             )}
           </section>
 
-          {threads.length === 0 && sent.length === 0 ? (
-            <StateBlock
-              actions={<button className="cr-pbtn cr-pbtn--l" disabled={busy} onClick={() => void ensureLink().then((ready) => { if (ready) void share(ready); })} type="button">Share my link</button>}
-              description="Share your link to start getting anonymous messages."
-              icon="send"
-              title="No messages yet"
-            />
+          <div aria-label="Messages" className="cr-inbox__tabs" role="tablist">
+            <button aria-selected={tab === 'received'} onClick={() => setTab('received')} role="tab" type="button">Received{threads.length ? <span>{threads.length}</span> : null}</button>
+            <button aria-selected={tab === 'sent'} onClick={() => setTab('sent')} role="tab" type="button">Sent{sent.length ? <span>{sent.length}</span> : null}</button>
+          </div>
+
+          {tab === 'received' ? (
+            threads.length === 0 ? (
+              <StateBlock
+                actions={<button className="cr-pbtn cr-pbtn--l" disabled={busy} onClick={() => void ensureLink().then((ready) => { if (ready) void share(ready); })} type="button">Share my link</button>}
+                description="Share your link to start getting anonymous messages."
+                icon="send"
+                title="No messages yet"
+              />
+            ) : (
+              <div className="cr-inbox__list">
+                {recent.length ? <><p className="cr-section-label">New</p>{recent.map(row)}</> : null}
+                {earlier.length ? <><p className="cr-section-label">Earlier</p>{earlier.map(row)}</> : null}
+              </div>
+            )
+          ) : sent.length === 0 ? (
+            <StateBlock description="Messages you send to other people’s links show up here, so you can come back for their replies." icon="send" title="Nothing sent yet" />
           ) : (
-            <>
-              {recent.length ? <><p className="cr-section-label">New</p>{recent.map(row)}</> : null}
-              {earlier.length ? <><p className="cr-section-label">Earlier</p>{earlier.map(row)}</> : null}
-            </>
-          )}
-          {sent.length ? (
-            <>
-              <p className="cr-section-label">Messages you sent</p>
+            <div className="cr-inbox__list">
               {sent.map((thread) => (
                 <button className="cr-row-btn" key={thread.id} onClick={() => router.push(`/anonymous/inbox/thread/${thread.id}?from=sent`)} type="button">
                   <AnonAvatar />
@@ -250,8 +262,14 @@ export function AnonymousInbox() {
                   </span>
                 </button>
               ))}
-            </>
-          ) : null}
+            </div>
+          )}
+
+          <section aria-label="Inbox settings" className="cr-inbox__settings">
+            <p className="cr-section-label">Settings</p>
+            <PushToggle compact />
+            <RecoveryCodeRow session={account} />
+          </section>
         </>
       ) : null}
 

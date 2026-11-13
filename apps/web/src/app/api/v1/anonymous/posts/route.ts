@@ -5,6 +5,7 @@ import { anonymousInvalidBody, anonymousRpcError, authenticateAnonymousRequest, 
 import { rejectUnsafeAnonymousText } from '@/lib/text-filter';
 import { isFlagEnabled } from '@/lib/flags';
 import { prisma } from '@/lib/prisma';
+import { notifyAnonymousMentions } from '@/lib/anonymous-mentions';
 
 const scopes = ['school', 'all_nigerian_schools'];
 const cardThemes = ['blue-hour', 'soft-sky', 'warm-glow', 'rose-note'];
@@ -91,6 +92,25 @@ export async function GET(request: Request) {
       ? Buffer.from(JSON.stringify({ asOf: last.as_of, rank: last.hot_rank, id: last.id })).toString('base64url')
       : null;
     return apiSuccess({ posts: await markEdited(posts as Array<{ id: string }>), hasMore, nextCursor });
+  }
+
+  // Posts carrying a #tag, newest first.
+  if (params.has('tag')) {
+    if (!auth) return apiError('anonymous_auth_required', 'Continue with an anonymous session to use Anonymous.', 401);
+    const tag = params.get('tag') ?? '';
+    if (!/^[A-Za-z0-9_]{1,40}$/.test(tag)) return apiError('invalid_anonymous_tag', 'That tag is not valid.', 422);
+    const cursor = decodeCursor(params.get('cursor'));
+    if (cursor === undefined) return apiError('invalid_anonymous_cursor', 'The feed continuation token is invalid. Refresh the feed to continue.', 400);
+    const { data, error } = await supabase.rpc('get_anonymous_posts_by_tag', {
+      p_tag: tag, p_before_created_at: cursor?.createdAt ?? null, p_before_id: cursor?.id ?? null, p_limit: pageSize + 1,
+    });
+    if (error) return anonymousRpcError(error, 'Anonymous posts could not be loaded.');
+    const rows = data ?? [];
+    const hasMore = rows.length > pageSize;
+    const posts = rows.slice(0, pageSize);
+    const lastPost = posts.at(-1);
+    const nextCursor = hasMore && lastPost ? Buffer.from(JSON.stringify({ createdAt: lastPost.created_at, id: lastPost.id })).toString('base64url') : null;
+    return apiSuccess({ posts: await markEdited(posts), hasMore, nextCursor });
   }
 
   if (params.has('page')) {
@@ -199,6 +219,7 @@ export async function POST(request: Request) {
   if (error) return anonymousRpcError(error, 'Your anonymous post could not be published.');
   const created = Array.isArray(data) ? data[0] ?? null : null;
   if (created?.id) scheduleTextScan('post', String(created.id), `${body.title}\n${body.body}`);
+  if (created?.id) notifyAnonymousMentions({ text: body.body, authorId: context.userId, postId: String(created.id), what: 'post' });
   scheduleMediaScan(context.userId, cleanMedia.map((item) => item.path));
   return apiSuccess(created, 201);
 }

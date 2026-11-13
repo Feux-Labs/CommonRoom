@@ -725,3 +725,29 @@
 .cr-anon .cr-act { gap: 7px; padding: 6px 2px; font-size: 13.5px; }
 .cr-anon .cr-act .i { width: 22px; height: 22px; }
 .cr-anon .cr-actions__end { font-weight: 600; }
+
+.cr-tag { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.cr-apost__body .cr-tag { color: var(--cr-accent, #3a47c4); text-decoration: none; }
+.cr-mention { font-weight: 700; }
+
+/* ---------- Inbox: organised and colourful ---------- */
+.cr-anon-inbox .cr-linkcard { margin: 0 0 14px; padding: 18px 16px 16px; border-radius: 22px; color: #fff; box-shadow: 0 10px 28px rgba(60, 50, 160, 0.25); }
+.cr-anon-inbox .cr-linkcard::after { top: -50px; right: -40px; width: 150px; height: 150px; background: rgba(255, 255, 255, 0.12); }
+.cr-linkcard__top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.cr-anon-inbox .cr-linkcard__label { margin: 0; color: rgba(255, 255, 255, 0.85); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.cr-linkcard__prompt { margin: 0 0 12px; font-size: 20px; font-weight: 600; line-height: 1.25; }
+.cr-anon-inbox .cr-linkcard__hint { color: rgba(255, 255, 255, 0.85); }
+.cr-anon-inbox .cr-linkcard__url { margin: 0 0 12px; padding: 9px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.18); font-size: 13px; }
+.cr-anon-inbox .cr-linkcard__row { flex-wrap: wrap; }
+.cr-anon-inbox .cr-linkcard__btn { height: 38px; padding: 0 14px; border: 1px solid rgba(255, 255, 255, 0.55); border-radius: 12px; background: transparent; color: #fff; font-size: 13px; font-weight: 600; }
+.cr-anon-inbox .cr-linkcard__btn--solid { border-color: #fff; background: #fff; color: #2d2f7a; }
+.cr-linkcard__toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; }
+.cr-inbox__guest { margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; background: rgba(90, 100, 220, 0.1); font-size: 12.5px; line-height: 1.4; }
+.cr-inbox__tabs { display: flex; gap: 6px; margin: 0 0 8px; padding: 4px; border-radius: 14px; background: var(--cr-subtle, #f0f0f0); }
+.cr-inbox__tabs button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 12px; border: 0; border-radius: 11px; background: none; color: var(--cr-muted, #6b6b6b); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.cr-inbox__tabs button[aria-selected='true'] { background: var(--cr-surface, #fff); color: var(--cr-text, #0b0b0b); box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08); }
+.cr-inbox__tabs button span { min-width: 20px; padding: 1px 6px; border-radius: 999px; background: #5b5fe0; color: #fff; font-size: 11px; line-height: 1.5; }
+.cr-inbox__list { display: grid; gap: 2px; }
+.cr-inbox__settings { margin-top: 18px; padding-top: 6px; border-top: 1px solid var(--cr-soft-border, #ececec); }
+.cr-inbox__settings .cr-push { margin-left: 0; margin-right: 0; }
+.cr-inbox__list .cr-row-btn { border-bottom: 1px solid var(--cr-soft-border, #ececec); }

@@ -5,28 +5,34 @@ import './install-prompt.css';
 
 const VISITS_KEY = 'commonroom:visits';
 const DISMISSED_KEY = 'commonroom:install-dismissed';
-const COOLDOWN = 14 * 86_400_000;
+const COOLDOWN = 3 * 86_400_000;
 
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> };
+type Kind = 'android' | 'ios' | 'ios-webview';
 
 function isStandalone(): boolean {
   return window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
 
-function isIosSafari(): boolean {
+/** Any iPhone or iPad browser (Safari, Chrome, Firefox…) can add a site to the home screen. In-app browsers (Instagram, Facebook, TikTok…) cannot. */
+function iosKind(): Kind | null {
   const ua = navigator.userAgent;
-  return /iphone|ipad|ipod/i.test(ua) && /safari/i.test(ua) && !/crios|fxios|edgios/i.test(ua);
+  const ipad = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  if (!/iphone|ipad|ipod/i.test(ua) && !ipad) return null;
+  return /FBAN|FBAV|Instagram|TikTok|Snapchat|Line\/|MicroMessenger|Twitter/i.test(ua) ? 'ios-webview' : 'ios';
 }
 
 /**
- * "Add to home screen", offered from a person's second visit. Android Chrome shows its own install dialog when they tap
- * Add; iPhones have no such dialog, so they get the two-step instruction instead. Dismissing hides it for two weeks.
+ * A small drop-down from the top: "Install Common Room". On Android the Install button opens the browser's own install dialog.
+ * iPhones have no such dialog, so Install opens the short steps (Share, then Add to Home Screen). Offered from the second visit;
+ * closing it hides it for three days.
  */
 export function InstallPrompt() {
   const [event, setEvent] = useState<InstallEvent | null>(null);
-  const [ios, setIos] = useState(false);
+  const [ios, setIos] = useState<Kind | null>(null);
   const [eligible, setEligible] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [steps, setSteps] = useState(false);
 
   useEffect(() => {
     if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
@@ -48,7 +54,7 @@ export function InstallPrompt() {
         const dismissedAt = Number(window.localStorage.getItem(DISMISSED_KEY)) || 0;
         if (visits < 2 || Date.now() - dismissedAt < COOLDOWN) return;
         setEligible(true);
-        setIos(isIosSafari());
+        setIos(iosKind());
       } catch { /* storage blocked: never nag */ }
     })();
 
@@ -67,20 +73,33 @@ export function InstallPrompt() {
     setHidden(true);
   };
   const install = async () => {
-    if (!event) return;
-    await event.prompt().catch(() => undefined);
-    await event.userChoice.catch(() => undefined);
-    dismiss();
+    if (event) {
+      await event.prompt().catch(() => undefined);
+      await event.userChoice.catch(() => undefined);
+      dismiss();
+      return;
+    }
+    setSteps((open) => !open);
   };
 
   return (
     <aside aria-label="Install Common Room" className="cr-install">
-      <span aria-hidden="true" className="cr-brand-dots cr-brand-dots--light"><i /><i /><i /></span>
-      <p>{event ? 'Add Common Room to your home screen: one tap to open, like an app.' : 'Add Common Room to your home screen: tap Share, then “Add to Home Screen”.'}</p>
-      <div className="cr-install__acts">
-        {event ? <button className="cr-install__go" onClick={() => void install()} type="button">Add</button> : null}
-        <button className="cr-install__later" onClick={dismiss} type="button">{event ? 'Not now' : 'Got it'}</button>
+      <div className="cr-install__bar">
+        <span aria-hidden="true" className="cr-brand-dots cr-brand-dots--light"><i /><i /><i /></span>
+        <p><b>Install Common Room</b><small>Open it like an app, right from your home screen.</small></p>
+        {ios === 'ios-webview' && !event ? null : (
+          <button aria-expanded={event ? undefined : steps} className="cr-install__go" onClick={() => void install()} type="button">{event ? 'Install' : steps ? 'Hide' : 'Install'}</button>
+        )}
+        <button aria-label="Close" className="cr-install__x" onClick={dismiss} type="button">×</button>
       </div>
+      {!event && ios === 'ios' && steps ? (
+        <ol className="cr-install__steps">
+          <li>Tap the <b>Share</b> button <span aria-hidden="true" className="cr-install__share">⬆︎</span> (at the bottom or top of your browser).</li>
+          <li>Scroll and choose <b>Add to Home Screen</b>.</li>
+          <li>Tap <b>Add</b>. Common Room is now on your home screen.</li>
+        </ol>
+      ) : null}
+      {ios === 'ios-webview' && !event ? <p className="cr-install__note">Open this page in Safari to add it to your home screen.</p> : null}
     </aside>
   );
 }

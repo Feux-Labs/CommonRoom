@@ -138,7 +138,13 @@
     ".next-a57/types/**/*.ts",
     ".next-a57/dev/types/**/*.ts",
     ".next-a58/types/**/*.ts",
-    ".next-a58/dev/types/**/*.ts"
+    ".next-a58/dev/types/**/*.ts",
+    ".next-a59/types/**/*.ts",
+    ".next-a59/dev/types/**/*.ts",
+    ".next-a60/types/**/*.ts",
+    ".next-a60/dev/types/**/*.ts",
+    ".next-a61/types/**/*.ts",
+    ".next-a61/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

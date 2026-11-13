@@ -29,6 +29,7 @@ import {
   type ReportTargetKind,
 } from './api';
 import { AnonymousNameSheet } from './AnonymousNameSheet';
+import { RichText } from './RichText';
 import { PostInsightsSheet } from './PostInsightsSheet';
 import { SponsoredCard, type Ad } from './SponsoredCard';
 import { trackEvent } from '@/lib/analytics';
@@ -41,14 +42,16 @@ function sharePhoto(post: AnonPost): string | undefined {
   return photo ? anonMediaUrl(photo.path) || undefined : undefined;
 }
 
-export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusPostId?: string | null; pinPostId?: string | null }) {
+export function AnonymousFeed({ focusPostId = null, pinPostId = null, tag = null }: { focusPostId?: string | null; pinPostId?: string | null; tag?: string | null }) {
   const router = useRouter();
   const toast = useToast();
   // Guests (anonymous sessions) take part too: `account` here means the current visitor, member or guest.
   const { session, isGuest, requireAccount, ensureAdult, ready } = useAppSession();
   const account = session;
   // The last feed this person loaded (if any), so coming back to this tab shows it immediately instead of a skeleton.
-  const feedCacheKey = session && !focusPostId ? `anon-feed:${session.user.id}` : null;
+  // The list to load: the main feed (hot), or just the posts with one #tag (newest first).
+  const feedPath = tag ? `/posts?scope=all_nigerian_schools&page=1&tag=${encodeURIComponent(tag)}` : '/posts?scope=all_nigerian_schools&page=1&sort=hot';
+  const feedCacheKey = session && !focusPostId && !tag ? `anon-feed:${session.user.id}` : null;
   const [cached] = useState(() => (feedCacheKey ? cacheGet<{ posts: AnonPost[]; hasMore: boolean; cursor: string | null }>(feedCacheKey) : undefined));
   const [posts, setPosts] = useState<AnonPost[]>(cached?.posts ?? []);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(cached ? 'ready' : 'loading');
@@ -86,7 +89,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
     setLoadingMore(true);
     setMoreFailed(false);
     try {
-      const page = await anonRequest<AnonPostPage>(session, `/posts?scope=all_nigerian_schools&page=1&sort=hot&cursor=${encodeURIComponent(cursor)}`);
+      const page = await anonRequest<AnonPostPage>(session, `${feedPath}&cursor=${encodeURIComponent(cursor)}`);
       if (current !== generation.current) return;
       setPosts((existing) => mergeUnique(existing, page.posts));
       setHasMore(page.hasMore && page.nextCursor !== null);
@@ -97,7 +100,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [cursor, hasMore, session]);
+  }, [cursor, feedPath, hasMore, session]);
 
   // Retry button: show the skeleton again and run the load effect once more.
   const [attempt, setAttempt] = useState(0);
@@ -114,7 +117,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
       await Promise.resolve();
       // Show the feed loaded last time right away (when the session was not known yet at first render), then refresh below.
       let shownFromCache = Boolean(cached);
-      if (!focusPostId && session && !shownFromCache) {
+      if (!focusPostId && !tag && session && !shownFromCache) {
         const hit = cacheGet<{ posts: AnonPost[]; hasMore: boolean; cursor: string | null }>(`anon-feed:${session.user.id}`);
         if (hit && current === generation.current) {
           setPosts(hit.posts);
@@ -133,13 +136,13 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
           setCursor(null);
           if (result.length > 0) trackEvent(session, 'post_view', { kind: 'anonymous', id: focusPostId });
         } else {
-          const page = await anonRequest<AnonPostPage>(session, '/posts?scope=all_nigerian_schools&page=1&sort=hot');
+          const page = await anonRequest<AnonPostPage>(session, feedPath);
           if (current !== generation.current) return;
           const fresh = mergeUnique([], pinFirst(page.posts, pinPostId));
           setPosts(fresh);
           setHasMore(page.hasMore && page.nextCursor !== null);
           setCursor(page.nextCursor);
-          if (session) cacheSet(`anon-feed:${session.user.id}`, { posts: fresh, hasMore: page.hasMore && page.nextCursor !== null, cursor: page.nextCursor });
+          if (session && !tag) cacheSet(`anon-feed:${session.user.id}`, { posts: fresh, hasMore: page.hasMore && page.nextCursor !== null, cursor: page.nextCursor });
         }
         setStatus('ready');
       } catch {
@@ -148,10 +151,10 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attempt, focusPostId, pinPostId, ready, session]);
+  }, [attempt, feedPath, focusPostId, pinPostId, ready, session, tag]);
 
   useEffect(() => {
-    if (!ready || !session || focusPostId) return;
+    if (!ready || !session || focusPostId || tag) return;
     let active = true;
     void (async () => {
       try {
@@ -163,7 +166,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
       }
     })();
     return () => { active = false; };
-  }, [focusPostId, ready, session]);
+  }, [focusPostId, ready, session, tag]);
 
   // Coming back from the composer (?posted=...): the new post is pinned first; tidy the address bar.
   useEffect(() => {
@@ -324,7 +327,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
   return (
     <main className="cr-screen cr-screen--flush cr-anon">
       <header className="cr-hd cr-pad">
-        {focusPostId ? (
+        {focusPostId || tag ? (
           <button aria-label="Back to Anonymous" className="cr-icon-btn" onClick={() => router.push('/anonymous')} type="button"><Icon name="back" /></button>
         ) : (
           <div>
@@ -358,9 +361,9 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
               <div className="cr-apost__main">
                 <p className="cr-apost__meta"><b className="cr-apost__id">{post.author_handle || 'Anonymous'}</b> · {shortAge(post.created_at)}{post.edited ? ' · edited' : ''}{topic ? ` · ${topic}` : ''}</p>
                 {post.body && !(post.media_items ?? []).length ? (
-                  <div className={`cr-tcard cr-tcard--${post.card_theme ?? 'blue-hour'} cr-tcard--${post.body.length > 160 ? 'sm' : post.body.length > 80 ? 'md' : 'lg'}`}>{post.body}</div>
+                  <div className={`cr-tcard cr-tcard--${post.card_theme ?? 'blue-hour'} cr-tcard--${post.body.length > 160 ? 'sm' : post.body.length > 80 ? 'md' : 'lg'}`}><RichText text={post.body} /></div>
                 ) : null}
-                {post.body && (post.media_items ?? []).length ? <p className="cr-apost__body">{post.body}</p> : null}
+                {post.body && (post.media_items ?? []).length ? <p className="cr-apost__body"><RichText text={post.body} /></p> : null}
                 <SensitiveGate active={sensitiveMedia}>
                 {photos.length ? (
                   <div className={photos.length > 1 ? 'cr-apost__media cr-apost__media--grid' : 'cr-apost__media'}>

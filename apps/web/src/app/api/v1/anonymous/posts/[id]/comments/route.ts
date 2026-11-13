@@ -2,6 +2,7 @@ import { apiSuccess } from '@/lib/supabase-server';
 import { anonymousInvalidBody, anonymousRpcError, authenticateAnonymousRequest, parseAnonymousBody } from '@/lib/anonymous-api';
 import { scheduleTextScan } from '@/lib/moderation/media-scan';
 import { rejectUnsafeAnonymousText } from '@/lib/text-filter';
+import { notifyAnonymousMentions } from '@/lib/anonymous-mentions';
 
 const commentIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -34,5 +35,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (error) return anonymousRpcError(error, 'Your comment could not be posted.');
   const created = Array.isArray(data) ? data[0] ?? null : null;
   if (created?.id) scheduleTextScan('comment', String(created.id), body.body as string);
+  if (created?.id) notifyAnonymousMentions({ text: body.body as string, authorId: auth.userId, postId: id, what: 'comment' });
   return apiSuccess(created, 201);
 }

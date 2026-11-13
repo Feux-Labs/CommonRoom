@@ -59,6 +59,7 @@ export function anonymousRpcError(error: { code?: string; message?: string }, fa
     invalid_report_target: ['Choose content that can be reported.', 422],
     invalid_report_reason: ['Add a report reason of up to 500 characters.', 422],
     anonymous_post_locked: ['This post has been reported or is being reviewed, so it can’t be edited now.', 409],
+    invalid_anonymous_tag: ['That tag is not valid.', 422],
     anonymous_rate_limit_exceeded: ['You’re doing that too often. Please try again later.', 429],
   };
 

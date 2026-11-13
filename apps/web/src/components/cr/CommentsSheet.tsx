@@ -1,5 +1,6 @@
 'use client';
 
+import { RichText } from '@/features/anonymous/RichText';
 import { useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { shortAge } from '@/lib/format';
@@ -88,7 +89,7 @@ function CommentsSheetBody({
       <span className="cr-cm__avatar">{comment.avatar}</span>
       <div className="cr-cm__main">
         <div className="cr-cm__who">{comment.author} <span className="cr-cm__age">{shortAge(comment.createdAt)}</span></div>
-        <p className="cr-cm__body">{comment.body}</p>
+        <p className="cr-cm__body"><RichText text={comment.body} /></p>
         <div className="cr-cm__acts">
           {!isReply && canCompose ? <button onClick={() => startReply(comment)} type="button">Reply</button> : null}
           {onReport ? <button onClick={() => onReport(comment)} type="button">Report</button> : null}
