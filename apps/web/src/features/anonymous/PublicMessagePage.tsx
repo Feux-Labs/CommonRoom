@@ -9,7 +9,7 @@ import { CARD_GRADIENTS, isCardTheme } from '@/features/share/card';
 import { limitWords, wordLimitOf } from './prompt-templates';
 import { generateAnonymousId } from './names';
 import './prompt.css';
-import { AnonymousApiError, anonRequest, type AnonIdentity } from './api';
+import { AnonymousApiError, anonRequest, suggestAnonymousId, type AnonIdentity } from './api';
 
 type PageState = 'loading' | 'ready' | 'sending' | 'failed' | 'sent' | 'rate_limited' | 'off' | 'invalid' | 'unavailable';
 
@@ -67,7 +67,7 @@ export function PublicMessagePage({ token }: { token: string }) {
     if (existing) return;
     for (let attempt = 0; attempt < 4; attempt += 1) {
       try {
-        await anonRequest<AnonIdentity>(session, '/identity', 'POST', { handle: generateAnonymousId() });
+        await anonRequest<AnonIdentity>(session, '/identity', 'POST', { handle: (await suggestAnonymousId(session)) ?? generateAnonymousId() });
         return;
       } catch (error) {
         if (!(error instanceof AnonymousApiError && error.code === 'anonymous_handle_taken')) throw error;

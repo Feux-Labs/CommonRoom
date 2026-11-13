@@ -35,3 +35,7 @@
 - Profile redesign: rank card rebuilt as a hero (avatar, name, rank line, All ranks, animated character stage with breathing glow, floating figure, rippling platform, sparkles; richer per phase; Female/Male picker, points, 5 stars, progress). Moon/sun theme button on the profile.
 
 - Gender asked at sign-up (female / male / prefer not to say; migration 0065), editable in Edit profile; the profile character follows it. No picker on the profile.
+
+- Anonymous Range header (sticky, "Talk! No one knows who you are."), Inbox pill, bigger icons/ID. Shared posts carry the person's words (and photo) in link previews (opengraph-image) and in the story card. Wording sweep: no more student/campus copy. Anonymous ID recovery (ID + private recovery code, migration 0068), "Is this your ID?" prompt. Room and Market switched OFF (feature flags room_tab/market_tab = false; routes show a "resting" page). Request-log trim (0066/0067). 200 seeded accounts (100 anonymous, 100 open) exist; admin acting-as/filters for anonymous accounts still to do.
+
+- Anonymous IDs: every ID ever given out is reserved forever in anonymous_handle_registry (case-insensitive, survives account deletion); suggest_anonymous_handle() always returns an unused ID (154 x 153 words x number, then a counter that never repeats). Migration 0069.

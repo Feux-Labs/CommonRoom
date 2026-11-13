@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { BottomSheet } from '@/components/cr/BottomSheet';
 import { apiRequest, errorMessage } from '@/features/app/api';
 import { useAppSession } from '@/features/app/AppSession';
-import type { AnonIdentity } from './api';
+import { suggestAnonymousId, type AnonIdentity } from './api';
 import { ANON_ID_MAX, anonymousIdProblem, generateAnonymousId } from './names';
 
 type Step = 'ask' | 'restore' | 'create' | 'code';
@@ -32,12 +32,32 @@ function AnonymousNameSheetBody({ open, onClose, onSaved, startAt = 'ask', repla
   const { session } = useAppSession();
   const [step, setStep] = useState<Step>(startAt);
   const [handle, setHandle] = useState(() => generateAnonymousId());
+  const edited = useRef(false);
   const [existingId, setExistingId] = useState('');
   const [code, setCode] = useState('');
   const [created, setCreated] = useState<{ identity: AnonIdentity; code: string } | null>(null);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  // Swap the quick local suggestion for one the server has checked against every ID ever given out, unless the person already typed.
+  useEffect(() => {
+    if (!session) return;
+    let active = true;
+    void (async () => {
+      const suggested = await suggestAnonymousId(session);
+      if (active && suggested && !edited.current) setHandle(suggested);
+    })();
+    return () => { active = false; };
+    // Ask once per opening, when the person is known.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user.id]);
+
+  const roll = async () => {
+    edited.current = true;
+    setError('');
+    setHandle((await suggestAnonymousId(session)) ?? generateAnonymousId());
+  };
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -129,8 +149,8 @@ function AnonymousNameSheetBody({ open, onClose, onSaved, startAt = 'ask', repla
         <form noValidate onSubmit={(event) => void save(event)}>
           <label className="cr-label" htmlFor="cr-anon-handle">Anonymous ID</label>
           <div className={error ? 'cr-input e' : 'cr-input'}>
-            <input autoCapitalize="none" autoComplete="off" id="cr-anon-handle" maxLength={ANON_ID_MAX} onChange={(event) => { setHandle(event.target.value.replace(/\s/g, '')); setError(''); }} spellCheck={false} value={handle} />
-            <button className="cr-link" onClick={() => { setHandle(generateAnonymousId()); setError(''); }} type="button">Roll another</button>
+            <input autoCapitalize="none" autoComplete="off" id="cr-anon-handle" maxLength={ANON_ID_MAX} onChange={(event) => { edited.current = true; setHandle(event.target.value.replace(/\s/g, '')); setError(''); }} spellCheck={false} value={handle} />
+            <button className="cr-link" onClick={() => void roll()} type="button">Roll another</button>
           </div>
           {error ? <p className="cr-msg cr-msg--e" role="alert">{error}</p> : <p className="cr-msg">Letters, numbers and underscores. You can change it later.</p>}
           <div className="cr-acts">

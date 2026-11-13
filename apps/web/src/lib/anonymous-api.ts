@@ -39,7 +39,7 @@ export function anonymousRpcError(error: { code?: string; message?: string }, fa
   const knownErrors: Record<string, [string, number]> = {
     anonymous_auth_required: ['Continue with an anonymous session to use Anonymous.', 401],
     anonymous_identity_required: ['Choose your Anonymous name before continuing.', 409],
-    anonymous_handle_taken: ['That Anonymous name is already in use. Try another.', 409],
+    anonymous_handle_taken: ['That Anonymous name is taken, now or in the past. IDs are never reused. Try another.', 409],
     invalid_anonymous_handle: ['Choose a name with 3–24 letters, numbers, spaces, or underscores.', 422],
     invalid_anonymous_scope: ['Choose a valid audience.', 422],
     invalid_anonymous_cursor: ['The feed continuation token is invalid. Refresh the feed to continue.', 400],

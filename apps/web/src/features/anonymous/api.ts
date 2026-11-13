@@ -37,6 +37,16 @@ export const ANON_TOPICS = ['Campus life', 'Library', 'Food', 'Hostel', 'Academi
 export type AnonTopic = (typeof ANON_TOPICS)[number];
 export const ANON_POST_MAX = 300;
 
+/** A free Anonymous ID from the server (it knows every ID ever given out). Returns null if it cannot be reached. */
+export async function suggestAnonymousId(session: Session | null): Promise<string | null> {
+  try {
+    const result = await anonRequest<{ handle: string }>(session, '/identity/suggestion');
+    return typeof result.handle === 'string' && result.handle ? result.handle : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Older posts were saved with these topic names; they are shown with neutral wording. */
 const TOPIC_LABELS: Record<string, string> = { 'Campus life': 'Everyday life', Hostel: 'Home life', Academics: 'Learning' };
 
