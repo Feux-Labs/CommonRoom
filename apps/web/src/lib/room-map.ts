@@ -24,8 +24,8 @@ export function mapRoomPost(row: Record<string, unknown>): RoomPost {
   return {
     id: String(row.id),
     authorId: String(row.author_id ?? ''),
-    authorUsername: String(row.author_username ?? 'student'),
-    authorName: String(row.author_name ?? 'Student'),
+    authorUsername: String(row.author_username ?? 'member'),
+    authorName: String(row.author_name ?? 'Member'),
     authorAvatar: typeof row.author_avatar === 'string' ? row.author_avatar : null,
     school: typeof row.school_label === 'string' ? row.school_label : '',
     caption: String(row.caption ?? ''),

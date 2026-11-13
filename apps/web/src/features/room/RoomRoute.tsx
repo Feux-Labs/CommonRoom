@@ -43,7 +43,7 @@ export function RoomRoute({ focusPostId = null }: { focusPostId?: string | null 
       <AppShell active={null}>
         <main className="cr-boot" style={{ flexDirection: 'column', gap: 10, textAlign: 'center', padding: 24 }}>
           <h1 style={{ fontSize: 20, margin: 0 }}>Room is resting</h1>
-          <p style={{ margin: 0, opacity: 0.75 }}>We’re focusing on Anonymous and Market for now. Room will be back.</p>
+          <p style={{ margin: 0, opacity: 0.75 }}>We’re focusing on Anonymous for now. Room will be back.</p>
           <button className="cr-pbtn cr-pbtn--l" onClick={() => router.push('/anonymous')} type="button">Go to Anonymous</button>
         </main>
       </AppShell>

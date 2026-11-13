@@ -4,7 +4,7 @@ import { MarketBrowse } from '@/features/market/MarketBrowse';
 
 export const metadata: Metadata = {
   title: 'Market · Common Room',
-  description: 'Buy and sell textbooks, electronics, hostel gear and more with students on your campus.',
+  description: 'Buy and sell with people near you.',
 };
 
 export default function MarketplacePage() {

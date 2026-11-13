@@ -85,7 +85,7 @@ function Body({ initialPrompt, initialTheme, onClose, onSave }: { initialPrompt:
         <div className="cr-prompt__ai">
           <p className="cr-section-label">Want fresh ideas?</p>
           <div className="cr-prompt__aibar">
-            <input aria-label="Topic hint" className="cr-input" maxLength={40} onChange={(event) => setHint(event.target.value)} placeholder="A topic hint: hostel, exams, crush…" value={hint} />
+            <input aria-label="Topic hint" className="cr-input" maxLength={40} onChange={(event) => setHint(event.target.value)} placeholder="A topic hint: food, music, crush…" value={hint} />
             <button className="cr-ghost" disabled={generating} onClick={() => void generate()} type="button">{generating ? 'Thinking…' : 'Generate with AI'}</button>
           </div>
           {aiNote ? <p className="cr-note" role="status">{aiNote}</p> : null}

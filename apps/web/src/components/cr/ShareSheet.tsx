@@ -29,7 +29,7 @@ export function ShareSheet({
   preview?: ReactNode;
   context?: string;
   /** When set, a "Share image" and "Save image" option makes a 9:16 card from this text. */
-  card?: { text: string; theme?: CardTheme; kicker?: string; question?: string };
+  card?: { text: string; theme?: CardTheme; kicker?: string; question?: string; image?: string };
 }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
@@ -61,7 +61,7 @@ export function ShareSheet({
   };
 
   const makeCard = async (): Promise<File> => {
-    const blob = await renderShareCard({ text: card?.text ?? text, theme: card?.theme, kicker: card?.kicker, question: card?.question, link: link('card') });
+    const blob = await renderShareCard({ text: card?.text ?? text, theme: card?.theme, kicker: card?.kicker, question: card?.question, image: card?.image, link: link('card') });
     return new File([blob], 'common-room.png', { type: 'image/png' });
   };
 

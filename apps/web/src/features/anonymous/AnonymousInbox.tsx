@@ -16,6 +16,7 @@ import { useAppSession } from '@/features/app/AppSession';
 import { dayLabel, shortAge } from '@/lib/format';
 import { isCardTheme, type CardTheme } from '@/features/share/card';
 import { ChatStreakBadge, ChatStreakLine, useChatStreaks } from './ChatStreak';
+import { RecoveryCodeRow } from './RecoveryCodeRow';
 import { anonRequest, inboxLinkUrl, type AnonIdentity, type InboxLink, type InboxMessage, type InboxThread } from './api';
 import { AnonymousNameSheet } from './AnonymousNameSheet';
 import { PromptPickerSheet } from './PromptPickerSheet';
@@ -181,6 +182,7 @@ export function AnonymousInbox() {
         </div>
         <button aria-label="Link settings" className="cr-icon-btn" onClick={() => router.push('/anonymous/link')} type="button"><Icon name="cog" /></button>
       </header>
+      <RecoveryCodeRow session={account} />
 
       <PushToggle compact />
       {isGuest ? (

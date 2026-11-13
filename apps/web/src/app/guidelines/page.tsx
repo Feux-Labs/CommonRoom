@@ -6,26 +6,26 @@ export const metadata: Metadata = { title: 'Community Guidelines · Common Room'
 export default function GuidelinesPage() {
   return (
     <LegalPage compact title="Community Guidelines" updated="11 November 2026">
-      <p>Common Room is a place for Nigerian students to talk honestly, ask questions, share gist, buy and sell, and find their people. We want it to feel like the best hostel conversation you have ever had: funny, real, a bit rowdy, and safe enough that you can say what you actually think. These guidelines explain what is welcome here, what is not, and what happens when someone crosses the line. They apply to everything on Common Room: Anonymous posts and comments, your Inbox and anonymous links, Room posts, Communities, Marketplace listings and chats, profiles and photos.</p>
+      <p>Common Room is a place for people in Nigeria to talk honestly, ask questions, share gist, buy and sell, and find their people. We want it to feel like the best late-night conversation you have ever had: funny, real, a bit rowdy, and safe enough that you can say what you actually think. These guidelines explain what is welcome here, what is not, and what happens when someone crosses the line. They apply to everything on Common Room: Anonymous posts and comments, your Inbox and anonymous links, Room posts, Communities, Marketplace listings and chats, profiles and photos.</p>
       <p>By using Common Room you agree to follow these guidelines and our Terms. If something is not covered here, use common sense: treat people the way you would want to be treated, and remember there is a real person reading every word.</p>
 
       <h2>1. The idea behind the rules</h2>
-      <p>Anonymity is a tool. It lets a first-year ask a question they are embarrassed about, lets someone admit they are struggling, lets a student say what everyone is thinking about the cafeteria. It is not a licence to hurt people, and it does not mean you are invisible to us. We apply the same rules to everyone, and we would rather explain a rule than hide behind it. Most of these rules exist for four reasons: keep people safe, keep people’s private lives private, keep the marketplace honest, and keep the place enjoyable.</p>
+      <p>Anonymity is a tool. It lets someone ask a question they are embarrassed about, lets someone admit they are struggling, lets a person say what everyone is thinking. It is not a licence to hurt people, and it does not mean you are invisible to us. We apply the same rules to everyone, and we would rather explain a rule than hide behind it. Most of these rules exist for four reasons: keep people safe, keep people’s private lives private, keep the marketplace honest, and keep the place enjoyable.</p>
 
       <h2>2. Who can use Common Room</h2>
       <ul>
         <li>You must be 18 or older. The first time you post, like, comment or message, we ask you to confirm this and accept the Terms. If we learn that someone is under 18, we remove their account and content.</li>
         <li>You do not need an account to browse or to take part in Anonymous, but some things (Marketplace, Communities, Room posting from a profile) need an account with your real name. Signing in also keeps your message history if you change phone or clear your browser.</li>
         <li>One person, one account. Do not create accounts to get around a pause or a ban.</li>
-        <li>Do not pretend to be another person, a lecturer, a school office, a brand or Common Room staff. Parody that is obviously a joke is fine; anything that could fool people is not.</li>
+        <li>Do not pretend to be another person, an official, an organisation, a brand or Common Room staff. Parody that is obviously a joke is fine; anything that could fool people is not.</li>
       </ul>
 
       <h2>3. What is welcome</h2>
       <p>Plenty. You can:</p>
       <ul>
         <li>Joke, banter, tease and use slang, pidgin and humour. Strong opinions and heated debate are fine when they are about ideas, not about attacking people.</li>
-        <li>Complain about courses, schedules, hostels, food, transport, school policies and the general state of campus life. Venting is healthy.</li>
-        <li>Criticise institutions and public figures. You can say a lecturer’s teaching is poor. You cannot invent claims about them, expose their private life, or organise harassment against them.</li>
+        <li>Complain about work, school, food, transport, prices, policies and the general state of everyday life. Venting is healthy.</li>
+        <li>Criticise institutions and public figures. You can say a service or a public figure’s work is poor. You cannot invent claims about them, expose their private life, or organise harassment against them.</li>
         <li>Talk about relationships, crushes, heartbreak, mental health, faith, politics, money and growing up. Be honest and kind about it.</li>
         <li>Ask for help, advice, notes, past questions, roommates, rides, jobs and internships.</li>
         <li>Confess things. A confession is fine; naming and shaming a specific person is not.</li>
@@ -40,19 +40,19 @@ export default function GuidelinesPage() {
       <h3>4.3 Child safety</h3>
       <p>There is zero tolerance for sexual content involving anyone under 18, for grooming, and for any attempt to contact minors for sexual purposes. We remove it immediately, ban the account permanently and report it to the authorities. If you see something like this, report it right away.</p>
       <h3>4.4 Sexual and graphic content</h3>
-      <p>Common Room is a campus community, not an adult site. Do not post nudity, pornography, sexual acts, or sexually explicit descriptions. Do not share intimate images of anyone without their clear consent, including “leaks”; this is a serious violation and often a crime. Suggestive humour and talk about dating and relationships are fine. Photos that may upset people (for example injuries) must be marked as sensitive when you post them so that people can choose to look. Gore, real violence and shocking content posted to disturb people are not allowed.</p>
+      <p>Common Room is a community, not an adult site. Do not post nudity, pornography, sexual acts, or sexually explicit descriptions. Do not share intimate images of anyone without their clear consent, including “leaks”; this is a serious violation and often a crime. Suggestive humour and talk about dating and relationships are fine. Photos that may upset people (for example injuries) must be marked as sensitive when you post them so that people can choose to look. Gore, real violence and shocking content posted to disturb people are not allowed.</p>
       <h3>4.5 Self-harm and suicide</h3>
       <p>If you are struggling, you can say so here. People will often respond kindly. Do not encourage anyone to harm themselves, share methods, or mock someone who is vulnerable. If you or someone you know is in immediate danger, please contact emergency services (112 in Nigeria), go to the nearest hospital, or reach out to a trusted person. Common Room cannot send help to you.</p>
       <h3>4.6 Violence, crime and dangerous activity</h3>
       <p>Do not promote or organise violence, cult activity, kidnapping, fraud, cheating rings that sell exam answers, or the sale of illegal drugs, weapons or stolen goods. Do not post instructions for causing serious harm. Reporting a crime you witnessed or warning others about a scam is fine.</p>
       <h3>4.7 Private information and doxxing</h3>
-      <p>People’s private details stay private. Do not post someone’s phone number, home or hostel room address, email, ID number, bank details, photos taken without consent, private chats or screenshots meant to expose them. In Anonymous posts and comments we block phone numbers, email addresses and links entirely, because on a platform where authors are hidden these are the ways people get stalked, scammed or pulled off the app. Do not try to work out who is behind an anonymous account, and do not share guesses about who it might be.</p>
+      <p>People’s private details stay private. Do not post someone’s phone number, home address, email, ID number, bank details, photos taken without consent, private chats or screenshots meant to expose them. In Anonymous posts and comments we block phone numbers, email addresses and links entirely, because on a platform where authors are hidden these are the ways people get stalked, scammed or pulled off the app. Do not try to work out who is behind an anonymous account, and do not share guesses about who it might be.</p>
       <h3>4.8 Scams, fake listings and impersonation</h3>
       <p>Do not ask for money, advance fees or “registration” payments under false pretences. Do not post fake listings, bait-and-switch prices, or items you do not own. Do not run giveaways that require people’s personal details. Do not send people to other sites or apps to “verify” anything. Keep deals on Common Room where you can, meet in public places, and never send money to someone you have not verified.</p>
       <h3>4.9 Spam and manipulation</h3>
       <p>No repeated advertising, copy-and-paste posts, mass messaging, fake likes or fake accounts, or links that trick people. Do not sell followers, votes or engagement. Promotions must use approved Sponsored placements (when available), not your posts or messages.</p>
       <h3>4.10 Misinformation that can cause harm</h3>
-      <p>Do not knowingly spread false claims that could put people at risk, such as fake health advice, fake emergency alerts, fake exam or admission announcements, or fake news about an incident on campus. Opinions, satire and honest mistakes are different; if you get something wrong and are told, correct it.</p>
+      <p>Do not knowingly spread false claims that could put people at risk, such as fake health advice, fake emergency alerts, fake announcements, or fake news about an incident. Opinions, satire and honest mistakes are different; if you get something wrong and are told, correct it.</p>
       <h3>4.11 Other people’s work</h3>
       <p>Only post content you made or have the right to share. If you believe your work has been copied, use the contact address at the bottom of this page with the link and details and we will look into it.</p>
 
@@ -78,7 +78,7 @@ export default function GuidelinesPage() {
         <li>List only items and services you genuinely have, with honest photos, descriptions and prices.</li>
         <li>Not allowed: illegal goods, weapons, drugs, counterfeit items, stolen property, adult items, exam answers or papers sold in breach of school rules, anything that cannot lawfully be sold in Nigeria.</li>
         <li>Be polite in chats. Harassing or threatening a buyer or seller is treated like harassment anywhere else on Common Room.</li>
-        <li>Common Room is not a party to your deals and does not guarantee them. Meet in public places on campus when you can, inspect the item before you pay, and be careful with anyone asking for payment first or pushing you to leave the app.</li>
+        <li>Common Room is not a party to your deals and does not guarantee them. Meet in public places when you can, inspect the item before you pay, and be careful with anyone asking for payment first or pushing you to leave the app.</li>
         <li>Payments made through Paystack are processed by Paystack under its own terms.</li>
       </ul>
 
@@ -106,7 +106,7 @@ export default function GuidelinesPage() {
         <li>Never share passwords, one-time codes or bank PINs with anyone, ever.</li>
         <li>Do not share where you live, your timetable or your daily routine with people you have not met.</li>
         <li>Be careful of anyone who rushes you to pay, to move to WhatsApp, or to click a link.</li>
-        <li>Your Anonymous ID is only as private as what you write. Details like your course, hostel block, nickname and year can identify you.</li>
+        <li>Your Anonymous ID is only as private as what you write. Details like your school, workplace, street, nickname and year can identify you.</li>
         <li>If something feels wrong, stop, block, and report it.</li>
       </ul>
 

@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Common Room',
     short_name: 'Common Room',
-    description: 'Say what you can’t say anywhere else, to your own campus.',
+    description: 'Say what you can’t say anywhere else.',
     start_url: '/anonymous',
     display: 'standalone',
     background_color: '#ffffff',

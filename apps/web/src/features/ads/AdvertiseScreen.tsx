@@ -167,7 +167,7 @@ export function AdvertiseScreen() {
     <main className="cr-screen cr-adv">
       <header className="cr-hd">
         <button aria-label="Back" className="cr-icon-btn" onClick={() => router.back()} type="button"><Icon name="back" /></button>
-        <div className="cr-hd__grow"><h1 className="cr-hd__t">Advertise</h1><p className="cr-hd__sub">Reach students in Anonymous, Room and Marketplace.</p></div>
+        <div className="cr-hd__grow"><h1 className="cr-hd__t">Advertise</h1><p className="cr-hd__sub">Reach people on Common Room.</p></div>
       </header>
 
       {ready && !account ? (

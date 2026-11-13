@@ -44,6 +44,17 @@ export function wrapText(measure: (text: string) => number, text: string, maxWid
   return lines;
 }
 
+/** Loads a photo for the card. Returns null if it cannot be read (blocked, offline), so the card is simply made without it. */
+async function loadPhoto(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = src;
+  });
+}
+
 export function shortLink(url: string): string {
   try {
     const parsed = new URL(url);
@@ -61,8 +72,10 @@ export async function renderShareCard(options: {
   kicker?: string;
   /** A received message shown above the words, for public reply cards ("they asked, you answered"). */
   question?: string;
+  /** The post's photo: it goes into the card above the words, so a shared post carries both. */
+  image?: string;
 }): Promise<Blob> {
-  const { text, theme = 'blue-hour', link, kicker, question } = options;
+  const { text, theme = 'blue-hour', link, kicker, question, image } = options;
   const canvas = document.createElement('canvas');
   canvas.width = CARD_WIDTH;
   canvas.height = CARD_HEIGHT;
@@ -116,8 +129,11 @@ export async function renderShareCard(options: {
     }
     panelHeight = questionLines.length * questionLineHeight + 100;
   }
-  const maxLines = question ? 8 : 12;
-  let size = question ? 72 : 88;
+  const photo = image ? await loadPhoto(image) : null;
+  const photoHeight = photo ? 700 : 0;
+  const photoBlock = photo ? photoHeight + 60 : 0;
+  const maxLines = photo ? 5 : question ? 8 : 12;
+  let size = photo ? 60 : question ? 72 : 88;
   let lines: string[] = [];
   for (; size >= 40; size -= 4) {
     context.font = `500 ${size}px ${family}`;
@@ -131,7 +147,7 @@ export async function renderShareCard(options: {
   const lineHeight = Math.round(size * 1.28);
   const textHeight = lines.length * lineHeight;
   const gap = question ? 110 : 0;
-  const groupHeight = kickerHeight + (question ? panelHeight + gap : 0) + textHeight;
+  const groupHeight = kickerHeight + photoBlock + (question ? panelHeight + gap : 0) + textHeight;
   const areaTop = 330;
   const areaBottom = CARD_HEIGHT - 300;
   let y = areaTop + Math.max(0, (areaBottom - areaTop - groupHeight) / 2);
@@ -143,6 +159,19 @@ export async function renderShareCard(options: {
     context.fillText(kicker, centerX, y + 40);
     context.globalAlpha = 1;
     y += kickerHeight;
+  }
+  if (photo) {
+    // The photo, cropped to fill a rounded frame (like the feed does), above the words.
+    context.save();
+    context.beginPath();
+    context.roundRect(marginX, y, maxWidth, photoHeight, 48);
+    context.clip();
+    const scale = Math.max(maxWidth / photo.width, photoHeight / photo.height);
+    const drawWidth = photo.width * scale;
+    const drawHeight = photo.height * scale;
+    context.drawImage(photo, marginX + (maxWidth - drawWidth) / 2, y + (photoHeight - drawHeight) / 2, drawWidth, drawHeight);
+    context.restore();
+    y += photoBlock;
   }
   if (question) {
     context.fillStyle = '#ffffff';
@@ -162,8 +191,12 @@ export async function renderShareCard(options: {
 
   // Footer: the link people follow, and a small invitation to get their own.
   context.globalAlpha = 0.9;
-  context.font = `500 38px ${family}`;
-  context.fillText(shortLink(link), centerX, CARD_HEIGHT - 190);
+  // A long link shrinks to fit instead of running off the card.
+  const linkText = shortLink(link);
+  let linkSize = 38;
+  context.font = `500 ${linkSize}px ${family}`;
+  while (linkSize > 20 && measure(linkText) > maxWidth) { linkSize -= 2; context.font = `500 ${linkSize}px ${family}`; }
+  context.fillText(linkText, centerX, CARD_HEIGHT - 190);
   context.globalAlpha = 0.7;
   context.font = `400 30px ${family}`;
   context.fillText('Get your own anonymous link at commonroom.feuxlabs.com.ng', centerX, CARD_HEIGHT - 130);

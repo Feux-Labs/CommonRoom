@@ -45,8 +45,8 @@ export async function GET(request: Request) {
 
   const stories = [...grouped.entries()].map(([authorId, items]) => ({
     authorId,
-    authorName: items[0]?.authorName ?? 'Student',
-    authorUsername: items[0]?.authorUsername ?? 'student',
+    authorName: items[0]?.authorName ?? 'Member',
+    authorUsername: items[0]?.authorUsername ?? 'member',
     authorAvatar: avatars.get(authorId) ?? null,
     seen: false,
     items,

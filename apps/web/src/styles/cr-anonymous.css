@@ -687,3 +687,41 @@
 .cr-tcard__input { width: 100%; min-height: 3.2em; resize: none; border: 0; outline: 0; background: transparent; color: inherit; font: inherit; line-height: inherit; text-align: center; overflow: hidden; }
 .cr-tcard__input::placeholder { color: rgba(255, 255, 255, 0.75); }
 .cr-tcard__input:disabled { opacity: 1; }
+
+.cr-recovery { display: grid; gap: 10px; justify-items: center; margin: 12px 0; }
+.cr-recovery__code { margin: 0; padding: 14px 18px; border-radius: 14px; border: 1px dashed var(--cr-border, #d4d4d4); background: var(--cr-subtle, #f0f0f0); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.35rem; letter-spacing: 0.08em; font-weight: 600; user-select: all; }
+
+/* ---------- Anonymous feed: a steady, grown-up header; clearer ID and action icons ---------- */
+.cr-anon.cr-screen { padding-top: 0; }
+.cr-anon > .cr-hd {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  margin: 0;
+  padding: max(12px, env(safe-area-inset-top)) 16px 10px;
+  background: var(--cr-surface);
+  border-bottom: 1px solid var(--cr-soft-border);
+}
+.cr-anon .cr-hd__big { font-size: 15px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+.cr-anon .cr-hd__sub { margin-top: 3px; font-size: 12.5px; }
+.cr-anon__inbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 15px;
+  border: 1px solid var(--cr-border);
+  border-radius: 999px;
+  background: var(--cr-surface);
+  color: var(--cr-text);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cr-anon__inbox .i { width: 19px; height: 19px; }
+.cr-anon .cr-apost__meta { font-size: 12.5px; }
+.cr-anon .cr-apost__id { font-size: 15.5px; font-weight: 700; color: var(--cr-text); }
+.cr-anon .cr-actions { flex-wrap: wrap; gap: 4px 20px; margin-top: 12px; }
+.cr-anon .cr-act { gap: 7px; padding: 6px 2px; font-size: 13.5px; }
+.cr-anon .cr-act .i { width: 22px; height: 22px; }
+.cr-anon .cr-actions__end { font-weight: 600; }

@@ -385,8 +385,8 @@ export function AuthFlow({
           <button aria-label="Close" className="cr-auth__icon-btn" onClick={onClose} type="button"><Icon name="x" /></button>
         </div>
         <WelcomeArt />
-        <h1 className="cr-auth__hero-title" ref={headingRef} tabIndex={-1}>Your campus, in one room.</h1>
-        <p className="cr-auth__hero-sub">Post to your campus, say things anonymously, and buy and sell with students near you.</p>
+        <h1 className="cr-auth__hero-title" ref={headingRef} tabIndex={-1}>Say what you can’t say anywhere else.</h1>
+        <p className="cr-auth__hero-sub">Post anonymously, share gist and talk with people across Nigeria.</p>
         {setupBanner}
         <div className="cr-auth__hero-actions">
           <button className="cr-auth__btn cr-auth__btn--light" disabled={!configured} onClick={() => go('sign-up-email')} type="button">Create account</button>

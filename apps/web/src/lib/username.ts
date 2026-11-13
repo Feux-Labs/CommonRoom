@@ -26,7 +26,7 @@ export function usernameError(value: unknown): string | null {
 /** A starting username built from a display name, used when none was chosen. */
 export function usernameFromName(displayName: string): string {
   const base = displayName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 22);
-  return base.length >= USERNAME_MIN && !RESERVED.has(base) ? base : 'student';
+  return base.length >= USERNAME_MIN && !RESERVED.has(base) ? base : 'member';
 }
 
 export function withSuffix(base: string, random: () => number = Math.random): string {

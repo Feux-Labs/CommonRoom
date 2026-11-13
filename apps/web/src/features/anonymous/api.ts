@@ -37,10 +37,13 @@ export const ANON_TOPICS = ['Campus life', 'Library', 'Food', 'Hostel', 'Academi
 export type AnonTopic = (typeof ANON_TOPICS)[number];
 export const ANON_POST_MAX = 300;
 
+/** Older posts were saved with these topic names; they are shown with neutral wording. */
+const TOPIC_LABELS: Record<string, string> = { 'Campus life': 'Everyday life', Hostel: 'Home life', Academics: 'Learning' };
+
 export function topicOf(post: Pick<AnonPost, 'title'>): string | null {
   const title = post.title?.trim();
   if (!title) return null;
-  return (ANON_TOPICS as readonly string[]).includes(title) ? title : null;
+  return (ANON_TOPICS as readonly string[]).includes(title) ? (TOPIC_LABELS[title] ?? title) : null;
 }
 
 export class AnonymousApiError extends Error {

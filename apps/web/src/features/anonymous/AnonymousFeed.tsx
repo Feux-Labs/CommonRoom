@@ -35,6 +35,12 @@ import { trackEvent } from '@/lib/analytics';
 import { cacheGet, cacheSet } from '@/lib/client-cache';
 
 /** Anonymous feed screen and mockups 15, 18, 19, 71, 72, 73. `focusPostId` shows one shared post. */
+/** The photo a shared post should carry in its card: the first photo, unless the author marked the media sensitive. */
+function sharePhoto(post: AnonPost): string | undefined {
+  const photo = (post.media_items ?? []).find((item) => item.mediaType === 'photo' && !item.sensitive);
+  return photo ? anonMediaUrl(photo.path) || undefined : undefined;
+}
+
 export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusPostId?: string | null; pinPostId?: string | null }) {
   const router = useRouter();
   const toast = useToast();
@@ -52,6 +58,8 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
   const [moreFailed, setMoreFailed] = useState(false);
   const [identity, setIdentity] = useState<AnonIdentity | null | undefined>(undefined);
   const [nameSheet, setNameSheet] = useState<null | (() => void)>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [switchOpen, setSwitchOpen] = useState(false);
   const [commentsFor, setCommentsFor] = useState<AnonPost | null>(null);
   const [comments, setComments] = useState<AnonComment[]>([]);
   const [commentsStatus, setCommentsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -181,6 +189,25 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
     return () => { active = false; };
   }, [account]);
 
+  // Once per visit: if this phone already has an Anonymous ID, ask whether it is yours before using it.
+  const confirmKey = session ? `commonroom:anon-confirmed:${session.user.id}` : null;
+  const identityHandle = identity?.handle ?? null;
+  useEffect(() => {
+    if (!confirmKey || !identityHandle) return;
+    let active = true;
+    void (async () => {
+      await Promise.resolve();
+      let seen = false;
+      try { seen = window.sessionStorage.getItem(confirmKey) === '1'; } catch { seen = false; }
+      if (active && !seen) setConfirmOpen(true);
+    })();
+    return () => { active = false; };
+  }, [confirmKey, identityHandle]);
+  const markConfirmed = () => {
+    if (confirmKey) { try { window.sessionStorage.setItem(confirmKey, '1'); } catch { /* storage unavailable */ } }
+    setConfirmOpen(false);
+  };
+
   /** Runs `action` once the user has an account and an anonymous identity. */
   const withIdentity = (action: () => void) => {
     if (!ensureAdult(() => withIdentity(action))) return;
@@ -301,12 +328,12 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
           <button aria-label="Back to Anonymous" className="cr-icon-btn" onClick={() => router.push('/anonymous')} type="button"><Icon name="back" /></button>
         ) : (
           <div>
-            <h1 className="cr-hd__big">Anonymous</h1>
-            <p className="cr-hd__sub">Never linked to your profile.</p>
+            <h1 className="cr-hd__big">Anonymous Range</h1>
+            <p className="cr-hd__sub">Talk! No one knows who you are.</p>
           </div>
         )}
-        <button aria-label="Inbox" className="cr-icon-btn" onClick={() => router.push('/anonymous/inbox')} type="button">
-          <Icon name="inbox" />
+        <button aria-label="Inbox" className="cr-anon__inbox" onClick={() => router.push('/anonymous/inbox')} type="button">
+          <Icon name="inbox" />Inbox
         </button>
       </header>
 
@@ -329,7 +356,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
             <article className="cr-apost">
               <AnonAvatar />
               <div className="cr-apost__main">
-                <p className="cr-apost__meta">{post.author_handle || 'Anonymous'} · {shortAge(post.created_at)}{post.edited ? ' · edited' : ''}{topic ? ` · ${topic}` : ''}</p>
+                <p className="cr-apost__meta"><b className="cr-apost__id">{post.author_handle || 'Anonymous'}</b> · {shortAge(post.created_at)}{post.edited ? ' · edited' : ''}{topic ? ` · ${topic}` : ''}</p>
                 {post.body && !(post.media_items ?? []).length ? (
                   <div className={`cr-tcard cr-tcard--${post.card_theme ?? 'blue-hour'} cr-tcard--${post.body.length > 160 ? 'sm' : post.body.length > 80 ? 'md' : 'lg'}`}>{post.body}</div>
                 ) : null}
@@ -408,7 +435,7 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
       />
 
       <ShareSheet
-        card={shareTarget ? { text: shareTarget.body, theme: isCardTheme(shareTarget.card_theme) ? shareTarget.card_theme : 'blue-hour', kicker: 'Anonymous' } : undefined}
+        card={shareTarget ? { text: shareTarget.body, theme: isCardTheme(shareTarget.card_theme) ? shareTarget.card_theme : 'blue-hour', kicker: 'Anonymous', image: sharePhoto(shareTarget) } : undefined}
         onClose={() => setShareTarget(null)}
         open={Boolean(shareTarget)}
         preview={shareTarget ? <><AnonAvatar size="s" /><p>{shareTarget.body}</p></> : null}
@@ -438,12 +465,23 @@ export function AnonymousFeed({ focusPostId = null, pinPostId = null }: { focusP
         onClose={() => setNameSheet(null)}
         onSaved={(saved) => {
           setIdentity(saved);
+          markConfirmed();
           const pending = nameSheet;
           setNameSheet(null);
           pending?.();
         }}
         open={Boolean(nameSheet)}
       />
+
+      <BottomSheet description="We found an Anonymous ID on this phone." onClose={markConfirmed} open={confirmOpen && !nameSheet} title="Is this your Anonymous ID?">
+        <p className="cr-note"><b>{identity?.handle}</b></p>
+        <div className="cr-acts">
+          <button className="cr-ghost cr-ghost--l" onClick={() => { setConfirmOpen(false); setSwitchOpen(true); }} type="button">No, use another ID</button>
+          <button className="cr-pbtn cr-pbtn--l" onClick={markConfirmed} type="button">Yes, that is me</button>
+        </div>
+      </BottomSheet>
+
+      <AnonymousNameSheet onClose={() => setSwitchOpen(false)} onSaved={() => setSwitchOpen(false)} open={switchOpen} replacing startAt="restore" />
 
       {lightbox ? (
         <div aria-label="Photo" aria-modal="true" className="cr-lightbox" onClick={() => setLightbox(null)} role="dialog">

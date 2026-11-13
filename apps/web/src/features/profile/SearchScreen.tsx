@@ -115,13 +115,13 @@ export function SearchScreen() {
         <button aria-label="Back" className="cr-icon-btn" onClick={() => router.back()} type="button"><Icon name="back" /></button>
         <div className="cr-sch cr-sch--grow">
           <Icon name="srch" />
-          <input aria-label="Search students and schools" autoFocus enterKeyHint="search" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && clean) remember(clean); }} placeholder="Search students and schools" type="search" value={query} />
+          <input aria-label="Search people" autoFocus enterKeyHint="search" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && clean) remember(clean); }} placeholder="Search students and schools" type="search" value={query} />
           {query ? <button aria-label="Clear search" className="cr-icon-btn" onClick={() => setQuery('')} type="button"><Icon name="x" /></button> : null}
         </div>
       </header>
 
       {ready && !account ? (
-        <StateBlock actions={<button className="cr-pbtn cr-pbtn--l" onClick={() => requireAccount('sign-in')} type="button">Sign in</button>} description="Sign in to search for students." icon="srch" title="Find people on campus" />
+        <StateBlock actions={<button className="cr-pbtn cr-pbtn--l" onClick={() => requireAccount('sign-in')} type="button">Sign in</button>} description="Sign in to search for people." icon="srch" title="Find people on campus" />
       ) : null}
 
       {account && clean.length < 2 ? (
@@ -154,7 +154,7 @@ export function SearchScreen() {
               <button className="cr-row-btn" key={item} onClick={() => setQuery(item)} type="button"><Icon name="clk" /><span className="cr-row-btn__main"><span className="cr-row-btn__title">{item}</span></span></button>
             ))}
           </>
-        ) : <p className="cr-empty-line">Search for students by name or username, or for a school.</p>
+        ) : <p className="cr-empty-line">Search for people by name or username.</p>
       ) : null}
 
       {account && clean.length >= 2 ? (
@@ -163,7 +163,7 @@ export function SearchScreen() {
           {status === 'error' ? (
             <StateBlock actions={<button className="cr-pbtn cr-pbtn--l" onClick={() => setRetry((value) => value + 1)} type="button">Try again</button>} description="Check your connection and try again." icon="warn" role="alert" title="Search didn’t load" />
           ) : null}
-          {people.length ? <p className="cr-section-label">Students</p> : null}
+          {people.length ? <p className="cr-section-label">People</p> : null}
           {people.map((person) => (
             <button className="cr-row-btn" key={person.id} onClick={() => openPerson(person)} type="button">
               <UserAvatar name={person.display_name} src={person.avatar_url} tone="gray" />

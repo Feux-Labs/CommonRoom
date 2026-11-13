@@ -10,7 +10,7 @@ export const PROMPT_TEMPLATES: PromptTemplate[] = [
   { id: 'are-you-my-crush', text: 'Are you my crush? 👀', theme: 'rose-note' },
   { id: 'nice-thing', text: 'Say the nice thing you never said ❤️', theme: 'warm-glow' },
   { id: 'confess', text: 'Confess something about me 🤫', theme: 'blue-hour' },
-  { id: 'hostel-gist', text: 'Hostel gist: what did you see? 👀', theme: 'warm-glow' },
+  { id: 'hostel-gist', text: 'Gist: what did you see? 👀', theme: 'warm-glow' },
   { id: 'rate-vibe', text: 'Rate my vibe, be honest 😭', theme: 'soft-sky' },
   { id: 'date', text: 'Who should I date? Choose wisely 💀', theme: 'rose-note' },
   { id: 'roast', text: 'Roast me. I can take it 🔥', theme: 'warm-glow' },

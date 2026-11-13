@@ -124,7 +124,7 @@ export function Onboarding({
           <DotsProgress current={1} total={3} />
           <button className="cr-auth__link" onClick={onSignOut} type="button">Sign out</button>
         </div>
-        {heading('Are you a student?', 'This helps show you your campus. You can skip it.')}
+        {heading('Add your school?', 'Optional. It helps show you posts from your school. You can skip it.')}
         <div className="cr-auth__form" style={{ flex: 1 }}>
           {needsName ? (
             <Input inputProps={{ autoComplete: 'name', maxLength: 80, required: true }} label="Full name" onChange={(event) => setDisplayName(event.target.value)} placeholder="Your name" value={displayName} />
@@ -136,7 +136,7 @@ export function Onboarding({
             ))}
           </div>
           {error ? <p className="msg e" role="alert">{error}</p> : null}
-          <button className="cr-auth__btn cr-auth__btn--push" onClick={() => choose('yes')} type="button">Yes, I’m a student</button>
+          <button className="cr-auth__btn cr-auth__btn--push" onClick={() => choose('yes')} type="button">Yes, add my school</button>
           <button className="ghost" onClick={() => choose('no')} type="button">No</button>
           <p className="cr-auth__center">
             <button className="cr-auth__link" onClick={() => choose('skip')} type="button">Skip for now</button>

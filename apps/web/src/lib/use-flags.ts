@@ -32,3 +32,15 @@ export function useFlag(key: string): boolean {
   }, []);
   return flags?.[key] ?? true;
 }
+
+/** Like useFlag, but also says whether the switches have loaded yet, so a screen can wait instead of flashing on then off. */
+export function useFlagState(key: string): { loaded: boolean; enabled: boolean } {
+  const [flags, setFlags] = useState<Flags | null>(cached);
+  useEffect(() => {
+    if (cached) return;
+    let active = true;
+    void load().then((loaded) => { if (active) setFlags(loaded); });
+    return () => { active = false; };
+  }, []);
+  return { loaded: flags !== null, enabled: flags?.[key] ?? true };
+}

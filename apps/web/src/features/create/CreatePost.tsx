@@ -317,12 +317,12 @@ export function CreatePost({ destination, communityId }: { destination: CreateDe
           {anonymous && files.length === 0 ? null : <div className="cr-create__compose">
             {anonymous ? <AnonAvatar /> : <UserAvatar name={profile?.displayName} src={profile?.avatarUrl} />}
             <textarea
-              aria-label={anonymous ? 'Say it anonymously' : 'What’s happening on campus?'}
+              aria-label={anonymous ? 'Say it anonymously' : 'What’s happening?'}
               className="cr-bare-textarea"
               disabled={publishing}
               maxLength={maxLength}
               onChange={(event) => setCaption(event.target.value)}
-              placeholder={anonymous ? 'Say it anonymously…' : 'What’s happening on campus?'}
+              placeholder={anonymous ? 'Say it anonymously…' : 'What’s happening?'}
               ref={textareaRef}
               rows={4}
               value={caption}

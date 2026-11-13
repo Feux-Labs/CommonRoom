@@ -141,7 +141,7 @@ export function MyProfile() {
         {subtitle(profile.course, profile.year) ? <p className="cr-profile__sub">{subtitle(profile.course, profile.year)}</p> : null}
         {profile.school && profile.showSchoolOnProfile ? <p className="cr-profile__sub">{profile.school}</p> : null}
         {person?.bio ? <p className="cr-profile__bio">{person.bio}</p> : null}
-        <Link className="cr-row-btn" href="/advertise"><span className="cr-row-btn__main"><span className="cr-row-btn__title">Advertise on Common Room</span><span className="cr-row-btn__sub">Reach students in Anonymous, Room and Marketplace</span></span></Link>
+        <Link className="cr-row-btn" href="/advertise"><span className="cr-row-btn__main"><span className="cr-row-btn__title">Advertise on Common Room</span><span className="cr-row-btn__sub">Reach people on Common Room</span></span></Link>
         <div className="cr-stats cr-stats--left">
           <div><b>{compactCount(person?.posts.length ?? 0)}</b>Posts</div>
           <div><b>{compactCount(person?.follower_count ?? 0)}</b>Followers</div>
@@ -372,7 +372,7 @@ export function PersonProfileScreen({ id }: { id: string }) {
           <button aria-label="More options" className="cr-icon-btn" disabled={!person} onClick={() => { if (requireAccount('sign-in')) setSafetyOpen(true); }} type="button"><Icon name="more" /></button>
         </span>
       </header>
-      {hydrated && !account && ready ? <StateBlock actions={<button className="cr-pbtn cr-pbtn--l" onClick={() => requireAccount('sign-in')} type="button">Sign in</button>} description="Sign in to see student profiles." icon="user" title="Sign in to continue" /> : null}
+      {hydrated && !account && ready ? <StateBlock actions={<button className="cr-pbtn cr-pbtn--l" onClick={() => requireAccount('sign-in')} type="button">Sign in</button>} description="Sign in to see profiles." icon="user" title="Sign in to continue" /> : null}
       {!hydrated || (status === 'loading' && account) ? <div className="cr-pad"><FeedSkeleton count={1} label="Loading profile" /></div> : null}
       {status === 'error' ? <ErrorBlock description="It may not exist, or your connection dropped." onRetry={reload} title="Couldn’t load this profile" /> : null}
       {status === 'ready' && person ? (

@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   // Base for share-preview image links. Set NEXT_PUBLIC_SITE_URL to the real domain when deploying.
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
   title: 'Common Room',
-  description: 'Post to your campus, say things anonymously, and buy and sell with students near you.',
+  description: 'Say what you can’t say anywhere else. Post anonymously and talk with people across Nigeria.',
 };
 
 export const viewport: Viewport = {

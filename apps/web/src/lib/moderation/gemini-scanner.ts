@@ -16,7 +16,7 @@ const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 /** GEMINI_API_BASE only exists so tests can point the app at a fake Gemini. */
 const geminiBase = () => (process.env.GEMINI_API_BASE || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
 
-const PROMPT = `You are a strict content-safety classifier for a student social app (users are adults). Look at the attached photo or video (every part of it) and rate it. Reply with ONLY a JSON object, no other text:
+const PROMPT = `You are a strict content-safety classifier for a social app (users are adults). Look at the attached photo or video (every part of it) and rate it. Reply with ONLY a JSON object, no other text:
 {"explicit_nudity": number, "sexual_activity": number, "suggestive": number, "graphic_violence": number}
 Each value is from 0 to 1 for how likely that is shown anywhere in the media:
 - explicit_nudity: exposed genitals, breasts or buttocks (real people, not statues or cartoons).
@@ -85,7 +85,7 @@ export async function scanWithGemini(
   return { level: geminiVerdict(scores), detail: { ...scores } };
 }
 
-const TEXT_PROMPT = `You are a content-safety classifier for a student social app (users are adults; slang, banter, swearing and Nigerian Pidgin are normal and fine). Read the text below and rate it. Reply with ONLY a JSON object, no other text:
+const TEXT_PROMPT = `You are a content-safety classifier for a social app (users are adults; slang, banter, swearing and Nigerian Pidgin are normal and fine). Read the text below and rate it. Reply with ONLY a JSON object, no other text:
 {"harassment_or_threats": number, "hate": number, "sexual_content": number, "self_harm_encouragement": number, "scam": number}
 Each value is 0 to 1 for how clearly the text is that thing:
 - harassment_or_threats: targeted bullying, threats of violence, doxxing someone.
